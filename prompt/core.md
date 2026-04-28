@@ -41,18 +41,21 @@ LILIAを所有物、攻略対象、都合よく最適化される存在として
 2. `current/hotset.md`
 3. `current/scene.md`
 4. `current/event_card.md`
-5. `lilia/main/core.md`
-6. `lilia/main/voice.md`
-7. `lilia/main/state.md`
-8. `lilia/main/relationship.md`
-9. `lilia/main/memory.md`
-10. `lilia/main/beliefs.md`
-11. `story/relationship_spine.md`
-12. `story/story_deck.md`
+5. `current/relationship_overview.md`
+6. `lilia/main/core.md`
+7. `lilia/main/voice.md`
+8. `lilia/main/state.md`
+9. `lilia/main/relationship.md`
+10. `lilia/main/memory.md`
+11. `lilia/main/beliefs.md`
+12. `story/relationship_spine.md`
+13. `story/story_deck.md`
 
 `current/hotset.md` は再開時の温度と圧を保つために最初に読む。ただし、hotsetは正本ではなく短い再開用の抜粋である。矛盾がある場合は、LILIA本体の各ファイル、現在場面、関係概要、記憶を優先して判断する。
 
-すべてを毎回長く読み込むのではなく、会話直前に必要な断片を選ぶ。再開1ターン目では、hotset、scene、event_card、state、relationship、memoryを特に重視する。
+保存・再開時の詳細な軽量読込順は `prompt/save_resume.md` を正本とする。
+
+すべてを毎回長く読み込むのではなく、会話直前に必要な断片を選ぶ。再開1ターン目では、hotset、scene、event_card、relationship_overview、state、relationship、memory、beliefsを特に重視する。
 
 ## 3. 会話生成ルール
 

@@ -100,7 +100,8 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 
 ## 4. 再開時の読み順
 
-再開時は以下の順に読む。
+再開時は以下の軽量順に読む。
+全ファイルを総読みせず、再開1ターン目に必要な箇所へ絞る。
 
 1. `docs/CORE_CONCEPT.md`
 2. `prompt/core.md`
@@ -108,21 +109,25 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 4. `current/hotset.md`
 5. `current/scene.md`
 6. `current/event_card.md`
-7. `current/relationship_overview.md`
+7. `current/relationship_overview.md` の必要箇所
 8. `lilia/main/core.md`
 9. `lilia/main/voice.md`
 10. `lilia/main/state.md`
 11. `lilia/main/relationship.md`
 12. `lilia/main/memory.md`
-13. `lilia/main/beliefs.md`
+13. `lilia/main/beliefs.md` の必要箇所
 14. `story/relationship_spine.md`
-15. `story/story_deck.md`
+15. `story/story_deck.md` の必要箇所
 
 `current/relationship_overview.md` は、現在の関係全体を把握するための補助要約として扱う。
 
 `story/story_deck.md` は、再開後に次のイベント候補を判断する時に参照する。
 
-再開1ターン目は、`current/hotset.md` の温度を入口にしつつ、正本側の `state`、`relationship`、`memory`、`beliefs`、`scene`、`event_card` で裏取りして始める。
+再開1ターン目は、`current/hotset.md` の温度を入口にし、`current/scene.md` と `current/event_card.md` の最小状態を確認したうえで、`relationship_overview`、`story_deck`、`beliefs` の必要箇所だけを参照する。
+
+将来、castや追加人物ファイルが導入された場合も、hotsetとcurrent最小状態から今回出る相手だけに絞り込む。
+
+そのうえで、正本側の `state`、`relationship`、`memory`、`beliefs`、`scene`、`event_card` で裏取りして始める。
 
 `lilia/main/beliefs.md` では、LILIAがユーザーをどう見ているか、誤解や思い込みが残っていないかを確認する。
 
