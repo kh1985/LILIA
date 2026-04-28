@@ -7,6 +7,14 @@
 
 - 未設定
 
+## Selected Defaults
+
+- 未設定
+
+## Light Story Reference Pass Output
+
+- 未設定
+
 ## 抽出した表現軸
 
 - 未設定

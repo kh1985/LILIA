@@ -20,8 +20,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - state scaffold: 完了
 - style reference scaffold: 完了
 - Style Defaults / Intimacy Defaults Completion: 完了
+- New Session Initialization: 設計仕様完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は New Session Initialization
+- 次は Case / Event Card Playability Gate
 
 ## 3. Completed Foundation
 
@@ -35,7 +36,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 3. Startup Flow
    - `prompt/startup.md` を正本として、起動直後の `new` / `resume` / `consult` / `unknown` 分岐を固定した。
-   - Status: 完了
+   - Status: 設計仕様完了 / 実生成コード未実装
 
 4. State Scaffold
    - `docs/STATE_STRUCTURE.md` と `templates/session/` で、最小state / memory / relationship / story / style構造を固定した。
@@ -55,7 +56,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - `prompt/newgame.md` のQ&A結果から `session.json`、`current/*`、`lilia/main/*`、`story/*`、`style/*` を初期生成する。
    - 旧LIRIAの `create_session`、Initial Story Assembly、`extract_newgame_state_candidates` の思想を、LILIAの1人運用とMarkdown scaffoldへ軽量化して採用する。
    - 初回scene前に、関係温度、生活の足場、LILIAが守っているもの、避けているもの、小さな出来事、style参照を短く接続する。
-   - Status: 次に着手
+   - `docs/NEW_SESSION_INITIALIZATION.md` を正本として、Q&Aから各ファイルへの写像、Light Story Reference Passの出力先、new直後resume可能な最小状態を固定した。
+   - `templates/session/` は `session.json`、`current/event_card.md`、`current/hotset.md`、`style/rules.md` などを初期化ルールに合わせて補強済み。
+   - Status: 完了
 
 3. Case / Event Card Playability Gate
    - 旧LIRIAの Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate を、LILIAの `current/event_card.md` 向けに再設計する。
@@ -63,7 +66,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 最低限、visible problem、first concrete action、handles 2-4個、if ignored、next visible change、relationship stakeを持たせる。
    - 真相は隠してよいが、依頼や場面の可プレイ性は隠さない。
    - `story/story_deck.md` は素材・圧・未回収札、`current/event_card.md` は今触れる可視イベントとして責務分離する。
-   - Status: 未着手
+   - Status: 次に着手
 
 4. Relationship / Character Voice Continuity Gate
    - LILIAの声、呼び方、関係認識、誤解、信頼、摩擦がresumeで巻き戻らないようにする。
@@ -139,9 +142,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は New Session Initialization。
+次の実作業は Case / Event Card Playability Gate。
 
-Style Defaults / Intimacy Defaults Completion はROADMAP上の直前マイルストーンとして完了済みであり、次は `prompt/newgame.md` のQ&A結果から `session.json`、`current/*`、`lilia/main/*`、`story/*`、`style/*` を初期生成するルールを固める。
+New Session Initialization は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
+次は `current/event_card.md` を実プレイで触れる小さな出来事として成立させる gate を設計する。
+visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change を、重いcase_engineなしでチェックできるようにする。
 
 ## 6. Update Rules
 
@@ -156,7 +161,9 @@ Style Defaults / Intimacy Defaults Completion はROADMAP上の直前マイルス
 
 - MIRA: `voice / state / relationship / memory / beliefs`
 - inner-galge: style defaults、romance/intimacy運用、memory model、validation、command導線
-- LIRIA: case_engine、runtime、romance、combat、villain_engine、story_generation_improvement_plan、visual/manga pipeline、integrity/playtest harness
+- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、case/runtimeの運用知見
+
+combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADMAP上の後続参照候補であり、初期MVPやNew Session Initializationには採用しない。
 
 ## 8. 採用しなかったもの
 

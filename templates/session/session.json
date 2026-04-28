@@ -1,7 +1,24 @@
 {
+  "session_id": "",
   "session_name": "new_lilia_session",
   "created_at": "",
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
+  "mode": "new",
+  "current_phase": "qa_pending",
   "active_lilia": "main",
+  "source_prompt_versions": {
+    "core": "prompt/core.md",
+    "startup": "prompt/startup.md",
+    "newgame": "prompt/newgame.md",
+    "save_resume": "prompt/save_resume.md",
+    "style_reference": "prompt/style_reference.md",
+    "state_structure": "docs/STATE_STRUCTURE.md",
+    "new_session_initialization": "docs/NEW_SESSION_INITIALIZATION.md"
+  },
+  "initialization": {
+    "qa_completed": false,
+    "light_story_reference_pass": "not_run",
+    "first_scene_status": "not_generated"
+  },
   "description": "1人のLILIAとの関係を保存・再開するための最小セッションテンプレートです。"
 }

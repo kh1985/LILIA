@@ -81,15 +81,20 @@ Light Story Reference Pass は、new開始後、初回scene前に軽く通す。
    - 最初の会話の余白
    - 関係が動き出す小さな出来事
 2. 参照作品や既存の表現棚を見る場合でも、候補は0-2個に絞る。
-   必要なら `style/defaults/` から場面カテゴリに合うdefaultsを1つだけ読む。
+   必要なら `style/defaults/` から場面カテゴリに合うdefaultsを1つ、多くても2つまで読む。
 3. 候補から、本文ではなく表現軸だけを抜く。
 4. 抽出した表現軸を、LILIAの現在の人格、声、関係、場面へ変換する。
-5. `story/story_deck.md` には物語素材と未回収札だけを残す。
-6. `style/reference.md` には、使う表現軸、避ける模倣、場面温度、視点距離を短く残す。
-7. `style/rules.md` には、このsessionで守る文章ルールを短く残す。
+5. `story/relationship_spine.md` には関係テーマ、最初の摩擦、守るもの、避けるもの、変化の方向だけを残す。
+6. `story/story_deck.md` には物語素材と未回収札だけを残す。
+7. `style/reference.md` には、使う表現軸、避ける模倣、場面温度、視点距離を短く残す。
+8. `style/rules.md` には、このsessionで守る文章ルールを短く残す。
 
 このpassは初回sceneの前に一度だけ軽く使う。
 毎回の会話で必ず実行しない。
+
+new初期化時の保存先は `docs/NEW_SESSION_INITIALIZATION.md` を正本とする。
+`story/relationship_spine.md` には関係テーマを、`story/story_deck.md` には物語素材、圧、未回収札だけを置き、`style/reference.md` と `style/rules.md` に表現軸と出力ルールを分離する。
+官能・親密が重要な方向なら `style/defaults/romance.md` の技法は残すが、初回からベッドシーンや恋愛成立を確定しない。
 
 ## 4. Resume時の扱い
 

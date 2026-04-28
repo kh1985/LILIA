@@ -52,6 +52,12 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 
 - 今動いている出来事
 - 表の問題
+- visible problem
+- first concrete action
+- handles 2-4
+- relationship stake
+- if ignored
+- next visible change
 - LILIAに刺さる理由
 - ユーザーへの問い
 - 関係に残りそうな変化
@@ -153,7 +159,21 @@ appendではなく、必要に応じて上書き再生成する。
 
 詳細な記憶や関係状態は、正本側に保存する。
 
-## 6. 禁止事項
+## 6. new直後のresume-ready確認
+
+new直後は、初回scene本文がまだ生成されていない場合でも、`docs/NEW_SESSION_INITIALIZATION.md` に従ってresume可能な最小状態が揃っているか確認する。
+
+- `session.json` にphaseとfirst scene statusがある。
+- `current/hotset.md` に再開用の短い温度がある。
+- `current/scene.md` に場所、距離、見えているもの、行動余地がある。
+- `current/event_card.md` に visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change がある。
+- `current/relationship_overview.md` に距離感、信頼、警戒、興味、誤解や保留がある。
+- `lilia/main/state.md` に第一反応がある。
+- `lilia/main/relationship.md` に境界線と未確定の期待がある。
+- `lilia/main/memory.md` に初期記憶がある。
+- `lilia/main/beliefs.md` に誤解や思い込みの余地がある。
+
+## 7. 禁止事項
 
 - すべての会話をmemoryに詰め込まない。
 - `hotset.md`を正本として扱わない。
