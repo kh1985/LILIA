@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md` を正本にする。
 
 ## 1. Goal
 
@@ -22,8 +22,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Style Defaults / Intimacy Defaults Completion: 完了
 - New Session Initialization: 設計仕様完了 / 実生成コード未実装
 - Case / Event Card Playability Gate: 設計仕様完了 / 実生成コード未実装
+- Relationship / Character Voice Continuity Gate: 設計仕様完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Relationship / Character Voice Continuity Gate
+- 次は Romance / Intimacy Growth Loop
 
 ## 3. Completed Foundation
 
@@ -76,7 +77,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - inner-galge / LIRIA の memory model、validation、integrity check をLILIA向けに採用する。
    - `core fixed`、`historical fixed`、`echo`、`volatile` の分類を、`lilia/main/*`、`current/*`、`archive/*`、`hotset` に対応づける。
    - 重要場面前、親密場面前、衝突場面前には voice check を行い、`voice`、`relationship`、`beliefs`、直近memory、境界線を確認する。
-   - Status: 次に着手
+   - `docs/VOICE_CONTINUITY.md` を正本として、Gate通過条件、Gate失敗条件、resume時の扱い、親密scene/衝突scene/境界線sceneの確認を固定した。
+   - `templates/session/lilia/main/voice.md`、`relationship.md`、`memory.md`、`beliefs.md`、`current/relationship_overview.md`、`current/hotset.md` を、声と関係の継続確認に必要な最小欄へ補強済み。
+   - Status: 完了
 
 5. Romance / Intimacy Growth Loop
    - 親密・官能・ベッドシーンを、関係成長の主要ループとして扱う。
@@ -145,11 +148,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Relationship / Character Voice Continuity Gate。
+次の実作業は Romance / Intimacy Growth Loop。
 
-Case / Event Card Playability Gate は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
-次は LILIAの声、呼び方、関係認識、誤解、信頼、摩擦がresumeで巻き戻らないようにする。
-重要場面前、親密場面前、衝突場面前に voice check を行い、`voice`、`relationship`、`beliefs`、直近memory、境界線を確認する。
+Relationship / Character Voice Continuity Gate は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
+次は親密・官能・ベッドシーンを、成人、合意、相互性、境界線、aftercareを前提に、関係成長の主要ループとして扱う。
 
 ## 6. Update Rules
 
@@ -163,8 +165,8 @@ Case / Event Card Playability Gate は設計仕様とテンプレート補強が
 ## 7. 採用元
 
 - MIRA: `voice / state / relationship / memory / beliefs`
-- inner-galge: style defaults、romance/intimacy運用、memory model、validation、command導線、プレイヤーが触れる選択肢の足場
-- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate
+- inner-galge: style defaults、romance/intimacy運用、memory model、validation、voice continuity、command導線、プレイヤーが触れる選択肢の足場
+- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate、integrity check
 
 combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADMAP上の後続参照候補であり、初期MVP、New Session Initialization、Event Card Playability Gateには採用しない。
 
@@ -175,6 +177,8 @@ combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADM
 - kaneco固有設定
 - 旧セッション固有人物
 - 旧AFFINITY数値、bond、好感度、攻略ルートを正本にする運用
+- 固定台詞集でLILIAの声を管理する運用
+- hotsetを正本として扱う運用
 - 参照作者や作品の直接模倣
 - 参照小説本文の保存・流用
 - style系を通常resumeの毎回必読にする重い運用

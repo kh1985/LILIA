@@ -12,6 +12,7 @@
 - `docs/STATE_STRUCTURE.md` が存在する場合は読む
 - `docs/NEW_SESSION_INITIALIZATION.md` が存在する場合は読む
 - `docs/EVENT_CARD_PLAYABILITY.md` が存在する場合は読む
+- `docs/VOICE_CONTINUITY.md` が存在する場合は読む
 - `prompt/core.md`
 - `prompt/startup.md` が存在する場合は読む
 - `prompt/newgame.md`

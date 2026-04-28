@@ -23,6 +23,7 @@ LILIAは固有の人格を持ち、関係の中で人格の出方が変化する
 - `prompt/newgame.md`: Q&A、初期化手順、Q&Aから保存先への写像を扱う。
 - `docs/NEW_SESSION_INITIALIZATION.md`: Q&A完了後の初期生成順、保存粒度、resume-ready最小状態の正本。
 - `docs/EVENT_CARD_PLAYABILITY.md`: 初回event_cardの可プレイ性Gateの正本。
+- `docs/VOICE_CONTINUITY.md`: 初期voice baselineと、resume/重要sceneで巻き戻さない確認の正本。
 - `docs/STATE_STRUCTURE.md`: session scaffoldと各ファイル責務の正本。
 - `templates/session/`: 実セッションへ複製されるファイル形状。
 - root `style/defaults/`: 全session共通のStyle Layer。session固有の保存先ではない。
@@ -159,6 +160,16 @@ Q7の小さな出来事を、ユーザーが今触れる入口、関係に残る
 handlesは選択肢ではなく、自由入力の行動余地として扱う。
 `story/story_deck.md` は素材・圧・未回収札、`current/event_card.md` は今のsceneで触れる可視イベントとして分ける。
 
+## Voice Continuity Baseline
+
+初回sceneを出す前に、`docs/VOICE_CONTINUITY.md` に従って、LILIAの声の初期アンカーを軽く置く。
+
+Q1、Q5、Q6の回答から、`lilia/main/voice.md` へ呼び方、口調、沈黙、第一反応、言わない言葉を保存する。
+新しい質問を増やさず、ユーザー回答から抽象軸だけを取り出す。
+
+例文やサンプル語彙を固定台詞にしない。
+未確定の呼び方や距離感は、`未確定` として残し、会話と記憶の中で変化させる。
+
 ## 5. 初期化するファイル
 
 新規開始後、`templates/session/` を雛形として以下を初期化する。
@@ -201,10 +212,14 @@ LILIAには、ユーザーの回答から生まれる固有の人格の核があ
 
 - 呼び方
 - 口調
+- voice fixed
+- 変わってよい揺れ
+- 沈黙 / 言い淀み
 - 照れ方
 - 怒り方
 - 甘え方
 - 距離を置く時の出方
+- 言わない言葉
 
 ### `lilia/main/state.md`
 
@@ -312,6 +327,7 @@ newgame promptでは、以下の分解だけを守る。
 
 - ユーザーが求める関係の温度 → `current/relationship_overview.md` / `lilia/main/relationship.md` / `style/reference.md`
 - LILIAの人格核 → `lilia/main/core.md` / `lilia/main/voice.md` / `lilia/main/state.md`
+- LILIAの声、呼び方、第一反応 → `lilia/main/voice.md` / `current/relationship_overview.md` / `current/hotset.md`
 - LILIAが守るもの → `lilia/main/core.md` / `lilia/main/beliefs.md` / `story/relationship_spine.md`
 - LILIAが避けるもの → `lilia/main/core.md` / `lilia/main/beliefs.md` / `style/rules.md`
 - 初回の小さな出来事 → `current/event_card.md` / `story/story_deck.md` / `current/scene.md`

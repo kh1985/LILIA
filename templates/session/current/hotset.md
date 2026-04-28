@@ -7,6 +7,11 @@
 
 - 未設定
 
+## 呼び方 / 距離のアンカー
+
+- 未設定
+- 注: ここはechoであり、正本は `lilia/main/voice.md` と `lilia/main/relationship.md`。
+
 ## 次に会った時の第一反応
 
 - 未設定

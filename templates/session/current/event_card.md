@@ -40,6 +40,7 @@
 ## Next Visible Change
 
 - 未設定
+- 声 / 沈黙 / 呼び方 / 距離に出る変化:
 
 ## Truth Hiding Boundary
 

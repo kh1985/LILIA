@@ -28,6 +28,7 @@ Style Reference は、物語素材の置き場ではない。
 `story/story_deck.md` は、関係を揺らすstory素材、圧、未回収札を整理する。
 `style/reference.md` は、文章表現の参照を整理する。
 `style/rules.md` は、出力時の文章ルールを整理する。
+LILIAの声、呼び方、境界線、関係状態の継続確認は `docs/VOICE_CONTINUITY.md` を正本とし、styleはそれを上書きしない。
 
 ## Style Defaults の扱い
 
@@ -115,6 +116,7 @@ Style Reference を読むのは、以下の場合だけでよい。
 
 event_cardの構造やGate判定は `docs/EVENT_CARD_PLAYABILITY.md` を正本とする。
 Style Reference は、event_cardの出来事を文体、温度、余韻へ変換するためだけに使い、可プレイ性の判定を抱え込まない。
+親密sceneや衝突sceneの温度を調整する場合も、呼び方、距離感、合意、境界線、誤解、直近memoryは `docs/VOICE_CONTINUITY.md` と正本stateを優先する。
 
 style系を毎回必読にしない。
 再開テンポを壊すほど長く読まない。
