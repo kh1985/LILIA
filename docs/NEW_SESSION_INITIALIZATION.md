@@ -24,6 +24,7 @@ LILIAは、AI上の人格・記憶・関係存在として初期化する。
 - voice continuity: `docs/VOICE_CONTINUITY.md`
 - romance / intimacy growth: `docs/ROMANCE_INTIMACY_GROWTH.md`
 - resume smoke: `docs/RESUME_SMOKE_TEST.md`
+- growth update: `docs/GROWTH_UPDATE_LOOP.md`
 - 中核思想: `docs/CORE_CONCEPT.md`
 - 長期順序: `docs/ROADMAP.md`
 

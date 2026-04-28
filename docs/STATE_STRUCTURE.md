@@ -5,6 +5,7 @@
 声と関係の継続確認は `docs/VOICE_CONTINUITY.md` を正本とする。
 親密・官能・ベッドシーンの成長ループは `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とする。
 `new -> first scene -> save -> resume` の手動smokeは `docs/RESUME_SMOKE_TEST.md` を正本とする。
+会話後、scene後、event_card進行後の保存更新ループは `docs/GROWTH_UPDATE_LOOP.md` を正本とする。
 
 ## 1. 基本方針
 
@@ -207,7 +208,28 @@ Resume Smoke Test は `docs/RESUME_SMOKE_TEST.md` を正本とする。
 hotsetだけで押し切らず、必要な正本へ戻れる状態を通過条件にする。
 このsmokeは手動の軽量確認であり、AI Harness、CLI、launcher、自動プレイ検証は含めない。
 
-## 8. new時に生成する想定ファイル
+## 8. Growth Update Loop
+
+Growth Update Loop は `docs/GROWTH_UPDATE_LOOP.md` を正本とする。
+
+会話後、scene後、event_card進行後、親密scene後は、まず何が変わったかを見る。
+何も変わっていない時は無理に更新しない。
+毎回すべてのファイルを機械的に更新しない。
+
+- `state.md`: 今だけの感情、一時的な揺れ、疲れ、安心、動揺、警戒。
+- `relationship.md`: 距離、信頼、境界線、相互性、intimacy stage、consent stage、boundary state。
+- `memory.md`: 実際に起きた出来事、約束、拒否、保留、aftercare、節目。
+- `beliefs.md`: LILIA側の誤解、疑い、見直し、仮説、更新条件。
+- `hotset.md`: 次回1ターンだけに効く短い余韻、第一反応、今触れる入口。
+- `event_card.md`: 継続 / 解決 / 背景化 / 保留、next visible change、if ignoredの扱い。
+- `story/story_deck.md`: 現在sceneから外れた未回収札、後で使う素材。
+- `archive/beats/`: 関係が明確に変わった節目だけ。
+
+hotsetを正本にしない。
+一時的な感情を `core.md` に入れない。
+memoryに実際に起きていないことを入れず、beliefsでユーザーの内面を断定しない。
+
+## 9. new時に生成する想定ファイル
 
 new時は `prompt/newgame.md` を入口、`docs/NEW_SESSION_INITIALIZATION.md` を初期生成手順の正本として、`templates/session/` から以下を生成・初期化する。
 
@@ -237,7 +259,7 @@ styleの総読みはしない。
 
 new直後は、初回scene本文がまだ生成されていない場合でも `session.json`、`current/hotset.md`、`current/scene.md`、`current/event_card.md`、`current/relationship_overview.md`、`lilia/main/state.md`、`lilia/main/relationship.md`、`lilia/main/memory.md`、`lilia/main/beliefs.md` からresume可能な最小状態を確認できるようにする。
 
-## 9. resume時の読み方
+## 10. resume時の読み方
 
 resume時は `prompt/save_resume.md` を正本とする。
 起動直後に全ファイルを総読みしない。
@@ -268,14 +290,14 @@ root `style/defaults/*.md` も標準読込には入れない。
 文体崩れ、scene tone調整、重要な恋愛/衝突場面、静かな関係変化、出力文章相談がある時だけ、`prompt/style_reference.md` を正本として必要箇所を読む。
 読むdefaultsは原則1つ、多くても2つまでにする。
 
-## 10. 採用元
+## 11. 採用元
 
 - MIRA: `core / voice / state / relationship / memory / beliefs`
-- inner-galge: キャラ中心 / hotset / Markdown運用 / memory model / validation / voice continuity / romance-intimacy
-- LIRIA: session構造 / event_card / save/resume / archive / Visible Request Gate / Truth Hiding Boundary / Mid-Story Activation Gate / integrity check / romance
+- inner-galge: キャラ中心 / hotset / Markdown運用 / memory model / validation / voice continuity / romance-intimacy / 更新ループ
+- LIRIA: session構造 / event_card / save/resume / archive / Visible Request Gate / Truth Hiding Boundary / Mid-Story Activation Gate / integrity check / romance / growth update
 - style reference: LIRIAの story_reference / Light Story Reference Pass / style rules / 作者別・場面別defaults と inner-galgeの抽象化手順
 
-## 11. 採用しなかったもの
+## 12. 採用しなかったもの
 
 - LILIAを単なるヒロイン、攻略対象、固定パートナーとして扱う設計
 - 起動時・再開時に全ファイルを総読みする重い運用
@@ -285,6 +307,8 @@ root `style/defaults/*.md` も標準読込には入れない。
 - `story/story_deck.md` と `current/event_card.md` を同じ内容にする運用
 - 固定台詞集でLILIAの声を管理する運用
 - hotsetを正本として扱う運用
+- 毎ターン全ファイル更新
+- 巨大ログ保存
 - 旧AFFINITY数値、好感度、攻略ルートで親密さを管理する運用
 - 空ディレクトリ維持だけの `.gitkeep` 運用
 - 初回から大規模なlauncher / CLIを書くこと

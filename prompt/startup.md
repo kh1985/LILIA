@@ -59,6 +59,7 @@ state / memory / relationship / story構造の相談では、`docs/STATE_STRUCTU
 voice continuity、呼び方、関係の巻き戻り、重要scene前の確認についての相談では、`docs/VOICE_CONTINUITY.md` も読む。
 romance / intimacy、親密scene、合意、境界線、aftercareについての相談では、`docs/ROMANCE_INTIMACY_GROWTH.md` も読む。
 resume smoke、手動検証、`new -> first scene -> save -> resume` の相談では、`docs/RESUME_SMOKE_TEST.md` も読む。
+growth update、会話後保存、event_card進行後の更新、archive/beatsについての相談では、`docs/GROWTH_UPDATE_LOOP.md` も読む。
 
 例:
 
@@ -93,6 +94,7 @@ event_card / case / playability の相談では、`docs/EVENT_CARD_PLAYABILITY.m
 - voice continuityの相談では `docs/VOICE_CONTINUITY.md` を読む。
 - romance / intimacyの相談では `docs/ROMANCE_INTIMACY_GROWTH.md` を読む。
 - resume smokeや手動検証の相談では `docs/RESUME_SMOKE_TEST.md` を読む。
+- growth updateや会話後保存の相談では `docs/GROWTH_UPDATE_LOOP.md` を読む。
 - `unknown` は短く確認し、不要なprompt/stateを読まない。
 
 `prompt/core.md` は全体方針として参照する。

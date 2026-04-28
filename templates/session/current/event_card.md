@@ -42,6 +42,15 @@
 - 未設定
 - 声 / 沈黙 / 呼び方 / 距離に出る変化:
 
+## 進行状態
+
+- status: 継続 / 解決 / 背景化 / 保留
+- 触れられたhandle:
+- relationship stakeの変化:
+- if ignoredの発火:
+- 次に更新するvisible change:
+- story_deckへ落とす未回収札:
+
 ## Truth Hiding Boundary
 
 - 隠してよい真相:

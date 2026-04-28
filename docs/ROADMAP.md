@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md` を正本にする。
 
 ## 1. Goal
 
@@ -25,8 +25,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Relationship / Character Voice Continuity Gate: 設計仕様完了 / 実生成コード未実装
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
+- Growth Update Loop: 設計仕様完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Growth Update Loop
+- 次は World Autonomy / Pressure Loop
 
 ## 3. Completed Foundation
 
@@ -104,7 +105,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 会話後に `state`、`relationship`、`memory`、`beliefs`、`hotset`、`event_card` をどう更新するかを実運用できる形にする。
    - 重要場面後は、what changed、what LILIA now believes、what was left unsaid、next pressure or promise を残す。
    - 関係が変わった出来事は `archive/beats/` に節目として保存する。
-   - Status: 未着手
+   - `docs/GROWTH_UPDATE_LOOP.md` を正本として、更新タイミング、各ファイルの保存責務、親密scene後/event_card後/archive/beatsの扱い、failure条件を固定した。
+   - `templates/session/current/event_card.md` と `templates/session/story/story_deck.md` を、event_cardの進行状態と背景化した未回収札を扱える最小形へ補強した。
+   - Status: 完了
 
 8. World Autonomy / Pressure Loop
    - ユーザーが恋愛や日常を選んでも、世界や外圧は静かに動く。
@@ -154,10 +157,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Growth Update Loop。
+次の実作業は World Autonomy / Pressure Loop。
 
-Resume Smoke Test は手動smoke仕様とチェックリストが完了済みであり、launcher / CLIや自動プレイ検証は後続である。
-次は会話後に `state`、`relationship`、`memory`、`beliefs`、`hotset`、`event_card` をどう更新するかを、実運用できる軽量ループとして固定する。
+Growth Update Loop は設計仕様とテンプレート最小補強が完了済みであり、launcher / CLIや自動プレイ検証は後続である。
+次はユーザーが恋愛や日常を選んでも、世界や外圧が静かに動くための World Autonomy / Pressure Loop を、親密sceneを雑に壊さない軽量設計として固定する。
 
 ## 6. Update Rules
 
@@ -171,8 +174,8 @@ Resume Smoke Test は手動smoke仕様とチェックリストが完了済みで
 ## 7. 採用元
 
 - MIRA: `voice / state / relationship / memory / beliefs`
-- inner-galge: style defaults、romance/intimacy運用、memory model、validation、voice continuity、command導線、プレイヤーが触れる選択肢の足場
-- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、romance、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate、integrity check
+- inner-galge: style defaults、romance/intimacy運用、memory model、validation、voice continuity、command導線、プレイヤーが触れる選択肢の足場、更新ループ
+- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、romance、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate、integrity check、growth update
 
 combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADMAP上の後続参照候補であり、初期MVP、New Session Initialization、Event Card Playability Gateには採用しない。
 
@@ -186,6 +189,8 @@ combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADM
 - 親密さを自動報酬や攻略達成として扱う運用
 - 固定台詞集でLILIAの声を管理する運用
 - hotsetを正本として扱う運用
+- 毎ターン全ファイルを更新する運用
+- 巨大ログ保存をGrowth Updateの必須にする運用
 - 参照作者や作品の直接模倣
 - 参照小説本文の保存・流用
 - style系を通常resumeの毎回必読にする重い運用

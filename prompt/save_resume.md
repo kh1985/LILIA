@@ -5,6 +5,7 @@
 声と関係の継続確認は `docs/VOICE_CONTINUITY.md` を正本とします。
 親密・官能・ベッドシーンの保存/再開は `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とします。
 `new -> first scene -> save -> resume` の手動smokeは `docs/RESUME_SMOKE_TEST.md` を正本とします。
+会話後、scene後、event_card進行後の保存更新ループは `docs/GROWTH_UPDATE_LOOP.md` を正本とします。
 
 ## 1. 基本方針
 
@@ -25,14 +26,18 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 - `current/scene.md`
 - `current/hotset.md`
 - `current/event_card.md`
+- `current/relationship_overview.md`
 - `lilia/main/voice.md`
 - `lilia/main/state.md`
 - `lilia/main/relationship.md`
 - `lilia/main/memory.md`
 - `lilia/main/beliefs.md`
+- `story/story_deck.md`
 - `archive/beats/`
 
 更新は、次回の第一声、態度、距離感、未消化の感情、関係の変化に効くものを優先する。
+全部を毎回更新せず、`docs/GROWTH_UPDATE_LOOP.md` に従って、何が変わったかに応じて必要なファイルだけを更新する。
+hotsetだけを更新して、relationship / memory / beliefs / event_card の正本が抜ける状態を作らない。
 
 ## 3. 各ファイルの保存基準
 
@@ -72,6 +77,7 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 event_cardは、抽象的な違和感ではなく、今ユーザーが触れる可視イベントとして保存する。
 真相は隠してよいが、first concrete action は本文入口に出す。
 handlesは内部の行動余地として持ち、番号付き選択肢として提示しない。
+event_cardが進んだ時は、継続、解決、背景化、保留のどれかを判断し、if ignored と next visible change を古いまま残さない。
 
 ### `lilia/main/voice.md`
 
@@ -132,6 +138,21 @@ voiceは固定台詞集にしない。
 
 - 関係が変わった出来事を記録する
 - すべての会話を入れず、節目だけを保存する
+
+### Growth Update Loop
+
+保存前には、`docs/GROWTH_UPDATE_LOOP.md` に従って以下を短く見る。
+
+- 何が実際に変わったか。
+- LILIAの今だけの感情は `state.md` に置くべきか。
+- 距離、信頼、境界線、相互性は `relationship.md` で変わったか。
+- 実際に起きた約束、拒否、保留、aftercareは `memory.md` に残すべきか。
+- LILIA側の誤解、疑い、見直し、更新条件は `beliefs.md` に残すべきか。
+- 次回1ターンに戻す余韻だけを `hotset.md` に短く置けているか。
+- 現在sceneから外れたeventは `story/story_deck.md` に未回収札として落とすべきか。
+- 関係が明確に変わった節目だけを `archive/beats/` に残すべきか。
+
+何も変わっていない時は、無理に更新しない。
 
 ## 4. 再開時の読み順
 
@@ -236,18 +257,7 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 ## 7. Resume Smoke Test
 
 `new -> first scene -> save -> resume` を手動で確認する時は、`docs/RESUME_SMOKE_TEST.md` を正本とする。
-
-resume 1ターン目の前に、以下が落ちていないかを短く見る。
-
-- `session.json`、`current/*`、`lilia/main/*`、`story/*`、`style/*` の最小ファイルが揃っている。
-- `current/hotset.md` から現在温度、第一反応、呼び方/距離のechoが分かる。
-- `current/scene.md` から現在地、距離、見えているもの、行動余地が分かる。
-- `current/event_card.md` から visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change が分かる。
-- `lilia/main/voice.md`、`relationship.md`、`memory.md`、`beliefs.md` の必要箇所で、呼び方、距離、境界線、約束、拒否、保留、aftercareが巻き戻っていない。
-- 親密scene後なら、intimacy stage、consent stage、boundary state、aftercare memoryが関係と記憶に残っている。
-
-これは軽量な手動smokeであり、AI Harness、自動プレイ検証、CLI、launcher実装は含めない。
-チェック結果は、必要なら `tests/resume_smoke/manual_checklist.md` の形式で短く残す。
+このprompt内では詳細な検証手順を抱え込まず、resume 1ターン目の前に、hotset / scene / event_card / voice / relationship / memory / beliefs の必要箇所で温度、入口、巻き戻り、aftercare抜けだけを短く見る。
 
 ## 8. 禁止事項
 
