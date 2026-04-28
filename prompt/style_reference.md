@@ -29,6 +29,24 @@ Style Reference は、物語素材の置き場ではない。
 `style/reference.md` は、文章表現の参照を整理する。
 `style/rules.md` は、出力時の文章ルールを整理する。
 
+## Style Defaults の扱い
+
+root `style/` 配下は、LILIA全体で共有する共通Style Layerである。
+`style/defaults/*.md` は場面カテゴリ別の参照棚であり、session固有の保存先ではない。
+
+場面カテゴリは以下を目安に使い分ける。
+
+- `style/defaults/romance.md`: 親密さ、距離、合意、境界線、照れ、触れない時間。
+- `style/defaults/tension.md`: 危機、衝突、圧、能力違和感、情報の段階開示。
+- `style/defaults/warmth.md`: 日常、食事、短い会話、不器用な気遣い、安心の回復。
+- `style/defaults/loss.md`: 喪失、不在、返事のなさ、残された物、続く日常。
+- `style/defaults/quiet.md`: 沈黙、内省、歩く速度、手元の物、光と時間。
+- `style/defaults/landscape.md`: 場所、天候、音の不在、色、影、生活の足場。
+
+参照するdefaultsは原則1つ、多くても2つまでにする。
+すべてのdefaultsを総読みしない。
+defaultsは本文例ではなく、技法、温度、視点距離、描写密度、余白を選ぶための棚として扱う。
+
 ## 2. Style Reference の使い方
 
 参照を使う時は、作品名や例文からではなく、現在のLILIAとユーザーの関係から始める。
@@ -60,6 +78,7 @@ Light Story Reference Pass は、new開始後、初回scene前に軽く通す。
    - 最初の会話の余白
    - 関係が動き出す小さな出来事
 2. 参照作品や既存の表現棚を見る場合でも、候補は0-2個に絞る。
+   必要なら `style/defaults/` から場面カテゴリに合うdefaultsを1つだけ読む。
 3. 候補から、本文ではなく表現軸だけを抜く。
 4. 抽出した表現軸を、LILIAの現在の人格、声、関係、場面へ変換する。
 5. `story/story_deck.md` には物語素材と未回収札だけを残す。
@@ -72,6 +91,7 @@ Light Story Reference Pass は、new開始後、初回scene前に軽く通す。
 ## 4. Resume時の扱い
 
 通常resume 1ターン目の標準読込には入れない。
+root `style/defaults/` もsession `style/reference.md` / `style/rules.md` も、毎回読む対象ではない。
 
 resume時は、`prompt/save_resume.md` の軽量順を優先する。
 `current/hotset.md`、`current/scene.md`、`current/event_card.md`、LILIA本体の状態、関係、記憶、認識を先に見る。
@@ -87,6 +107,7 @@ Style Reference を読むのは、以下の場合だけでよい。
 
 style系を毎回必読にしない。
 再開テンポを壊すほど長く読まない。
+読む場合も、必要なdefaultsを1つだけ選び、多くても2つまでにする。
 
 ## 5. 出力時の文章ルール
 
@@ -122,7 +143,7 @@ LILIAの文章は、設定説明よりも関係の反応を優先する。
 
 - MIRA: `voice / memory / beliefs`
 - inner-galge: キャラ中心 / Markdown運用 / style reference の抽象化手順
-- LIRIA: story_reference / Light Story Reference Pass / style rules / session構造
+- LIRIA: story_reference / Light Story Reference Pass / style rules / 作者別・場面別defaults / session構造
 
 ## 8. 採用しなかったもの
 

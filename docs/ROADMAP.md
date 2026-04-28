@@ -15,6 +15,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - startup分岐: 完了
 - state scaffold: 完了
 - style reference scaffold: 完了
+- style defaults: 完了
 - 次は new開始時の初期生成
 
 ## 3. Milestones
@@ -36,7 +37,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - Status: 完了
 
 5. Style Reference Scaffold
-   - `prompt/style_reference.md` と `templates/session/style/` で、参照小説・参照作品を本文コピーではなく表現軸へ分解する運用を固定する。
+   - `prompt/style_reference.md`、root `style/defaults/`、`templates/session/style/` で、参照小説・参照作品を本文コピーではなく表現軸へ分解する運用を固定する。
+   - root `style/defaults/` は場面別の共通参照棚、`templates/session/style/` はsession初期生成用テンプレートとして分ける。
    - Status: 完了
 
 6. New Session Initialization
@@ -94,7 +96,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - MIRA: `core / voice / state / relationship / memory / beliefs`
 - inner-galge: キャラ中心 / hotset / Markdown運用
 - LIRIA: session構造 / event_card / save/resume / archive
-- style reference: LIRIAの story_reference / Light Story Reference Pass / style rules と inner-galgeの抽象化手順
+- style reference: LIRIAの story_reference / Light Story Reference Pass / style rules / 作者別・場面別defaults と inner-galgeの抽象化手順
 
 ## 7. 採用しなかったもの
 
