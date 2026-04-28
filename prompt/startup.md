@@ -65,6 +65,7 @@ state / memory / relationship / story構造の相談では、`docs/STATE_STRUCTU
 
 この例は選択肢ではなく、意図判定のサンプルである。
 consultでは物語本文を勝手に開始しない。
+event_card / case / playability の相談では、`docs/EVENT_CARD_PLAYABILITY.md` も読む。
 
 ### `unknown`
 

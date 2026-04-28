@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md` を正本にする。
 
 ## 1. Goal
 
@@ -21,8 +21,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - style reference scaffold: 完了
 - Style Defaults / Intimacy Defaults Completion: 完了
 - New Session Initialization: 設計仕様完了 / 実生成コード未実装
+- Case / Event Card Playability Gate: 設計仕様完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Case / Event Card Playability Gate
+- 次は Relationship / Character Voice Continuity Gate
 
 ## 3. Completed Foundation
 
@@ -66,14 +67,16 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 最低限、visible problem、first concrete action、handles 2-4個、if ignored、next visible change、relationship stakeを持たせる。
    - 真相は隠してよいが、依頼や場面の可プレイ性は隠さない。
    - `story/story_deck.md` は素材・圧・未回収札、`current/event_card.md` は今触れる可視イベントとして責務分離する。
-   - Status: 次に着手
+   - `docs/EVENT_CARD_PLAYABILITY.md` を正本として、Gate通過条件、Gate失敗条件、Truth Hiding Boundary、Mid-Story Activation Gate、親密sceneとの接続を固定した。
+   - `templates/session/current/event_card.md` は handles 2-4、Truth Hiding Boundary、ユーザーへの行動余地を保存できる形へ補強済み。
+   - Status: 完了
 
 4. Relationship / Character Voice Continuity Gate
    - LILIAの声、呼び方、関係認識、誤解、信頼、摩擦がresumeで巻き戻らないようにする。
    - inner-galge / LIRIA の memory model、validation、integrity check をLILIA向けに採用する。
    - `core fixed`、`historical fixed`、`echo`、`volatile` の分類を、`lilia/main/*`、`current/*`、`archive/*`、`hotset` に対応づける。
    - 重要場面前、親密場面前、衝突場面前には voice check を行い、`voice`、`relationship`、`beliefs`、直近memory、境界線を確認する。
-   - Status: 未着手
+   - Status: 次に着手
 
 5. Romance / Intimacy Growth Loop
    - 親密・官能・ベッドシーンを、関係成長の主要ループとして扱う。
@@ -142,11 +145,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Case / Event Card Playability Gate。
+次の実作業は Relationship / Character Voice Continuity Gate。
 
-New Session Initialization は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
-次は `current/event_card.md` を実プレイで触れる小さな出来事として成立させる gate を設計する。
-visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change を、重いcase_engineなしでチェックできるようにする。
+Case / Event Card Playability Gate は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
+次は LILIAの声、呼び方、関係認識、誤解、信頼、摩擦がresumeで巻き戻らないようにする。
+重要場面前、親密場面前、衝突場面前に voice check を行い、`voice`、`relationship`、`beliefs`、直近memory、境界線を確認する。
 
 ## 6. Update Rules
 
@@ -160,10 +163,10 @@ visible problem、first concrete action、handles 2-4、relationship stake、if 
 ## 7. 採用元
 
 - MIRA: `voice / state / relationship / memory / beliefs`
-- inner-galge: style defaults、romance/intimacy運用、memory model、validation、command導線
-- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、case/runtimeの運用知見
+- inner-galge: style defaults、romance/intimacy運用、memory model、validation、command導線、プレイヤーが触れる選択肢の足場
+- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate
 
-combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADMAP上の後続参照候補であり、初期MVPやNew Session Initializationには採用しない。
+combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADMAP上の後続参照候補であり、初期MVP、New Session Initialization、Event Card Playability Gateには採用しない。
 
 ## 8. 採用しなかったもの
 
@@ -176,6 +179,8 @@ combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADM
 - 参照小説本文の保存・流用
 - style系を通常resumeの毎回必読にする重い運用
 - 安全の名目で官能表現そのものを削り、親密場面を薄める運用
+- 抽象的な違和感だけでevent_cardを進める運用
+- 親密sceneを雑な事件乱入で壊す運用
 - 最初から重いcase_engine / villain / combat / manga pipelineを全部MVP必須にすること
 - AI Harness本実行や大量ログ分析を通常チェックへ入れること
 

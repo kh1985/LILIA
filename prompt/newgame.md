@@ -22,6 +22,7 @@ LILIAは固有の人格を持ち、関係の中で人格の出方が変化する
 
 - `prompt/newgame.md`: Q&A、初期化手順、Q&Aから保存先への写像を扱う。
 - `docs/NEW_SESSION_INITIALIZATION.md`: Q&A完了後の初期生成順、保存粒度、resume-ready最小状態の正本。
+- `docs/EVENT_CARD_PLAYABILITY.md`: 初回event_cardの可プレイ性Gateの正本。
 - `docs/STATE_STRUCTURE.md`: session scaffoldと各ファイル責務の正本。
 - `templates/session/`: 実セッションへ複製されるファイル形状。
 - root `style/defaults/`: 全session共通のStyle Layer。session固有の保存先ではない。
@@ -151,6 +152,13 @@ Q&Aから、関係温度、生活の足場、LILIAが守っているもの、LIL
 | `style/reference.md` | source hints 0-2、抽出した表現軸、場面温度、視点距離、描写密度、台詞と沈黙、余韻 |
 | `style/rules.md` | 感覚チャンネル、LILIA固有の反応、避けたい癖、親密場面の境界、次に調整する点 |
 
+## Event Card Playability Check
+
+初回sceneを出す前に、`docs/EVENT_CARD_PLAYABILITY.md` のGateを通す。
+Q7の小さな出来事を、ユーザーが今触れる入口、関係に残る賭け、放置時の小さな変化へ変換する。
+handlesは選択肢ではなく、自由入力の行動余地として扱う。
+`story/story_deck.md` は素材・圧・未回収札、`current/event_card.md` は今のsceneで触れる可視イベントとして分ける。
+
 ## 5. 初期化するファイル
 
 新規開始後、`templates/session/` を雛形として以下を初期化する。
@@ -251,6 +259,7 @@ LILIAには、ユーザーの回答から生まれる固有の人格の核があ
 - relationship stake
 - if ignored
 - next visible change
+- truth hiding boundary
 - LILIAに刺さる理由
 - 関係に残りそうな変化
 

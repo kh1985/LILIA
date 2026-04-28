@@ -98,6 +98,10 @@ LILIAの核を壊さない。短期的な甘さ、盛り上がり、イベント
 `current/event_card.md` は、今動いている出来事を表す。
 
 event_cardは事件解決のためだけに使わない。event_cardは、LILIAの感情、距離感、信頼、警戒、開示、嫉妬、甘え、摩擦を動かすために使う。
+event_cardの可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md` を正本とする。
+抽象的な違和感だけでなく、visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change を持たせる。
+真相は隠してよいが、ユーザーが今触れる入口は隠さない。
+handlesは番号付き選択肢として提示せず、自由入力の行動余地として扱う。
 
 表の出来事は、LILIAの内側に刺さる理由と結びつける。出来事が起きた時、LILIAが何を恐れたのか、何を期待したのか、何を言えなかったのか、何を次回まで持ち越すのかを見る。
 

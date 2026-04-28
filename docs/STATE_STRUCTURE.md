@@ -75,7 +75,9 @@ appendせず、必要に応じて短く上書きする。
 今動いている出来事と、それがLILIAの感情・距離感・信頼・警戒・開示にどう刺さるかを保存する。
 事件処理だけで終わらせない。
 初回sceneでは、抽象的な違和感ではなく、visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change を持たせる。
+`docs/EVENT_CARD_PLAYABILITY.md` のGateを通し、真相は隠しても、ユーザーが今触れる入口は隠さない。
 `story/story_deck.md` が素材・圧・未回収札を持ち、`current/event_card.md` は今ユーザーが触れられる可視イベントを持つ。
+event_card が現在sceneから外れた場合は、必要に応じて `story/story_deck.md` の未回収札へ落とす。
 
 ### `current/relationship_overview.md`
 
@@ -207,8 +209,8 @@ root `style/defaults/*.md` も標準読込には入れない。
 ## 7. 採用元
 
 - MIRA: `core / voice / state / relationship / memory / beliefs`
-- inner-galge: キャラ中心 / hotset / Markdown運用
-- LIRIA: session構造 / event_card / save/resume / archive
+- inner-galge: キャラ中心 / hotset / Markdown運用 / validation
+- LIRIA: session構造 / event_card / save/resume / archive / Visible Request Gate / Truth Hiding Boundary / Mid-Story Activation Gate
 - style reference: LIRIAの story_reference / Light Story Reference Pass / style rules / 作者別・場面別defaults と inner-galgeの抽象化手順
 
 ## 8. 採用しなかったもの
@@ -218,6 +220,7 @@ root `style/defaults/*.md` も標準読込には入れない。
 - example文を本文生成へ流用する運用
 - 参照小説本文や固有文体を保存・流用する運用
 - `story/story_deck.md` に文体参照まで詰め込む運用
+- `story/story_deck.md` と `current/event_card.md` を同じ内容にする運用
 - 空ディレクトリ維持だけの `.gitkeep` 運用
 - 初回から大規模なlauncher / CLIを書くこと
 - 中身の薄い巨大テンプレートを大量に増やすこと

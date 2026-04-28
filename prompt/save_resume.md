@@ -62,6 +62,11 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 - ユーザーへの問い
 - 関係に残りそうな変化
 
+保存時は `docs/EVENT_CARD_PLAYABILITY.md` のGateを確認する。
+event_cardは、抽象的な違和感ではなく、今ユーザーが触れる可視イベントとして保存する。
+真相は隠してよいが、first concrete action は本文入口に出す。
+handlesは内部の行動余地として持ち、番号付き選択肢として提示しない。
+
 ### `lilia/main/state.md`
 
 - 現在の感情
@@ -131,6 +136,9 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 
 再開1ターン目は、`current/hotset.md` の温度を入口にし、`current/scene.md` と `current/event_card.md` の最小状態を確認したうえで、`relationship_overview`、`story_deck`、`beliefs` の必要箇所だけを参照する。
 
+`current/event_card.md` がGate未通過の場合は、本文を始める前に `visible problem`、`first concrete action`、`handles 2-4`、`relationship stake`、`if ignored`、`next visible change` を最小補正する。
+現在sceneから外れたeventは、必要に応じて `story/story_deck.md` の未回収札へ落とし、今触れる可視イベントを1つだけ立て直す。
+
 将来、castや追加人物ファイルが導入された場合も、hotsetとcurrent最小状態から今回出る相手だけに絞り込む。
 
 そのうえで、正本側の `state`、`relationship`、`memory`、`beliefs`、`scene`、`event_card` で裏取りして始める。
@@ -181,6 +189,8 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 - ユーザーの希望だけで関係変化を確定しない。
 - 例文やテンプレ語彙に引っ張られて保存内容を作らない。
 - `event_card`を事件処理だけで終わらせない。
+- `event_card`を抽象的な違和感だけで保存しない。
+- `story/story_deck.md` と `current/event_card.md` を同じ内容にしない。
 - `archive/beats`に雑多なログを入れすぎない。
 - style系を通常resumeの毎回必読にしない。
 - 参照小説本文や固有文体を保存内容や次回本文へ流用しない。

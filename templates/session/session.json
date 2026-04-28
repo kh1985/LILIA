@@ -13,7 +13,8 @@
     "save_resume": "prompt/save_resume.md",
     "style_reference": "prompt/style_reference.md",
     "state_structure": "docs/STATE_STRUCTURE.md",
-    "new_session_initialization": "docs/NEW_SESSION_INITIALIZATION.md"
+    "new_session_initialization": "docs/NEW_SESSION_INITIALIZATION.md",
+    "event_card_playability": "docs/EVENT_CARD_PLAYABILITY.md"
   },
   "initialization": {
     "qa_completed": false,

@@ -113,6 +113,9 @@ Style Reference を読むのは、以下の場合だけでよい。
 - ユーザーが出力文章、文体、参照作品について相談している
 - new初期化で初回scene前の温度設計を行う
 
+event_cardの構造やGate判定は `docs/EVENT_CARD_PLAYABILITY.md` を正本とする。
+Style Reference は、event_cardの出来事を文体、温度、余韻へ変換するためだけに使い、可プレイ性の判定を抱え込まない。
+
 style系を毎回必読にしない。
 再開テンポを壊すほど長く読まない。
 読む場合も、必要なdefaultsを1つだけ選び、多くても2つまでにする。
