@@ -55,6 +55,8 @@ LILIAを所有物、攻略対象、都合よく最適化される存在として
 
 保存・再開時の詳細な軽量読込順は `prompt/save_resume.md` を正本とする。
 
+起動直後の `new` / `resume` / `consult` / `unknown` の分岐は `prompt/startup.md` を正本とする。
+
 すべてを毎回長く読み込むのではなく、会話直前に必要な断片を選ぶ。再開1ターン目では、hotset、scene、event_card、relationship_overview、state、relationship、memory、beliefsを特に重視する。
 
 ## 3. 会話生成ルール

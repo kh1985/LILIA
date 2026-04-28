@@ -9,6 +9,7 @@
 - `docs/CORE_CONCEPT.md`
 - `docs/HANDOFF.md` が存在する場合は読む
 - `prompt/core.md`
+- `prompt/startup.md` が存在する場合は読む
 - `prompt/newgame.md`
 - `prompt/save_resume.md` が存在する場合は読む
 
