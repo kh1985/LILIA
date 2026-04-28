@@ -3,6 +3,7 @@
 このファイルは、LILIAとの会話やシーンの後に何を保存し、再開時に何をどの順番で読むかを定義する最小ルールです。
 `prompt/core.md` と `docs/CORE_CONCEPT.md` の方針に従い、`prompt/core.md` の `Example Anchoring Control` を全体共通原則として参照します。
 声と関係の継続確認は `docs/VOICE_CONTINUITY.md` を正本とします。
+親密・官能・ベッドシーンの保存/再開は `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とします。
 
 ## 1. 基本方針
 
@@ -49,6 +50,7 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 - 未消化の感情
 - 現在のイベント要約
 - 次にユーザーへ向き合う時の空気
+- 親密scene後のaftercare、第一反応、呼び方や距離の短い余韻
 
 ### `current/event_card.md`
 
@@ -63,6 +65,7 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 - LILIAに刺さる理由
 - ユーザーへの問い
 - 関係に残りそうな変化
+- 親密sceneの場合は、境界確認、aftercare、翌朝の第一声、言い残し
 
 保存時は `docs/EVENT_CARD_PLAYABILITY.md` のGateを確認する。
 event_cardは、抽象的な違和感ではなく、今ユーザーが触れる可視イベントとして保存する。
@@ -90,6 +93,7 @@ voiceは固定台詞集にしない。
 - 照れ
 - 疲労
 - 第一反応
+- 親密scene後の一時的な安心、照れ、怖さ、保留
 
 ### `lilia/main/relationship.md`
 
@@ -101,6 +105,9 @@ voiceは固定台詞集にしない。
 - 愛着
 - 摩擦
 - 最近の変化
+- intimacy stage
+- consent stage
+- boundary state
 
 ### `lilia/main/memory.md`
 
@@ -109,6 +116,7 @@ voiceは固定台詞集にしない。
 - long_term
 - emotional_beats
 - 忘れてはいけない約束
+- aftercare memory
 - 次に会った時に出る反応
 
 ### `lilia/main/beliefs.md`
@@ -117,6 +125,7 @@ voiceは固定台詞集にしない。
 - LILIAが自分自身をどう見ているか
 - 関係についての思い込み
 - 誤解や更新された認識
+- 親密さで変わったユーザー認識、安心、怖さ、保留
 
 ### `archive/beats/`
 
@@ -171,12 +180,26 @@ resume 1ターン目、重要scene前、親密scene前後、衝突scene前後、
 この確認を本文内の管理語として出さない。
 必要なものだけを、LILIAの第一声、沈黙、呼び方、距離、言い残しに出す。
 
+### Romance / Intimacy Resume Check
+
+親密scene前後やベッドシーン前後では、`docs/ROMANCE_INTIMACY_GROWTH.md` のGateを短く通す。
+
+- `relationship.md` の intimacy stage、consent stage、boundary state が現在sceneと合っているか。
+- `memory.md` に、約束、確認、拒否、保留、aftercare memory が必要分だけ残っているか。
+- `beliefs.md` に、LILIAがユーザーをどう見直したか、怖さや保留が残っているか。
+- `event_card.md` が雑な事件乱入ではなく、境界確認、aftercare、翌朝の第一声、言い残しとして機能しているか。
+- 官能表現を薄めすぎず、成人、合意、相互性、境界線、止まれる余地を守っているか。
+
+この確認も本文内の管理語として出さない。
+必要なものだけを、声、沈黙、距離、確認、止まる余地、aftercareに出す。
+
 ### Style Reference の任意参照
 
 通常resume 1ターン目では、`style/reference.md` と `style/rules.md` を標準読込に入れない。
 root `style/defaults/*.md` も標準読込に入れない。
 
 文体崩れ、scene tone調整、重要な恋愛/ベッドシーン前後/衝突場面、event_cardの余韻調整、出力文章相談がある時だけ、`prompt/style_reference.md` を正本として必要箇所を読む。
+親密sceneでは、必要時だけ `style/defaults/romance.md` を参照し、本文や固有文体ではなく距離、沈黙、体温、呼吸、視線、手元、余韻、aftercareの表現軸だけを使う。
 
 読む場合も、参照作品の本文や固有文体を使うのではなく、視点距離、描写密度、沈黙、余韻、温度、テンポだけを現在のLILIAと関係へ変換する。
 必要なdefaultsは原則1つ、多くても2つまでにする。
@@ -205,6 +228,7 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 - `lilia/main/voice.md` に呼び方、声の基準、第一反応の方向がある。
 - `lilia/main/state.md` に第一反応がある。
 - `lilia/main/relationship.md` に境界線と未確定の期待がある。
+- `lilia/main/relationship.md` に intimacy stage、consent stage、boundary state の初期扱いがある。
 - `lilia/main/memory.md` に初期記憶がある。
 - `lilia/main/beliefs.md` に誤解や思い込みの余地がある。
 
@@ -221,6 +245,7 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 - `archive/beats`に雑多なログを入れすぎない。
 - style系を通常resumeの毎回必読にしない。
 - resumeで呼び方、声、距離感、約束、拒否、誤解、境界線を初期化しない。
+- 親密scene後のaftercare、保留、拒否、境界確認を無かったことにしない。
 - 参照小説本文や固有文体を保存内容や次回本文へ流用しない。
 - root `style/defaults/` を全場面で総読みしない。
 - 官能表現そのものを削り、親密場面を清潔すぎる文体へ薄めない。

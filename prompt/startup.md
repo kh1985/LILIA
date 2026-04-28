@@ -57,6 +57,7 @@ LILIAは、ユーザーとの会話・選択・物語・記憶・関係性によ
 設計相談、GM相談、prompt設計、開発方針相談の意図が明確な場合は、`docs/CORE_CONCEPT.md` と `docs/HANDOFF.md` を優先して読む。
 state / memory / relationship / story構造の相談では、`docs/STATE_STRUCTURE.md` も読む。
 voice continuity、呼び方、関係の巻き戻り、重要scene前の確認についての相談では、`docs/VOICE_CONTINUITY.md` も読む。
+romance / intimacy、親密scene、合意、境界線、aftercareについての相談では、`docs/ROMANCE_INTIMACY_GROWTH.md` も読む。
 
 例:
 
@@ -89,6 +90,7 @@ event_card / case / playability の相談では、`docs/EVENT_CARD_PLAYABILITY.m
 - `resume` は `prompt/save_resume.md` を正本にする。
 - `consult` は `docs/CORE_CONCEPT.md` と `docs/HANDOFF.md` を優先し、state構造の相談では `docs/STATE_STRUCTURE.md` も読む。
 - voice continuityの相談では `docs/VOICE_CONTINUITY.md` を読む。
+- romance / intimacyの相談では `docs/ROMANCE_INTIMACY_GROWTH.md` を読む。
 - `unknown` は短く確認し、不要なprompt/stateを読まない。
 
 `prompt/core.md` は全体方針として参照する。

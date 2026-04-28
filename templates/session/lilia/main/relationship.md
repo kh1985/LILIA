@@ -35,6 +35,14 @@
 
 - 未確認 / 関心段階 / 明示的親密なし
 
+## intimacy / consent / boundary
+
+- intimacy stage:
+- consent stage:
+- boundary state:
+- いまその状態である理由:
+- 何が起きたら変わるか:
+
 ## 相互性
 
 - 未設定
@@ -68,4 +76,5 @@
 - 今の距離:
 - 信頼 / 警戒 / 誤解:
 - 親密sceneで確認する境界:
+- 成人 / 合意 / 相互性 / 止まれる余地:
 - 衝突sceneで無かったことにしない摩擦:

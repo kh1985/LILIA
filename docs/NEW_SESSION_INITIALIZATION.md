@@ -22,6 +22,7 @@ LILIAは、AI上の人格・記憶・関係存在として初期化する。
 - style参照: `prompt/style_reference.md`
 - event_card可プレイ性: `docs/EVENT_CARD_PLAYABILITY.md`
 - voice continuity: `docs/VOICE_CONTINUITY.md`
+- romance / intimacy growth: `docs/ROMANCE_INTIMACY_GROWTH.md`
 - 中核思想: `docs/CORE_CONCEPT.md`
 - 長期順序: `docs/ROADMAP.md`
 
@@ -93,6 +94,7 @@ Q&A結果は、以下のように分けて保存する。
 | 記憶に残すべき初期情報 | `lilia/main/memory.md`, `current/hotset.md` | 次回の第一反応に効く短い記憶だけ残す |
 | 誤解や思い込みの余地 | `lilia/main/beliefs.md`, `current/relationship_overview.md` | 正解にせず、会話で更新される余白として残す |
 | 官能・親密の許容温度 | `lilia/main/relationship.md`, `style/rules.md`, `style/reference.md` | 成人・合意・相互性・境界線を前提に、清潔化しすぎない |
+| intimacy / consent / boundary の初期扱い | `lilia/main/relationship.md`, `current/relationship_overview.md`, `style/rules.md` | 数値や攻略ルートにせず、未確認、関心段階、止まれる余地から始める |
 | 文体・場面温度 | `style/reference.md`, `style/rules.md` | 参照本文ではなく、視点距離、沈黙、余韻、テンポとして保存する |
 | resume直後に必要な情報 | `current/hotset.md`, `current/scene.md`, `current/event_card.md` | 初回scene前でも再開できる最小状態へ圧縮する |
 
@@ -200,6 +202,7 @@ Q1、Q5、Q6から初期voice baselineを作るが、新しい質問を増やさ
 
 距離感、信頼、境界線、相互性、未確定の期待を保存する。
 親密さは、ユーザーが明示的に別条件を出していない限り `未確認 / 関心段階 / 明示的親密なし` から始める。
+intimacy stage、consent stage、boundary state は軽量分類として置くが、旧AFFINITY、好感度、攻略ルートにはしない。
 好感度数値、攻略ルート、旧AFFINITYの正本化はしない。
 
 ### `lilia/main/memory.md`
@@ -241,6 +244,7 @@ Light Story Reference Pass の結果を短く保存する。
 LILIAの反応の出方、感覚チャンネル、避ける癖、次に調整する点を短く置く。
 
 官能・親密場面では、成人・合意・相互性・境界線を守りつつ、清潔すぎて無害なだけの文体に逃げない。
+親密sceneの成長ループと保存先は `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とする。
 
 ## 7. Light Story Reference Pass
 
@@ -274,6 +278,7 @@ new直後は、初回sceneがまだ本文として生成されていない場合
 - `lilia/main/voice.md`: 呼び方、声の基準、第一反応の方向
 - `lilia/main/state.md`: 第一反応
 - `lilia/main/relationship.md`: 境界線と未確定の期待
+- `lilia/main/relationship.md`: intimacy stage、consent stage、boundary state の初期扱い
 - `lilia/main/memory.md`: 初期記憶
 - `lilia/main/beliefs.md`: 誤解や思い込み
 
@@ -291,6 +296,7 @@ new直後は、初回sceneがまだ本文として生成されていない場合
 - `story/story_deck.md` と `current/event_card.md` を同じ内容にしない。
 - style系をresumeで毎回必読にしない。
 - resume時に声、呼び方、距離感、約束、拒否、誤解、境界線を初期化しない。
+- 初期から親密さを攻略達成、報酬、成立済み関係として確定しない。
 - 初回からcase_engine / villain / combat / manga pipelineへ広げない。
 - 参照小説本文や固有文体を保存・直接模倣しない。
 - Q&Aの例文やテンプレ語彙をそのまま本文生成へ流用しない。
@@ -299,7 +305,7 @@ new直後は、初回sceneがまだ本文として生成されていない場合
 
 - MIRA: `core / voice / state / relationship / memory / beliefs`
 - inner-galge: hotset、Markdown運用、style defaults、romance/intimacy、memory model、validation、voice continuity
-- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、case/runtimeの運用知見、integrity check
+- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、romance、case/runtimeの運用知見、integrity check
 
 ## 11. 採用しなかったもの
 

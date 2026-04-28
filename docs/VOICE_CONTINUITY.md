@@ -22,6 +22,7 @@ LILIAが何を覚えていて、ユーザーをどう見ていて、どこまで
 - save/resume: `prompt/save_resume.md`
 - 会話生成: `prompt/core.md`
 - 文体参照: `prompt/style_reference.md`
+- romance / intimacy growth: `docs/ROMANCE_INTIMACY_GROWTH.md`
 
 この文書は、voice / relationship / memory / beliefs の継続確認の正本である。
 prompt側には短い実行ルールだけを置き、詳細な分類とGate条件はここへ集約する。
@@ -123,6 +124,7 @@ resume 1ターン目で、初対面のような声や汎用的な距離感へ戻
 
 親密sceneでは、LILIAの声が急に従順化したり、拒否や迷いが消えたり、関係段階を飛ばして成立済みに見えたりしないようにする。
 温度を上げる場合も、呼び方、沈黙、手を止める余地、aftercare、翌朝の第一声を `relationship` と `memory` に接続する。
+intimacy stage、consent stage、boundary state、aftercare memory の詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とする。
 
 ### 衝突scene
 

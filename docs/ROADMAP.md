@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md` を正本にする。
 
 ## 1. Goal
 
@@ -23,8 +23,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - New Session Initialization: 設計仕様完了 / 実生成コード未実装
 - Case / Event Card Playability Gate: 設計仕様完了 / 実生成コード未実装
 - Relationship / Character Voice Continuity Gate: 設計仕様完了 / 実生成コード未実装
+- Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Romance / Intimacy Growth Loop
+- 次は Resume Smoke Test
 
 ## 3. Completed Foundation
 
@@ -86,7 +87,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 自動報酬ではなく、関係段階、合意、相互性、境界線、aftercareを前提にする。
    - 官能を清潔化しすぎない。濃度は露骨な語彙ではなく、距離、沈黙、体温、呼吸、躊躇、視線、手元、余韻で上げる。
    - 旧LIRIA `prompt/romance.md` と `style/defaults/romance.md` の思想を参考にするが、旧AFFINITY数値や複数ヒロイン前提は採用しない。
-   - Status: 未着手
+   - `docs/ROMANCE_INTIMACY_GROWTH.md` を正本として、intimacy stage、consent stage、boundary state、aftercare memory、親密scene前Gate、親密scene後の保存先を固定した。
+   - `templates/session/lilia/main/relationship.md`、`memory.md`、`beliefs.md`、`state.md`、`voice.md`、`current/relationship_overview.md`、`current/event_card.md`、`current/hotset.md`、`style/rules.md` を、親密成長とaftercare保存に必要な最小欄へ補強済み。
+   - Status: 完了
 
 6. Resume Smoke Test
    - 生成済みsessionを `resume` で軽量に読み、1ターン目の温度が落ちないか確認する。
@@ -148,10 +151,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Romance / Intimacy Growth Loop。
+次の実作業は Resume Smoke Test。
 
-Relationship / Character Voice Continuity Gate は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
-次は親密・官能・ベッドシーンを、成人、合意、相互性、境界線、aftercareを前提に、関係成長の主要ループとして扱う。
+Romance / Intimacy Growth Loop は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
+次は `new -> first scene -> save -> resume` の手動smokeを固定し、resume 1ターン目で声、関係温度、event_card入口、親密/境界/aftercareの余韻が落ちないかを見る。
 
 ## 6. Update Rules
 
@@ -166,7 +169,7 @@ Relationship / Character Voice Continuity Gate は設計仕様とテンプレー
 
 - MIRA: `voice / state / relationship / memory / beliefs`
 - inner-galge: style defaults、romance/intimacy運用、memory model、validation、voice continuity、command導線、プレイヤーが触れる選択肢の足場
-- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate、integrity check
+- LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、style defaults、romance、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate、integrity check
 
 combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADMAP上の後続参照候補であり、初期MVP、New Session Initialization、Event Card Playability Gateには採用しない。
 
@@ -177,6 +180,7 @@ combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADM
 - kaneco固有設定
 - 旧セッション固有人物
 - 旧AFFINITY数値、bond、好感度、攻略ルートを正本にする運用
+- 親密さを自動報酬や攻略達成として扱う運用
 - 固定台詞集でLILIAの声を管理する運用
 - hotsetを正本として扱う運用
 - 参照作者や作品の直接模倣

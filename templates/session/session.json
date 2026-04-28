@@ -2,7 +2,7 @@
   "session_id": "",
   "session_name": "new_lilia_session",
   "created_at": "",
-  "schema_version": "0.3.0",
+  "schema_version": "0.4.0",
   "mode": "new",
   "current_phase": "qa_pending",
   "active_lilia": "main",
@@ -15,7 +15,8 @@
     "state_structure": "docs/STATE_STRUCTURE.md",
     "new_session_initialization": "docs/NEW_SESSION_INITIALIZATION.md",
     "event_card_playability": "docs/EVENT_CARD_PLAYABILITY.md",
-    "voice_continuity": "docs/VOICE_CONTINUITY.md"
+    "voice_continuity": "docs/VOICE_CONTINUITY.md",
+    "romance_intimacy_growth": "docs/ROMANCE_INTIMACY_GROWTH.md"
   },
   "initialization": {
     "qa_completed": false,

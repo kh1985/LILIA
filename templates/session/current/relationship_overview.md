@@ -20,6 +20,13 @@
 
 - 未確認 / 関心段階 / 明示的親密なし
 
+## intimacy / consent / boundary
+
+- intimacy stage:
+- consent stage:
+- boundary state:
+- 現在形の一言:
+
 ## 信頼
 
 - 未設定

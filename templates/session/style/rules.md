@@ -36,8 +36,12 @@
 - 合意:
 - 相互性:
 - 関係段階:
+- intimacy stage:
+- consent stage:
+- boundary state:
 - 止まれる余地:
 - aftercare:
+- 官能を薄めすぎないための表現軸:
 
 ## 禁止表現・避けたい癖
 

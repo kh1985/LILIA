@@ -29,6 +29,7 @@ Style Reference は、物語素材の置き場ではない。
 `style/reference.md` は、文章表現の参照を整理する。
 `style/rules.md` は、出力時の文章ルールを整理する。
 LILIAの声、呼び方、境界線、関係状態の継続確認は `docs/VOICE_CONTINUITY.md` を正本とし、styleはそれを上書きしない。
+親密・官能・ベッドシーンの成長ループは `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とし、styleは合意や境界線を上書きしない。
 
 ## Style Defaults の扱い
 
@@ -50,6 +51,7 @@ defaultsは本文例ではなく、技法、温度、視点距離、描写密度
 
 特に `style/defaults/romance.md` の官能寄りの表現技法は削除しない。
 旧システムの数値依存や攻略報酬化は採用しないが、成人・合意・関係段階・境界線を守ったうえで、身体距離、触れる/触れない境界、体温、呼吸、沈黙、余韻、ベッドシーンの表現技法はLILIAの重要な魅力として活かす。
+親密sceneでは、`docs/ROMANCE_INTIMACY_GROWTH.md` の intimacy stage、consent stage、boundary state を確認したうえで使う。
 
 ## 2. Style Reference の使い方
 
@@ -117,6 +119,7 @@ Style Reference を読むのは、以下の場合だけでよい。
 event_cardの構造やGate判定は `docs/EVENT_CARD_PLAYABILITY.md` を正本とする。
 Style Reference は、event_cardの出来事を文体、温度、余韻へ変換するためだけに使い、可プレイ性の判定を抱え込まない。
 親密sceneや衝突sceneの温度を調整する場合も、呼び方、距離感、合意、境界線、誤解、直近memoryは `docs/VOICE_CONTINUITY.md` と正本stateを優先する。
+親密sceneやベッドシーン前後では、`docs/ROMANCE_INTIMACY_GROWTH.md` を優先し、styleは距離、沈黙、体温、呼吸、手元、余韻、aftercareの表現軸だけを補助する。
 
 style系を毎回必読にしない。
 再開テンポを壊すほど長く読まない。

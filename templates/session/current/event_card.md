@@ -50,8 +50,12 @@
 ## Intimacy / Boundary Check
 
 - 親密sceneの場合だけ確認:
+- intimacy stage:
+- consent stage:
+- boundary state:
 - 成人 / 合意 / 相互性 / 境界線 / 止まれる余地:
 - aftercareまたは翌朝の第一声:
+- 雑な乱入になっていないか:
 
 ## 揺れるLILIA
 
@@ -70,3 +74,4 @@
 ## 関係に残る変化
 
 - 未設定
+- 親密scene後に保存するもの:
