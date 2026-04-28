@@ -130,6 +130,7 @@ LILIAがユーザーをどう見ているか、自分自身をどう見ている
 
 root `style/defaults/*.md` は、romance / tension / warmth / loss / quiet / landscape の場面別参照棚である。
 sessionの `style/reference.md` は、その棚から必要時に抽出した表現軸を短く残す場所であり、defaults本文の写しではない。
+romance / intimacy のdefaultsは、官能表現を削るためではなく、成人・合意・関係段階・境界線を守りながら、身体距離、沈黙、体温、呼吸、余韻を扱うために使う。
 
 ### `style/rules.md`
 

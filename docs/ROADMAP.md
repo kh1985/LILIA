@@ -96,7 +96,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - MIRA: `core / voice / state / relationship / memory / beliefs`
 - inner-galge: キャラ中心 / hotset / Markdown運用
 - LIRIA: session構造 / event_card / save/resume / archive
-- style reference: LIRIAの story_reference / Light Story Reference Pass / style rules / 作者別・場面別defaults と inner-galgeの抽象化手順
+- style reference: LIRIAの story_reference / Light Story Reference Pass / style rules / 作者別・場面別defaults / romance intimacy 表現 と inner-galgeの抽象化手順
 
 ## 7. 採用しなかったもの
 
@@ -106,6 +106,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - example文を本文生成へ流用する運用
 - 参照小説本文や固有文体を保存・直接模倣する運用
 - style系を通常resumeの毎回必読にする重い運用
+- 安全の名目で官能表現そのものを削り、親密場面を薄める運用
 - 今回いきなりlauncher / CLIへ進むこと
 
 ## 8. 理由

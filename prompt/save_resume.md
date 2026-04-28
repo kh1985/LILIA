@@ -136,7 +136,7 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 通常resume 1ターン目では、`style/reference.md` と `style/rules.md` を標準読込に入れない。
 root `style/defaults/*.md` も標準読込に入れない。
 
-文体崩れ、scene tone調整、重要な恋愛/衝突場面、event_cardの余韻調整、出力文章相談がある時だけ、`prompt/style_reference.md` を正本として必要箇所を読む。
+文体崩れ、scene tone調整、重要な恋愛/ベッドシーン前後/衝突場面、event_cardの余韻調整、出力文章相談がある時だけ、`prompt/style_reference.md` を正本として必要箇所を読む。
 
 読む場合も、参照作品の本文や固有文体を使うのではなく、視点距離、描写密度、沈黙、余韻、温度、テンポだけを現在のLILIAと関係へ変換する。
 必要なdefaultsは原則1つ、多くても2つまでにする。
@@ -165,3 +165,4 @@ appendではなく、必要に応じて上書き再生成する。
 - style系を通常resumeの毎回必読にしない。
 - 参照小説本文や固有文体を保存内容や次回本文へ流用しない。
 - root `style/defaults/` を全場面で総読みしない。
+- 官能表現そのものを削り、親密場面を清潔すぎる文体へ薄めない。

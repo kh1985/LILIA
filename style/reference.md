@@ -31,7 +31,7 @@ Style Layerを読むのは、以下の場合だけにする。
 
 ## Defaults Catalog
 
-- `style/defaults/romance.md`: 親密さ、距離、合意、境界線、照れ、触れない時間。
+- `style/defaults/romance.md`: 親密さ、官能、身体距離、合意、境界線、ベッドシーン、余韻。
 - `style/defaults/tension.md`: 危機、衝突、圧、能力違和感、情報の段階開示。
 - `style/defaults/warmth.md`: 日常、食事、短い会話、不器用な気遣い、安心の回復。
 - `style/defaults/loss.md`: 喪失、不在、返事のなさ、残された物、続く日常。
@@ -53,6 +53,7 @@ Style Layerを読むのは、以下の場合だけにする。
 - 作家や作品の固有文体を直接模倣しない。
 - 例文を本文生成へ流用しない。
 - LILIAを攻略対象、報酬、所有物として扱う表現にしない。
+- 安全の名目で官能表現そのものを削り、親密場面を薄めない。
 - ユーザーの内面や欲望を断定しない。
 - style情報を `story/story_deck.md` に詰め込まない。
 - resume時にstyle系を毎回必読にしない。
