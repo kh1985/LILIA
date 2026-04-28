@@ -55,6 +55,7 @@ LILIAは、ユーザーとの会話・選択・物語・記憶・関係性によ
 ### `consult`
 
 設計相談、GM相談、prompt設計、開発方針相談の意図が明確な場合は、`docs/CORE_CONCEPT.md` と `docs/HANDOFF.md` を優先して読む。
+state / memory / relationship / story構造の相談では、`docs/STATE_STRUCTURE.md` も読む。
 
 例:
 
@@ -84,7 +85,7 @@ consultでは物語本文を勝手に開始しない。
 
 - `new` は `prompt/newgame.md` を正本にする。
 - `resume` は `prompt/save_resume.md` を正本にする。
-- `consult` は `docs/CORE_CONCEPT.md` と `docs/HANDOFF.md` を優先する。
+- `consult` は `docs/CORE_CONCEPT.md` と `docs/HANDOFF.md` を優先し、state構造の相談では `docs/STATE_STRUCTURE.md` も読む。
 - `unknown` は短く確認し、不要なprompt/stateを読まない。
 
 `prompt/core.md` は全体方針として参照する。

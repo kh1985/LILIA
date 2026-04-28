@@ -137,7 +137,7 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 
 `hotset.md` は、再開1ターン目の温度を落とさないためのキャッシュである。
 
-`state`、`relationship`、`memory`、`scene`、`event_card` から要点を短くまとめる。
+`docs/STATE_STRUCTURE.md` の責務分けに従い、`state`、`relationship`、`relationship_overview`、`memory`、`beliefs`、`scene`、`event_card` から要点を短くまとめる。
 
 appendではなく、必要に応じて上書き再生成する。
 
