@@ -8,6 +8,7 @@
 
 - `docs/CORE_CONCEPT.md`
 - `docs/HANDOFF.md` が存在する場合は読む
+- `docs/ROADMAP.md` が存在する場合は読む
 - `docs/STATE_STRUCTURE.md` が存在する場合は読む
 - `prompt/core.md`
 - `prompt/startup.md` が存在する場合は読む
@@ -49,13 +50,16 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 - 巨大なprompt分割
 - 壮大な事件や組織圧
 
-## 6. HANDOFF更新ルール
+## 6. HANDOFF / ROADMAP 更新ルール
 
 - 主要な設計判断をしたら `docs/HANDOFF.md` を更新する。
 - 新しいpromptを追加したら `docs/HANDOFF.md` の現在地を更新する。
 - session構造を変えたら `docs/HANDOFF.md` に反映する。
 - 採用元や不採用方針が変わったら `docs/HANDOFF.md` に反映する。
 - 次にやることが変わったら `docs/HANDOFF.md` を更新する。
+- マイルストーンが進んだら `docs/ROADMAP.md` と `docs/HANDOFF.md` を更新する。
+- 実装順やMVP境界を変えたら `docs/ROADMAP.md` に理由を短く残す。
+- `docs/HANDOFF.md` は直近作業・次タスク・引き継ぎに絞り、長期実装順は `docs/ROADMAP.md` を正本にする。
 
 ## 7. Codex作業ルール
 
