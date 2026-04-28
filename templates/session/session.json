@@ -1,0 +1,7 @@
+{
+  "session_name": "new_lilia_session",
+  "created_at": "",
+  "schema_version": "0.1.0",
+  "active_lilia": "main",
+  "description": "1人のLILIAとの関係を保存・再開するための最小セッションテンプレートです。"
+}
