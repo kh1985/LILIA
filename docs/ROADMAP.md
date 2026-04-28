@@ -14,6 +14,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - save/resume 軽量読み順: 完了
 - startup分岐: 完了
 - state scaffold: 完了
+- style reference scaffold: 完了
 - 次は new開始時の初期生成
 
 ## 3. Milestones
@@ -34,39 +35,43 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - `docs/STATE_STRUCTURE.md` と `templates/session/` で、最小state / memory / relationship / story構造を固定する。
    - Status: 完了
 
-5. New Session Initialization
-   - `prompt/newgame.md` のQ&A結果から `session.json`、`current/*`、`lilia/main/*`、`story/*` を初期生成するルールを固める。
+5. Style Reference Scaffold
+   - `prompt/style_reference.md` と `templates/session/style/` で、参照小説・参照作品を本文コピーではなく表現軸へ分解する運用を固定する。
+   - Status: 完了
+
+6. New Session Initialization
+   - `prompt/newgame.md` のQ&A結果から `session.json`、`current/*`、`lilia/main/*`、`story/*`、`style/*` を初期生成するルールを固める。
    - Status: 次に着手
 
-6. Resume Smoke Test
+7. Resume Smoke Test
    - 生成済みsessionを `resume` で軽量に読み、1ターン目の温度が落ちないか確認する。
    - Status: 未着手
 
-7. Growth Update Loop
+8. Growth Update Loop
    - 会話後に `state`、`relationship`、`memory`、`beliefs`、`hotset`、`event_card` をどう更新するかを実運用できる形にする。
    - Status: 未着手
 
-8. Personality / Relationship Reflection
+9. Personality / Relationship Reflection
    - LILIAの核を壊さず、関係変化が口調、第一反応、距離感、誤解、信頼に反映される流れを検証する。
    - Status: 未着手
 
-9. Story Loop / Event Card
+10. Story Loop / Event Card
    - `event_card` と `story_deck` を、事件処理ではなく関係と人格の出方を動かすために運用する。
    - Status: 未着手
 
-10. Memory Compression / Archive
+11. Memory Compression / Archive
     - 記憶が肥大化した時の圧縮、`archive/beats/` への節目保存、過去ログとの切り分けを設計する。
     - Status: 未着手
 
-11. Launcher / CLI
+12. Launcher / CLI
     - `new` / `resume` を実際に起動する最小launcherまたはCLIを設計する。
     - Status: 未着手
 
-12. MVP Playtest
+13. MVP Playtest
     - 1人のLILIAで、開始、再開、関係変化、保存更新が一連の体験として成立するか検証する。
     - Status: 未着手
 
-13. Extensions
+14. Extensions
     - export、セッション一覧、複数LILIA、UI、外部連携などをMVP後に検討する。
     - Status: 後続
 
@@ -82,13 +87,14 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 次タスクは New Session Initialization。
 
-`prompt/newgame.md` のQ&A結果から `session.json`、`current/*`、`lilia/main/*`、`story/*` を初期生成するルールを固める。
+`prompt/newgame.md` のQ&A結果から `session.json`、`current/*`、`lilia/main/*`、`story/*`、`style/*` を初期生成するルールを固める。
 
 ## 6. 採用元
 
 - MIRA: `core / voice / state / relationship / memory / beliefs`
 - inner-galge: キャラ中心 / hotset / Markdown運用
 - LIRIA: session構造 / event_card / save/resume / archive
+- style reference: LIRIAの story_reference / Light Story Reference Pass / style rules と inner-galgeの抽象化手順
 
 ## 7. 採用しなかったもの
 
@@ -96,6 +102,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Handoffに長期ロードマップを全部詰め込む運用
 - 起動時・再開時に全ファイルを総読みする重い運用
 - example文を本文生成へ流用する運用
+- 参照小説本文や固有文体を保存・直接模倣する運用
+- style系を通常resumeの毎回必読にする重い運用
 - 今回いきなりlauncher / CLIへ進むこと
 
 ## 8. 理由

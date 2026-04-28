@@ -90,6 +90,7 @@ consultでは物語本文を勝手に開始しない。
 
 `prompt/core.md` は全体方針として参照する。
 ただし、newgameの詳細は `prompt/newgame.md`、save/resumeの詳細は `prompt/save_resume.md` に委ねる。
+文章表現、参照小説、参照作品、scene toneの相談では `prompt/style_reference.md` を必要時だけ読む。
 
 ## 5. 採用元
 
