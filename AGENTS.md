@@ -14,6 +14,7 @@
 - `docs/EVENT_CARD_PLAYABILITY.md` が存在する場合は読む
 - `docs/VOICE_CONTINUITY.md` が存在する場合は読む
 - `docs/ROMANCE_INTIMACY_GROWTH.md` が存在する場合は読む
+- `docs/RESUME_SMOKE_TEST.md` が存在する場合は読む
 - `prompt/core.md`
 - `prompt/startup.md` が存在する場合は読む
 - `prompt/newgame.md`

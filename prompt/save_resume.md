@@ -4,6 +4,7 @@
 `prompt/core.md` と `docs/CORE_CONCEPT.md` の方針に従い、`prompt/core.md` の `Example Anchoring Control` を全体共通原則として参照します。
 声と関係の継続確認は `docs/VOICE_CONTINUITY.md` を正本とします。
 親密・官能・ベッドシーンの保存/再開は `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とします。
+`new -> first scene -> save -> resume` の手動smokeは `docs/RESUME_SMOKE_TEST.md` を正本とします。
 
 ## 1. 基本方針
 
@@ -220,7 +221,7 @@ appendではなく、必要に応じて上書き再生成する。
 
 new直後は、初回scene本文がまだ生成されていない場合でも、`docs/NEW_SESSION_INITIALIZATION.md` に従ってresume可能な最小状態が揃っているか確認する。
 
-- `session.json` にphaseとfirst scene statusがある。
+- `session.json` にphase、first scene status、resume smoke statusがある。
 - `current/hotset.md` に再開用の短い温度がある。
 - `current/scene.md` に場所、距離、見えているもの、行動余地がある。
 - `current/event_card.md` に visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change がある。
@@ -232,7 +233,23 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 - `lilia/main/memory.md` に初期記憶がある。
 - `lilia/main/beliefs.md` に誤解や思い込みの余地がある。
 
-## 7. 禁止事項
+## 7. Resume Smoke Test
+
+`new -> first scene -> save -> resume` を手動で確認する時は、`docs/RESUME_SMOKE_TEST.md` を正本とする。
+
+resume 1ターン目の前に、以下が落ちていないかを短く見る。
+
+- `session.json`、`current/*`、`lilia/main/*`、`story/*`、`style/*` の最小ファイルが揃っている。
+- `current/hotset.md` から現在温度、第一反応、呼び方/距離のechoが分かる。
+- `current/scene.md` から現在地、距離、見えているもの、行動余地が分かる。
+- `current/event_card.md` から visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change が分かる。
+- `lilia/main/voice.md`、`relationship.md`、`memory.md`、`beliefs.md` の必要箇所で、呼び方、距離、境界線、約束、拒否、保留、aftercareが巻き戻っていない。
+- 親密scene後なら、intimacy stage、consent stage、boundary state、aftercare memoryが関係と記憶に残っている。
+
+これは軽量な手動smokeであり、AI Harness、自動プレイ検証、CLI、launcher実装は含めない。
+チェック結果は、必要なら `tests/resume_smoke/manual_checklist.md` の形式で短く残す。
+
+## 8. 禁止事項
 
 - すべての会話をmemoryに詰め込まない。
 - `hotset.md`を正本として扱わない。

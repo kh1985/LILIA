@@ -2,7 +2,7 @@
   "session_id": "",
   "session_name": "new_lilia_session",
   "created_at": "",
-  "schema_version": "0.4.0",
+  "schema_version": "0.5.0",
   "mode": "new",
   "current_phase": "qa_pending",
   "active_lilia": "main",
@@ -16,12 +16,14 @@
     "new_session_initialization": "docs/NEW_SESSION_INITIALIZATION.md",
     "event_card_playability": "docs/EVENT_CARD_PLAYABILITY.md",
     "voice_continuity": "docs/VOICE_CONTINUITY.md",
-    "romance_intimacy_growth": "docs/ROMANCE_INTIMACY_GROWTH.md"
+    "romance_intimacy_growth": "docs/ROMANCE_INTIMACY_GROWTH.md",
+    "resume_smoke_test": "docs/RESUME_SMOKE_TEST.md"
   },
   "initialization": {
     "qa_completed": false,
     "light_story_reference_pass": "not_run",
-    "first_scene_status": "not_generated"
+    "first_scene_status": "not_generated",
+    "resume_smoke_status": "not_run"
   },
   "description": "1人のLILIAとの関係を保存・再開するための最小セッションテンプレートです。"
 }

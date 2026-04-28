@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md` を正本にする。
 
 ## 1. Goal
 
@@ -24,8 +24,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Case / Event Card Playability Gate: 設計仕様完了 / 実生成コード未実装
 - Relationship / Character Voice Continuity Gate: 設計仕様完了 / 実生成コード未実装
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
+- Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Resume Smoke Test
+- 次は Growth Update Loop
 
 ## 3. Completed Foundation
 
@@ -95,7 +96,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 生成済みsessionを `resume` で軽量に読み、1ターン目の温度が落ちないか確認する。
    - 口調が巻き戻らないか、hotsetが正解ルートやtodoになっていないか、関係温度とevent_cardの入口が戻るかを見る。
    - `new -> first scene -> save -> resume` を最初の手動smokeとして固定する。
-   - Status: 未着手
+   - `docs/RESUME_SMOKE_TEST.md` を正本として、手動smokeの観点、resume 1ターン目の通過条件、failure examples、採用しない重い検証を固定した。
+   - `tests/resume_smoke/manual_checklist.md` と `tests/resume_smoke/sample_session.md` を追加し、手動検証の足場を置いた。
+   - Status: 完了
 
 7. Growth Update Loop
    - 会話後に `state`、`relationship`、`memory`、`beliefs`、`hotset`、`event_card` をどう更新するかを実運用できる形にする。
@@ -151,10 +154,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Resume Smoke Test。
+次の実作業は Growth Update Loop。
 
-Romance / Intimacy Growth Loop は設計仕様とテンプレート補強が完了済みであり、launcher / CLIによる実生成コードは後続である。
-次は `new -> first scene -> save -> resume` の手動smokeを固定し、resume 1ターン目で声、関係温度、event_card入口、親密/境界/aftercareの余韻が落ちないかを見る。
+Resume Smoke Test は手動smoke仕様とチェックリストが完了済みであり、launcher / CLIや自動プレイ検証は後続である。
+次は会話後に `state`、`relationship`、`memory`、`beliefs`、`hotset`、`event_card` をどう更新するかを、実運用できる軽量ループとして固定する。
 
 ## 6. Update Rules
 

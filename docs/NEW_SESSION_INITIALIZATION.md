@@ -23,6 +23,7 @@ LILIAは、AI上の人格・記憶・関係存在として初期化する。
 - event_card可プレイ性: `docs/EVENT_CARD_PLAYABILITY.md`
 - voice continuity: `docs/VOICE_CONTINUITY.md`
 - romance / intimacy growth: `docs/ROMANCE_INTIMACY_GROWTH.md`
+- resume smoke: `docs/RESUME_SMOKE_TEST.md`
 - 中核思想: `docs/CORE_CONCEPT.md`
 - 長期順序: `docs/ROADMAP.md`
 
@@ -115,6 +116,7 @@ Q&A結果は、以下のように分けて保存する。
 - source prompt / docs references
 - Q&A completion state
 - first scene status
+- resume smoke status
 
 巨大な本文ログ、Q&A全文、会話ログは入れない。
 
@@ -267,6 +269,7 @@ Light Story Reference Pass は、初回scene前に一度だけ軽く通す。
 ## 8. Resume-Ready Minimum
 
 new直後は、初回sceneがまだ本文として生成されていない場合でも、resume可能な最小状態を揃える。
+`new -> first scene -> save -> resume` の一周確認は `docs/RESUME_SMOKE_TEST.md` を正本とする。
 
 最低限、以下が読めること。
 
