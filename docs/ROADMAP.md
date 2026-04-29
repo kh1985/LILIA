@@ -31,8 +31,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
+- Newgame Q&A v1.1: 初回scene品質改善のため調整済み
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Launcher / CLI の最小運用確認
+- 次は 新Q&Aで実プレイ再テスト
 
 ## 3. Completed Foundation
 
@@ -187,7 +188,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Launcher / CLI のAI実行環境確認。
+次の実作業は、新Q&A v1.1で `./lilia codex-new <session>` を再テストすること。
 
 MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を1周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
 minor follow-upとして `templates/session/session.json` の `source_prompt_versions` 補正も完了している。
@@ -195,7 +196,8 @@ minor follow-upとして `templates/session/session.json` の `source_prompt_ver
 `./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線を実装済みである。
 最小運用確認では、最新session表示とprompt-only案内を小修正済みである。
 `--run` と `--engine codex|claude|auto` によりAI CLI接続も追加済みである。
-次は、ローカルの codex / claude 認証や権限を整え、実プレイで `./lilia resume --run --engine auto` が通るかを見る。
+Newgame Q&A v1.1では、初回sceneが「困っているLILIAを優しく助ける」だけの一本道にならないよう、表へ出る側面、関係位置、生活の足場、今日の保留、許されている距離、小さな出来事、避けたいことを聞く形へ調整済みである。
+次は、新Q&Aで実プレイ再テストを行う。
 AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
 
 ## 6. Update Rules
