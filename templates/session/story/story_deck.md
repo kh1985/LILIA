@@ -34,6 +34,15 @@
 - LILIAとの関係に何を問い直すか:
 - 親密sceneを雑に壊さないための注意:
 
+## Crisis / Ability Echo
+
+- unresolved trace:
+- delayed cost:
+- returning pressure:
+- relationship risk still active:
+- LILIAがまだ言えていないこと:
+- 1-3 scene後に戻る形:
+
 ## NPC / Contact Notes
 
 - name or label:

@@ -32,6 +32,16 @@
 
 - 未設定
 
+## Crisis / Ability Condition
+
+- fatigue:
+- injury or pain:
+- fear / agitation:
+- concentration:
+- recovery:
+- visible trace:
+- note:
+
 ## 親密scene後の一時状態
 
 - 安心:

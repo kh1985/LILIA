@@ -33,6 +33,28 @@
 
 - 未設定
 
+## Crisis / Ability Check
+
+- crisis pressure:
+- possible responses:
+  - 逃げる:
+  - 守る:
+  - 交渉する:
+  - 隠す:
+  - 耐える:
+  - 助けを呼ぶ:
+  - 能力を使う:
+  - あえて戦わない:
+- ability constraint:
+  - can:
+  - cannot:
+  - condition:
+  - cost:
+  - trace:
+  - risk:
+- relationship risk:
+- post-crisis residue:
+
 ## If Ignored
 
 - 未設定
