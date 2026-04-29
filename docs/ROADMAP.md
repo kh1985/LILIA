@@ -28,9 +28,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Growth Update Loop: 設計仕様完了 / 実生成コード未実装
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
-- Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト未実装
+- Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
+- MVP Playtest: `tests/mvp_playtest/manual_checklist.md` 追加済み / 実施未着手
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Technical + Gameplay Integrity Checks の最小スクリプト要否確認、またはMVP Playtest準備
+- 次は MVP Playtest 実施
 
 ## 3. Completed Foundation
 
@@ -140,8 +141,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 初期は軽い手動/スクリプトsmokeを優先し、AI Harness本実行や大量ログ分析は通常チェックに入れない。
    - `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本として追加済み。
    - `docs/RESUME_SMOKE_TEST.md` に横断integrity正本への参照を追加し、`tests/resume_smoke/manual_checklist.md` に Integrity Cross-Check を最小接続済み。
-   - scriptsを作るかどうかは次タスクで確認する。初期MVPではAI Harness、大量ログ解析、launcher / CLI、production CIはまだ入れない。
-   - Status: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト未実装
+   - 最小スクリプトは現時点では不要と判断済み。初期MVPでは手動チェックでMVP Playtestへ進む。
+   - 初期MVPではAI Harness、大量ログ解析、launcher / CLI、production CIはまだ入れない。
+   - Status: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 
 11. Launcher / CLI
    - state初期化とsmoke testが固まった後に実装する。
@@ -161,7 +163,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 13. MVP Playtest
    - 1人のLILIAで、開始、再開、関係変化、保存更新が一連の体験として成立するか検証する。
    - 恋愛、日常、衝突、親密、event_card、save/resumeの少なくとも1往復を手動で通す。
-   - Status: 未着手
+   - `tests/mvp_playtest/manual_checklist.md` を追加済み。これは新しい設計正本ではなく、`new -> first scene -> save -> resume` を1周通すための手動playtest実行メモである。
+   - Status: manual checklist追加済み / 実施未着手
 
 14. Extensions
    - export、セッション一覧、複数LILIA、UI、外部連携などをMVP後に検討する。
@@ -169,12 +172,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Technical + Gameplay Integrity Checks の最小スクリプト要否確認、またはMVP Playtest準備。
+次の実作業は MVP Playtest 実施。
 
-Technical + Gameplay Integrity Checks はdocs正本化とmanual checklist最小接続が完了済みであり、最小スクリプトは未実装である。
-次は、ファイル存在確認、見出し確認、ROADMAP / HANDOFF のNext Task簡易確認程度の最小スクリプトが必要かを確認する。
-不要なら、MVP Playtest準備へ進む。
-初期MVPではAI Harness本実行、大量ログ分析、launcher / CLI、production CIはまだ入れない。
+Technical + Gameplay Integrity Checks はdocs正本化とmanual checklist最小接続が完了済みであり、最小スクリプトは現時点では不要と判断済みである。
+`tests/mvp_playtest/manual_checklist.md` も追加済みなので、次はこの手動チェックリストに沿って `new -> first scene -> save -> resume` を1周通す。
+初期MVPではAI Harness本実行、大量ログ分析、自動プレイ生成、launcher / CLI、production CIはまだ入れない。
 
 ## 6. Update Rules
 
