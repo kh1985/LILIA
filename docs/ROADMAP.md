@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md` を正本にする。
 
 ## 1. Goal
 
@@ -27,8 +27,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / 実生成コード未実装
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
+- Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Crisis / Combat / Ability Constraint Loop の設計正本化
+- 次は Crisis / Combat / Ability Constraint Loop のテンプレート最小接続
 
 ## 3. Completed Foundation
 
@@ -123,12 +124,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - Status: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 
 9. Crisis / Combat / Ability Constraint Loop
-   - 次に設計正本化する対象。
+   - `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md` を正本として追加済み。
    - 危機・戦闘・能力は、単なるバトルではなく、関係と自己理解を揺らすために使う。
    - ability cost、trace、relationship risk、condition、direct pressureを扱う。
    - 逃げる、守る、交渉する、隠す、耐える、助けを呼ぶ、能力を使う、代償を払う、を同じ重さで扱う。
    - 旧LIRIA / inner-galge の `combat.md` を参考にするが、LILIAではHP、部位管理、重い数値戦闘を初期MVP必須にしない。
-   - Status: 未着手
+   - Status: docs正本化完了 / テンプレート最小接続未実装
 
 10. Technical + Gameplay Integrity Checks
    - MVP前後に、`new -> first scene -> save -> resume` の破綻を検出するチェックを追加する。
@@ -163,10 +164,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Crisis / Combat / Ability Constraint Loop の設計正本化。
+次の実作業は Crisis / Combat / Ability Constraint Loop のテンプレート最小接続。
 
 Growth Update Loop は設計仕様とテンプレート最小補強が完了済みであり、launcher / CLIや自動プレイ検証は後続である。
 Story / Relationship Accumulation Loop はdocs正本化とテンプレート最小接続が完了済みであり、実生成コードは後続である。
+Crisis / Combat / Ability Constraint Loop はdocs正本化が完了済みであり、テンプレート最小接続と実生成コードは後続である。
 World Autonomy / Pressure Loop は独立した大きな世界圧ではなく、その下位要素として、放置した出来事や未回収札が1-3 scene後に小さく戻る運用へ寄せる。
 
 ## 6. Update Rules
