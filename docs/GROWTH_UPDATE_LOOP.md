@@ -20,6 +20,7 @@ Growth Update は好感度加算、攻略ルート進行、報酬付与ではな
 - state構造: `docs/STATE_STRUCTURE.md`
 - save / resume: `prompt/save_resume.md`
 - event_card可プレイ性: `docs/EVENT_CARD_PLAYABILITY.md`
+- story / relationship accumulation: `docs/STORY_RELATIONSHIP_ACCUMULATION.md`
 - voice continuity: `docs/VOICE_CONTINUITY.md`
 - romance / intimacy growth: `docs/ROMANCE_INTIMACY_GROWTH.md`
 - resume smoke: `docs/RESUME_SMOKE_TEST.md`
@@ -191,6 +192,7 @@ event_cardが現在sceneから外れた場合は、必要に応じて `story/sto
 ### `story/story_deck.md`
 
 現在sceneから外れた未回収札、後で使う素材、関係を揺らす圧を保存する。
+Story / Relationship Accumulation では、event_cardが点、story_deckが線へ育つ素材棚である。
 
 保存するもの:
 
@@ -204,6 +206,8 @@ event_cardが現在sceneから外れた場合は、必要に応じて `story/sto
 - 文体参照。
 - 親密sceneそのものの正本。
 - 重いcase_engine / villain / combat構造。
+
+NPCが関わる場合は、Tier 0-2なら短いメモに留め、Tier 3以上で再登場し、LILIAのmemory / relationship / beliefsへ影響した時だけ `story/npc/<id>.md` を検討する。
 
 ### `archive/beats/`
 
@@ -228,8 +232,9 @@ event_cardが現在sceneから外れた場合は、必要に応じて `story/sto
 3. 必要な正本だけを更新する。
 4. event_cardが進んだ場合は、継続 / 解決 / 背景化 / 保留を判断する。
 5. 関係の節目が明確なら、短く `archive/beats/` へ残す。
-6. 最後に `current/hotset.md` を、次回1ターンに効く短い温度として再生成する。
-7. save前に、hotsetだけ正本化していないか確認する。
+6. Story / Relationship Accumulation の観点で、次回へ戻る未回収札やNPC tier変化があるかを見る。
+7. 最後に `current/hotset.md` を、次回1ターンに効く短い温度として再生成する。
+8. save前に、hotsetだけ正本化していないか確認する。
 
 ## 7. Update Timing Detail
 

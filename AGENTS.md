@@ -16,6 +16,7 @@
 - `docs/ROMANCE_INTIMACY_GROWTH.md` が存在する場合は読む
 - `docs/RESUME_SMOKE_TEST.md` が存在する場合は読む
 - `docs/GROWTH_UPDATE_LOOP.md` が存在する場合は読む
+- `docs/STORY_RELATIONSHIP_ACCUMULATION.md` が存在する場合は読む
 - `prompt/core.md`
 - `prompt/startup.md` が存在する場合は読む
 - `prompt/newgame.md`
@@ -52,7 +53,7 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 
 - MIRAのproxy / web research / bench系
 - inner-galgeのharem名称、複数キャラ前提
-- LIRIAのcase_engine、villain_engine、organization、漫画化、AI Harness
+- LIRIAのcase_engine、villain_engine、重いorganization運用、漫画化、AI Harness
 - 巨大なprompt分割
 - 壮大な事件や組織圧
 
