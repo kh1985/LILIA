@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本にする。
 
 ## 1. Goal
 
@@ -28,8 +28,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Growth Update Loop: 設計仕様完了 / 実生成コード未実装
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
+- Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Technical + Gameplay Integrity Checks の設計正本化または最小チェック接続
+- 次は Technical + Gameplay Integrity Checks の最小スクリプト要否確認、またはMVP Playtest準備
 
 ## 3. Completed Foundation
 
@@ -137,8 +138,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - repo integrity、session integrity、prompt auditor、romance/intimacy boundary regression、voice continuity、event_card playabilityを対象にする。
    - 旧LIRIAの `check_repo_integrity`、`check_session_integrity`、`liria_prompt_auditor`、PI Player、AI Persona Playtest、AI Player Harness を参考にする。
    - 初期は軽い手動/スクリプトsmokeを優先し、AI Harness本実行や大量ログ分析は通常チェックに入れない。
-   - 次に着手する対象として、まず設計正本化または最小チェック接続を行う。
-   - Status: 未着手
+   - `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本として追加済み。
+   - `docs/RESUME_SMOKE_TEST.md` に横断integrity正本への参照を追加し、`tests/resume_smoke/manual_checklist.md` に Integrity Cross-Check を最小接続済み。
+   - scriptsを作るかどうかは次タスクで確認する。初期MVPではAI Harness、大量ログ解析、launcher / CLI、production CIはまだ入れない。
+   - Status: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト未実装
 
 11. Launcher / CLI
    - state初期化とsmoke testが固まった後に実装する。
@@ -166,12 +169,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Technical + Gameplay Integrity Checks の設計正本化または最小チェック接続。
+次の実作業は Technical + Gameplay Integrity Checks の最小スクリプト要否確認、またはMVP Playtest準備。
 
-ここまでで new / event_card / voice / romance / resume smoke / growth update / story accumulation / crisis ability の設計正本とテンプレート最小接続が揃った。
-次は、これらが `new -> first scene -> save -> resume` の流れで壊れていないか確認する軽いチェック導線を作る。
-初期は手動チェックまたは軽いスクリプトを優先し、AI Harness本実行や大量ログ分析は入れない。
-launcher / CLI はまだ後続である。
+Technical + Gameplay Integrity Checks はdocs正本化とmanual checklist最小接続が完了済みであり、最小スクリプトは未実装である。
+次は、ファイル存在確認、見出し確認、ROADMAP / HANDOFF のNext Task簡易確認程度の最小スクリプトが必要かを確認する。
+不要なら、MVP Playtest準備へ進む。
+初期MVPではAI Harness本実行、大量ログ分析、launcher / CLI、production CIはまだ入れない。
 
 ## 6. Update Rules
 
