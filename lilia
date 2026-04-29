@@ -53,6 +53,7 @@ Usage:
 
 This launcher creates and inspects local session scaffolds only.
 AI execution, AI Harness, autoplay, exports, and production CI are not included.
+Tip: redirect prompt-only output to a file if you want a quieter terminal.
 """
     )
 
@@ -110,6 +111,13 @@ def write_session_json(path: Path, data: dict) -> None:
     )
 
 
+def session_sort_value(path: Path) -> str:
+    data = read_session_json(path)
+    if data.get("created_at"):
+        return str(data["created_at"])
+    return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
+
+
 def create_session(name: str | None) -> Path:
     if not TEMPLATE_DIR.exists():
         die("templates/session/ is missing")
@@ -141,7 +149,7 @@ def session_candidates() -> list[Path]:
         return []
     return sorted(
         [path for path in SAVES_DIR.iterdir() if path.is_dir() and (path / "session.json").exists()],
-        key=lambda path: path.stat().st_mtime,
+        key=session_sort_value,
         reverse=True,
     )
 
@@ -177,6 +185,7 @@ def print_new_prompt_bundle(session_path: Path) -> None:
     print(f"session: {session_path.relative_to(ROOT)}")
     print("mode: new")
     print("next: answer prompt/newgame.md Q&A, then update the session scaffold.")
+    print("note: no AI engine is run; this is the prompt bundle for manual use.")
     for rel in NEW_PROMPT_FILES:
         print_file(ROOT / rel)
     print_file(session_path / "session.json")
@@ -187,6 +196,7 @@ def print_resume_prompt_bundle(session_path: Path) -> None:
     print(f"session: {session_path.relative_to(ROOT)}")
     print("mode: resume")
     print("read order: prompt/save_resume.md lightweight resume order")
+    print("note: no AI engine is run; this is the prompt bundle for manual use.")
     for rel in RESUME_PROMPT_FILES:
         print_file(ROOT / rel)
     for rel in RESUME_SESSION_FILES:
@@ -218,19 +228,21 @@ def command_resume(args: list[str]) -> None:
 
 
 def command_list_sessions() -> None:
-    sessions = list(reversed(session_candidates()))
+    sessions = session_candidates()
     if not sessions:
         print("No sessions found.")
         return
 
-    print("SESSION        PHASE        MODE     CREATED_AT                 PATH")
+    latest = sessions[0]
+    print("LATEST  SESSION        PHASE        MODE     CREATED_AT                 PATH")
     for path in sessions:
         data = read_session_json(path)
+        marker = "*" if path == latest else ""
         name = data.get("session_name") or path.name
         phase = data.get("current_phase") or "-"
         mode = data.get("mode") or "-"
         created = data.get("created_at") or "-"
-        print(f"{name:<14} {phase:<12} {mode:<8} {created:<26} {path.relative_to(ROOT)}")
+        print(f"{marker:<7} {name:<14} {phase:<12} {mode:<8} {created:<26} {path.relative_to(ROOT)}")
 
 
 def command_prompt_only(args: list[str]) -> None:

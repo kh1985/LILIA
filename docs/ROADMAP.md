@@ -30,7 +30,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
-- Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / AI実行未実装
+- Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI実行未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は Launcher / CLI の最小運用確認
 
@@ -156,8 +156,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - `templates/session/` から `saves/<session_name>/` へsession scaffoldを作成できる。
    - session名未指定時は `session_001` 形式で未使用名を採番し、resume時は最新sessionを検出する。
    - `saves/` はgit管理外にし、実sessionや個人ログをrepoへ入れない。
+   - 最小運用確認で、`list-sessions` はresume対象の最新sessionを先頭に出し、`*` で示す形へ調整済み。
+   - prompt-onlyはAIを実行しないmanual prompt bundleであり、必要ならリダイレクトして使う案内を追加済み。
    - AI実行、AI Harness、自動プレイ生成、大量ログ解析、画像/漫画export、production CIは入れていない。
-   - Status: 最小launcher実装済み / prompt-only smoke完了 / AI実行未実装
+   - Status: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI実行未実装
 
 12. Visual Character Sheet / Manga Export Pipeline
    - MVP後の拡張として残す。
@@ -183,13 +185,14 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Launcher / CLI の最小運用確認。
+次の実作業は Launcher / CLI の実プレイ投入確認。
 
 MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を1周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
 minor follow-upとして `templates/session/session.json` の `source_prompt_versions` 補正も完了している。
 
 `./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線を実装済みである。
-次は、実プレイでこの導線を使う時に足りない表示や引数がないかを確認する。
+最小運用確認では、最新session表示とprompt-only案内を小修正済みである。
+次は、この導線を実プレイで使い、AI実行なしのmanual運用で足りるかを見る。
 AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
 
 ## 6. Update Rules
