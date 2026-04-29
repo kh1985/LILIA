@@ -22,11 +22,13 @@ LILIAは、会話、選択、物語、記憶、関係性によって人格の出
 - event_card可プレイ性: `docs/EVENT_CARD_PLAYABILITY.md`
 - voice continuity: `docs/VOICE_CONTINUITY.md`
 - romance / intimacy growth: `docs/ROMANCE_INTIMACY_GROWTH.md`
+- technical / gameplay integrity: `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`
 - 手動チェックリスト: `tests/resume_smoke/manual_checklist.md`
 - 非正史サンプル: `tests/resume_smoke/sample_session.md`
 
 この文書は、smoke testの観点と合否基準の正本である。
 各Gateの詳細は既存正本に委ね、ここではresumeで一周できるかだけを見る。
+横断的なrepo / session / prompt / gameplayの整合確認は `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本にする。
 
 ## 3. Scope
 

@@ -67,7 +67,16 @@
 - [ ] 初回から恋愛成立やベッドシーンを確定していない。
 - [ ] event_cardが親密sceneを雑な事件乱入で壊していない。
 
-## 7. Failure Flags
+## 7. Integrity Cross-Check
+
+- [ ] 詳細な横断整合性確認が必要な場合は `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を参照する。
+- [ ] event_card / story_deck / relationship_spine の責務が混ざっていない。
+- [ ] memoryは事実、beliefsはLILIA側仮説、unknownは未確定として分離されている。
+- [ ] story accumulationがeventを関係の線へ変換している。
+- [ ] crisis / abilityが万能解決や重い数値戦闘になっていない。
+- [ ] hotsetが正本化していない。
+
+## 8. Failure Flags
 
 - [ ] hotsetだけ読んで本文を書いていないか。
 - [ ] event_cardが抽象的な違和感だけになっていないか。
@@ -77,7 +86,7 @@
 - [ ] story_deckとevent_cardが同じ内容になっていないか。
 - [ ] beliefsがユーザーの内面を断定していないか。
 
-## 8. Result
+## 9. Result
 
 - session:
 - date:
