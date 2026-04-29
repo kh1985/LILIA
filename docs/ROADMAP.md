@@ -27,9 +27,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / 実生成コード未実装
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
-- Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続未実装
+- Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Crisis / Combat / Ability Constraint Loop のテンプレート最小接続
+- 次は Technical + Gameplay Integrity Checks の設計正本化または最小チェック接続
 
 ## 3. Completed Foundation
 
@@ -129,13 +129,15 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - ability cost、trace、relationship risk、condition、direct pressureを扱う。
    - 逃げる、守る、交渉する、隠す、耐える、助けを呼ぶ、能力を使う、代償を払う、を同じ重さで扱う。
    - 旧LIRIA / inner-galge の `combat.md` を参考にするが、LILIAではHP、部位管理、重い数値戦闘を初期MVP必須にしない。
-   - Status: docs正本化完了 / テンプレート最小接続未実装
+   - `templates/session/current/event_card.md` の `Crisis / Ability Check`、`templates/session/story/story_deck.md` の `Crisis / Ability Echo`、`templates/session/lilia/main/state.md` の `Crisis / Ability Condition`、`templates/session/story/relationship_spine.md` の危機後の頼り方 / 頼られ方、能力使用後の信頼 / 警戒、`prompt/newgame.md` / `prompt/save_resume.md` の正本参照へテンプレート最小接続を反映済み。
+   - Status: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 
 10. Technical + Gameplay Integrity Checks
    - MVP前後に、`new -> first scene -> save -> resume` の破綻を検出するチェックを追加する。
    - repo integrity、session integrity、prompt auditor、romance/intimacy boundary regression、voice continuity、event_card playabilityを対象にする。
    - 旧LIRIAの `check_repo_integrity`、`check_session_integrity`、`liria_prompt_auditor`、PI Player、AI Persona Playtest、AI Player Harness を参考にする。
    - 初期は軽い手動/スクリプトsmokeを優先し、AI Harness本実行や大量ログ分析は通常チェックに入れない。
+   - 次に着手する対象として、まず設計正本化または最小チェック接続を行う。
    - Status: 未着手
 
 11. Launcher / CLI
@@ -164,12 +166,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Crisis / Combat / Ability Constraint Loop のテンプレート最小接続。
+次の実作業は Technical + Gameplay Integrity Checks の設計正本化または最小チェック接続。
 
-Growth Update Loop は設計仕様とテンプレート最小補強が完了済みであり、launcher / CLIや自動プレイ検証は後続である。
-Story / Relationship Accumulation Loop はdocs正本化とテンプレート最小接続が完了済みであり、実生成コードは後続である。
-Crisis / Combat / Ability Constraint Loop はdocs正本化が完了済みであり、テンプレート最小接続と実生成コードは後続である。
-World Autonomy / Pressure Loop は独立した大きな世界圧ではなく、その下位要素として、放置した出来事や未回収札が1-3 scene後に小さく戻る運用へ寄せる。
+ここまでで new / event_card / voice / romance / resume smoke / growth update / story accumulation / crisis ability の設計正本とテンプレート最小接続が揃った。
+次は、これらが `new -> first scene -> save -> resume` の流れで壊れていないか確認する軽いチェック導線を作る。
+初期は手動チェックまたは軽いスクリプトを優先し、AI Harness本実行や大量ログ分析は入れない。
+launcher / CLI はまだ後続である。
 
 ## 6. Update Rules
 
