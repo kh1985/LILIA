@@ -26,9 +26,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / 実生成コード未実装
-- Story / Relationship Accumulation Loop: docs正本化完了 / 実生成コード未実装
+- Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Story / Relationship Accumulation Loop のテンプレート最小補強または運用接続確認
+- 次は Crisis / Combat / Ability Constraint Loop の設計正本化
 
 ## 3. Completed Foundation
 
@@ -119,9 +119,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 下位要素としての World Autonomy / Pressure は、放置した出来事、未回収札、言い残し、境界線、約束、記録のズレが1-3 scene後に小さく戻ることとして扱う。
    - 親密sceneを雑な乱入で壊さず、life pressure、social pressure、relationship pressure、secret exposure pressureを生活、信用、沈黙、約束の小さな変化として扱う。
    - `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を正本として、Event / Story、Story Reference Engine、Selection Signals、Reference Engine、NPC tier、NPC昇格条件、生成粒度、World Autonomy / Pressureの扱いを固定した。
-   - Status: docs正本化完了 / 実生成コード未実装
+   - `templates/session/current/event_card.md`、`story/story_deck.md`、`story/relationship_spine.md` と `prompt/newgame.md`、`prompt/save_resume.md` へテンプレート最小接続を反映した。
+   - Status: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 
 9. Crisis / Combat / Ability Constraint Loop
+   - 次に設計正本化する対象。
    - 危機・戦闘・能力は、単なるバトルではなく、関係と自己理解を揺らすために使う。
    - ability cost、trace、relationship risk、condition、direct pressureを扱う。
    - 逃げる、守る、交渉する、隠す、耐える、助けを呼ぶ、能力を使う、代償を払う、を同じ重さで扱う。
@@ -161,10 +163,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Story / Relationship Accumulation Loop のテンプレート最小補強または運用接続確認。
+次の実作業は Crisis / Combat / Ability Constraint Loop の設計正本化。
 
 Growth Update Loop は設計仕様とテンプレート最小補強が完了済みであり、launcher / CLIや自動プレイ検証は後続である。
-Story / Relationship Accumulation Loop はdocs正本化が完了済みであり、次はこの正本をsession scaffoldや手動運用へ最小限に接続する。
+Story / Relationship Accumulation Loop はdocs正本化とテンプレート最小接続が完了済みであり、実生成コードは後続である。
 World Autonomy / Pressure Loop は独立した大きな世界圧ではなく、その下位要素として、放置した出来事や未回収札が1-3 scene後に小さく戻る運用へ寄せる。
 
 ## 6. Update Rules
