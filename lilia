@@ -2,9 +2,12 @@
 import json
 import re
 import shutil
+import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 
 ROOT = Path(__file__).resolve().parent
@@ -45,14 +48,15 @@ def usage() -> None:
         """LILIA minimal launcher
 
 Usage:
-  ./lilia new [session_name] [--prompt-only]
-  ./lilia resume [session_name] [--prompt-only]
+  ./lilia new [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
+  ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
 
 This launcher creates and inspects local session scaffolds only.
-AI execution, AI Harness, autoplay, exports, and production CI are not included.
+AI execution runs only when --run is explicit.
+AI Harness, autoplay, exports, and production CI are not included.
 Tip: redirect prompt-only output to a file if you want a quieter terminal.
 """
     )
@@ -63,15 +67,34 @@ def die(message: str, code: int = 1) -> None:
     sys.exit(code)
 
 
-def parse_prompt_only(args: list[str]) -> tuple[list[str], bool]:
+def parse_run_options(args: list[str]) -> tuple[list[str], bool, bool, str]:
     prompt_only = False
+    run = False
+    engine = "auto"
     cleaned: list[str] = []
-    for arg in args:
+    index = 0
+    while index < len(args):
+        arg = args[index]
         if arg == "--prompt-only":
             prompt_only = True
+        elif arg == "--run":
+            run = True
+        elif arg == "--engine":
+            index += 1
+            if index >= len(args):
+                die("--engine requires codex, claude, or auto")
+            engine = args[index]
+        elif arg.startswith("--engine="):
+            engine = arg.split("=", 1)[1]
         else:
             cleaned.append(arg)
-    return cleaned, prompt_only
+        index += 1
+
+    if prompt_only and run:
+        die("choose either --prompt-only or --run, not both")
+    if engine not in {"auto", "codex", "claude"}:
+        die("--engine must be codex, claude, or auto")
+    return cleaned, prompt_only, run, engine
 
 
 def validate_session_name(name: str) -> str:
@@ -118,7 +141,7 @@ def session_sort_value(path: Path) -> str:
     return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
 
 
-def create_session(name: str | None) -> Path:
+def create_session(name: Optional[str]) -> Path:
     if not TEMPLATE_DIR.exists():
         die("templates/session/ is missing")
     if name is None:
@@ -161,7 +184,7 @@ def latest_session() -> Path:
     return candidates[0]
 
 
-def resolve_session(name: str | None) -> Path:
+def resolve_session(name: Optional[str]) -> Path:
     if name is None:
         return latest_session()
     path = session_dir(name)
@@ -173,58 +196,143 @@ def resolve_session(name: str | None) -> Path:
 
 
 def print_file(path: Path) -> None:
+    print(render_file(path))
+
+
+def render_file(path: Path) -> str:
     if not path.exists():
-        print(f"\n--- {path.relative_to(ROOT)} (missing) ---")
-        return
-    print(f"\n--- {path.relative_to(ROOT)} ---")
-    print(path.read_text(encoding="utf-8").rstrip())
+        return f"\n--- {path.relative_to(ROOT)} (missing) ---"
+    return f"\n--- {path.relative_to(ROOT)} ---\n{path.read_text(encoding='utf-8').rstrip()}"
+
+
+def build_new_prompt_bundle(session_path: Path) -> str:
+    parts = [
+        "# LILIA New Prompt Bundle",
+        f"session: {session_path.relative_to(ROOT)}",
+        "mode: new",
+        "next: answer prompt/newgame.md Q&A, then update the session scaffold.",
+        "note: no AI engine is run unless --run was explicit.",
+    ]
+    parts.extend(render_file(ROOT / rel) for rel in NEW_PROMPT_FILES)
+    parts.append(render_file(session_path / "session.json"))
+    return "\n".join(parts).rstrip() + "\n"
+
+
+def build_resume_prompt_bundle(session_path: Path) -> str:
+    parts = [
+        "# LILIA Resume Prompt Bundle",
+        f"session: {session_path.relative_to(ROOT)}",
+        "mode: resume",
+        "read order: prompt/save_resume.md lightweight resume order",
+        "note: no AI engine is run unless --run was explicit.",
+    ]
+    parts.extend(render_file(ROOT / rel) for rel in RESUME_PROMPT_FILES)
+    parts.extend(render_file(session_path / rel) for rel in RESUME_SESSION_FILES)
+    return "\n".join(parts).rstrip() + "\n"
 
 
 def print_new_prompt_bundle(session_path: Path) -> None:
-    print("# LILIA New Prompt Bundle")
-    print(f"session: {session_path.relative_to(ROOT)}")
-    print("mode: new")
-    print("next: answer prompt/newgame.md Q&A, then update the session scaffold.")
-    print("note: no AI engine is run; this is the prompt bundle for manual use.")
-    for rel in NEW_PROMPT_FILES:
-        print_file(ROOT / rel)
-    print_file(session_path / "session.json")
+    print(build_new_prompt_bundle(session_path), end="")
 
 
 def print_resume_prompt_bundle(session_path: Path) -> None:
-    print("# LILIA Resume Prompt Bundle")
-    print(f"session: {session_path.relative_to(ROOT)}")
-    print("mode: resume")
-    print("read order: prompt/save_resume.md lightweight resume order")
-    print("note: no AI engine is run; this is the prompt bundle for manual use.")
-    for rel in RESUME_PROMPT_FILES:
-        print_file(ROOT / rel)
-    for rel in RESUME_SESSION_FILES:
-        print_file(session_path / rel)
+    print(build_resume_prompt_bundle(session_path), end="")
+
+
+def choose_engine(requested: str) -> Optional[str]:
+    if requested == "auto":
+        if shutil.which("codex"):
+            return "codex"
+        if shutil.which("claude"):
+            return "claude"
+        return None
+    if shutil.which(requested):
+        return requested
+    return None
+
+
+def engine_command(engine: str) -> list[str]:
+    if engine == "codex":
+        return [
+            "codex",
+            "exec",
+            "--cd",
+            str(ROOT),
+            "--sandbox",
+            "read-only",
+            "--color",
+            "never",
+            "-",
+        ]
+    if engine == "claude":
+        return ["claude", "-p", "--permission-mode", "dontAsk"]
+    die(f"unsupported engine: {engine}")
+
+
+def run_engine(requested_engine: str, session_path: Path, bundle: str) -> None:
+    engine = choose_engine(requested_engine)
+    if engine is None:
+        die(
+            "no AI CLI found for --run. Install codex or claude, or use "
+            f"'./lilia resume {session_path.name} --prompt-only'."
+        )
+
+    print(f"session: {session_path.relative_to(ROOT)}", flush=True)
+    print(f"engine: {engine} (requested: {requested_engine})", flush=True)
+    print("mode: run", flush=True)
+    print("note: prompt bundle is written to a temporary file and removed after the engine exits.", flush=True)
+
+    temp_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix=f"lilia_{session_path.name}_",
+            suffix=".prompt.md",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(bundle)
+            temp_path = Path(temp_file.name)
+
+        print(f"prompt bundle: {temp_path}", flush=True)
+        with temp_path.open("r", encoding="utf-8") as prompt_file:
+            result = subprocess.run(engine_command(engine), stdin=prompt_file, cwd=ROOT)
+        if result.returncode != 0:
+            die(f"{engine} exited with status {result.returncode}", result.returncode)
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink()
 
 
 def command_new(args: list[str]) -> None:
-    args, prompt_only = parse_prompt_only(args)
+    args, prompt_only, run, engine = parse_run_options(args)
     if len(args) > 1:
         die("new accepts at most one session_name")
     session_path = create_session(args[0] if args else None)
-    print(f"created: {session_path.relative_to(ROOT)}")
-    if prompt_only:
+    print(f"created: {session_path.relative_to(ROOT)}", flush=True)
+    if run:
+        run_engine(engine, session_path, build_new_prompt_bundle(session_path))
+    elif prompt_only:
         print_new_prompt_bundle(session_path)
     else:
-        print(f"prompt: ./lilia resume {session_path.name} --prompt-only")
+        print(f"next: ./lilia resume {session_path.name} --prompt-only")
+        print(f"run:  ./lilia resume {session_path.name} --run --engine auto")
 
 
 def command_resume(args: list[str]) -> None:
-    args, prompt_only = parse_prompt_only(args)
+    args, prompt_only, run, engine = parse_run_options(args)
     if len(args) > 1:
         die("resume accepts at most one session_name")
     session_path = resolve_session(args[0] if args else None)
-    print(f"session: {session_path.relative_to(ROOT)}")
-    if prompt_only:
-        print_resume_prompt_bundle(session_path)
+    if run:
+        run_engine(engine, session_path, build_resume_prompt_bundle(session_path))
     else:
-        print(f"prompt: ./lilia resume {session_path.name} --prompt-only")
+        print(f"session: {session_path.relative_to(ROOT)}", flush=True)
+        if prompt_only:
+            print_resume_prompt_bundle(session_path)
+        else:
+            print(f"prompt: ./lilia resume {session_path.name} --prompt-only")
+            print(f"run:    ./lilia resume {session_path.name} --run --engine auto")
 
 
 def command_list_sessions() -> None:
@@ -234,7 +342,8 @@ def command_list_sessions() -> None:
         return
 
     latest = sessions[0]
-    print("LATEST  SESSION        PHASE        MODE     CREATED_AT                 PATH")
+    rows = []
+    name_width = len("SESSION")
     for path in sessions:
         data = read_session_json(path)
         marker = "*" if path == latest else ""
@@ -242,7 +351,12 @@ def command_list_sessions() -> None:
         phase = data.get("current_phase") or "-"
         mode = data.get("mode") or "-"
         created = data.get("created_at") or "-"
-        print(f"{marker:<7} {name:<14} {phase:<12} {mode:<8} {created:<26} {path.relative_to(ROOT)}")
+        name_width = max(name_width, len(str(name)))
+        rows.append((marker, str(name), phase, mode, created, path.relative_to(ROOT)))
+
+    print(f"LATEST  {'SESSION':<{name_width}}  PHASE        MODE     CREATED_AT                 PATH")
+    for marker, name, phase, mode, created, rel_path in rows:
+        print(f"{marker:<7} {name:<{name_width}}  {phase:<12} {mode:<8} {created:<26} {rel_path}")
 
 
 def command_prompt_only(args: list[str]) -> None:
