@@ -29,9 +29,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
-- MVP Playtest: `tests/mvp_playtest/manual_checklist.md` 追加済み / 実施未着手
+- MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は MVP Playtest 実施
+- 次は Launcher / CLI の最小設計確認
 
 ## 3. Completed Foundation
 
@@ -164,7 +164,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 1人のLILIAで、開始、再開、関係変化、保存更新が一連の体験として成立するか検証する。
    - 恋愛、日常、衝突、親密、event_card、save/resumeの少なくとも1往復を手動で通す。
    - `tests/mvp_playtest/manual_checklist.md` を追加済み。これは新しい設計正本ではなく、`new -> first scene -> save -> resume` を1周通すための手動playtest実行メモである。
-   - Status: manual checklist追加済み / 実施未着手
+   - `/tmp/lilia_mvp_playtest_manual_001` で手動実行し、`new -> first scene -> save -> resume` を1周通過済み。
+   - `tests/mvp_playtest/results/2026-04-29_manual_001.md` に PASS with minor follow-up candidates として結果サマリを記録済み。
+   - minor follow-upとして、`templates/session/session.json` の `source_prompt_versions` に Story / Relationship Accumulation と Crisis / Combat / Ability Constraint の正本参照を追加済み。
+   - 実セッション本文、実Q&A、実会話本文、個人プレイログ、`/tmp` のsession実体はrepoに入れない。
+   - Status: PASS with minor follow-up candidates / minor follow-up反映済み
 
 14. Extensions
    - export、セッション一覧、複数LILIA、UI、外部連携などをMVP後に検討する。
@@ -172,11 +176,14 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は MVP Playtest 実施。
+次の実作業は Launcher / CLI の最小設計確認。
 
-Technical + Gameplay Integrity Checks はdocs正本化とmanual checklist最小接続が完了済みであり、最小スクリプトは現時点では不要と判断済みである。
-`tests/mvp_playtest/manual_checklist.md` も追加済みなので、次はこの手動チェックリストに沿って `new -> first scene -> save -> resume` を1周通す。
-初期MVPではAI Harness本実行、大量ログ分析、自動プレイ生成、launcher / CLI、production CIはまだ入れない。
+MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を1周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
+minor follow-upとして `templates/session/session.json` の `source_prompt_versions` 補正も完了している。
+
+次は、旧LIRIAの `play.sh` / `liria` / config運用を参照しつつ、LILIA向けにどこまでを最小Launcher / CLIとして扱うかを確認する。
+まだ実装には入らず、`new` / `resume` / `consult` / session list / prompt-only / engine fallback のうち初期MVPに必要な範囲だけを整理する。
+AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
 
 ## 6. Update Rules
 
