@@ -49,6 +49,7 @@ def usage() -> None:
 
 Usage:
   ./lilia new [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
+  ./lilia apply-newgame <session_name> <answers.md>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
@@ -132,6 +133,310 @@ def write_session_json(path: Path, data: dict) -> None:
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def write_session_file(session_path: Path, rel_path: str, content: str) -> None:
+    target = session_path / rel_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def bullet_block(text: str) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return "- 未回答"
+    return "\n".join(f"- {line}" if line.strip() else "" for line in stripped.splitlines())
+
+
+def parse_newgame_answers(path: Path) -> dict[int, str]:
+    if not path.exists():
+        die(f"answers file not found: {path}")
+    content = path.read_text(encoding="utf-8")
+    sections: dict[int, list[str]] = {}
+    current: Optional[int] = None
+    for line in content.splitlines():
+        match = re.match(r"^##\s*Q([1-7])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
+        if match:
+            current = int(match.group(1))
+            sections.setdefault(current, [])
+            continue
+        if current is not None:
+            sections[current].append(line)
+
+    answers = {number: "\n".join(lines).strip() for number, lines in sections.items()}
+    missing = [f"Q{number}" for number in range(1, 8) if not answers.get(number)]
+    if missing:
+        die(f"answers.md is missing non-empty sections: {', '.join(missing)}")
+    return answers
+
+
+def answer(answers: dict[int, str], number: int) -> str:
+    return answers[number].strip()
+
+
+def render_applied_header() -> str:
+    return "このファイルは `./lilia apply-newgame` により、Q1-Q7回答から最小反映した初期状態です。"
+
+
+def render_document(title: str, intro: str, sections: list[tuple[str, str]]) -> str:
+    parts = [f"# {title}", "", render_applied_header()]
+    if intro:
+        parts.extend(["", intro.strip()])
+    for heading, body in sections:
+        parts.extend(["", f"## {heading}", "", body.strip()])
+    return "\n".join(parts) + "\n"
+
+
+def render_newgame_documents(answers: dict[int, str]) -> dict[str, str]:
+    q = lambda number: bullet_block(answer(answers, number))
+    q_line = lambda number: answer(answers, number).replace("\n", " / ")
+    not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q4 / Q5由来の境界線を尊重"
+
+    return {
+        "current/scene.md": render_document(
+            "Scene",
+            "",
+            [
+                ("今いる場所", q(2)),
+                ("現在時刻または場面時間", q(6)),
+                ("LILIAとユーザーの距離", q(5)),
+                ("今この場で見えているもの", q(7)),
+                ("今の場面", q(6)),
+                ("直前のやりとり", "- Q&A完了。初回scene本文は未生成。"),
+                ("初回sceneの入口", q(7)),
+                ("次に起きそうなこと", q(7)),
+                ("次にユーザーへ渡す行動余地", "- Q7の出来事に、ユーザーが自由入力でどう触れるかを見る。"),
+            ],
+        ),
+        "current/hotset.md": render_document(
+            "Hotset",
+            "hotsetは正本ではなく、次の1ターンに効く温度だけを置きます。",
+            [
+                ("会話の温度", q(6)),
+                ("呼び方 / 距離のアンカー", q(5) + "\n- 注: ここはechoであり、正本は `lilia/main/voice.md` と `lilia/main/relationship.md`。"),
+                ("次に会った時の第一反応", q(1)),
+                ("未消化の感情", q(4)),
+                ("言い残し / まだ言っていないこと", "- Q4由来の怖さ、避けるもの、譲れないものは初回sceneで急に全部説明しない。"),
+                ("親密scene後の余韻", "- 次回1ターンに効くaftercare: 未発生\n- 第一反応: 未発生\n- 呼び方 / 距離の変化: 未発生\n- まだ触れないこと: 初期親密は未確認"),
+                ("現在のイベント要約", q(7)),
+                ("次の小さな出来事", q(7)),
+                ("未確定の余白", "- 初回scene後の会話と選択で確定する。"),
+                ("次にユーザーへ向き合う時の空気", q(6)),
+            ],
+        ),
+        "current/event_card.md": render_document(
+            "Event Card",
+            "今動いているストーリーイベントを、LILIAの内面と関係の変化に結びつけて記録します。",
+            [
+                ("表の出来事", q(7)),
+                ("Visible Problem", f"- 誰が困っているか: Q7の小さな出来事に関わるLILIAまたはユーザー\n- 何が止まりそうか: 初回の会話、距離、または小さな約束\n- 何に触れると入口になるか: {q_line(7)}"),
+                ("First Concrete Action", "- 誰に / 何に: LILIA、またはQ7の出来事\n- どう触るか: ユーザーの自由入力で触れる\n- 初回sceneで重すぎない一手: Q7を事件処理ではなく関係の入口として扱う"),
+                ("Handles 2-4", "- handle 1: 声をかける\n- handle 2: 近づきすぎず待つ\n- handle 3 optional: 小さく手伝う\n- handle 4 optional: 理由を聞く\n- 注: handlesは選択肢ではなく行動余地。"),
+                ("Relationship Stake", q(5)),
+                ("Crisis / Ability Check", "- crisis pressure: 初回では重い危機にしない\n- possible responses: 逃げる / 守る / 交渉する / 隠す / 耐える / 助けを呼ぶ / 能力を使う / あえて戦わない\n- ability constraint: can / cannot / condition / cost / trace / risk は能力が出た時だけ埋める\n- relationship risk: Q5の距離感とQ4の境界線を壊さない\n- post-crisis residue: 危機が発生した時だけ更新"),
+                ("If Ignored", "- Q7の小さな出来事が、沈黙、遠慮、または言い残しとして残る。"),
+                ("Next Visible Change", "- Q7に触れた後、声 / 沈黙 / 呼び方 / 距離のどれかに小さく出る。"),
+                ("進行状態", "- status: 継続\n- 触れられたhandle: 未着手\n- relationship stakeの変化: 未着手\n- if ignoredの発火: 未発火\n- 次に更新するvisible change: 初回scene後に確認\n- story_deckへ落とす未回収札: Q4 / Q7由来の余白"),
+                ("Story Residue", "- memoryに残るもの: Q2とQ7から実際に起きたことだけ\n- relationshipに残るもの: Q5の距離感がどう動いたか\n- beliefsに残るもの: LILIA側の仮説として残ったこと\n- voiceに残るもの: Q1 / Q6由来の第一反応\n- story_deckへ戻す未回収札: Q4の怖さ、避けるもの、譲れないもの\n- NPC / Contact note optional: 初回では必要時だけ"),
+                ("Truth Hiding Boundary", "- 隠してよい真相: Q4由来の怖さや避ける理由\n- 見せる入口: Q7の小さな出来事"),
+                ("Intimacy / Boundary Check", f"- 親密sceneの場合だけ確認: 初回では原則未発生\n{not_intimate}\n- 成人 / 合意 / 相互性 / 境界線 / 止まれる余地: 未確認、止まれる余地を維持\n- aftercareまたは翌朝の第一声: 未発生\n- 雑な乱入になっていないか: 初回eventは小さく扱う"),
+                ("揺れるLILIA", q(4)),
+                ("その出来事がLILIAに刺さる理由", q(3)),
+                ("ユーザーへの問い", "- 選択肢ではなく、行動余地として書く: Q7にどう触れるか\n- 必要なら自然な候補: 声をかける / 待つ / 手伝う / 理由を聞く\n- 自由入力の余白: あり"),
+                ("関係に残る変化", "- Q5の距離感、Q3の大事なもの、Q4の境界線がどう動いたかを見る。\n- 親密scene後に保存するもの: 未発生"),
+            ],
+        ),
+        "current/relationship_overview.md": render_document(
+            "Relationship Overview",
+            "詳細ログではなく、再開時に関係の現在形を掴むための補助要約です。",
+            [
+                ("現在の関係全体の要約", q(2)),
+                ("距離感", q(5)),
+                ("呼び方 / 声のアンカー", q(1)),
+                ("親密さの初期扱い", "- 未確認 / 関心段階 / 明示的親密なし"),
+                ("intimacy / consent / boundary", not_intimate + "\n- 現在形の一言: 初回scene前"),
+                ("信頼", q(5)),
+                ("警戒", q(4)),
+                ("興味", q(1)),
+                ("甘え", "- 未確認"),
+                ("衝突", "- 未発生"),
+                ("誤解や思い込み", "- 初回scene後に `beliefs.md` へLILIA側仮説として保存する。"),
+                ("保留", q(4)),
+                ("境界線", q(4)),
+                ("resume時に無かったことにしないもの", "- Q2の出会い方\n- Q3の大事なもの\n- Q4の怖さ、避けるもの、譲れないもの\n- Q5の初期距離\n- Q7の小さな出来事"),
+                ("次に変化しそうな点", "- 初回sceneで、声、沈黙、距離、信頼、警戒のどれが動くかを見る。"),
+            ],
+        ),
+        "lilia/main/core.md": render_document(
+            "LILIA Core",
+            "LILIAの固有人格と、関係が深まっても変わってはいけない核を記録します。",
+            [
+                ("固有人格", q(1)),
+                ("価値観", q(3)),
+                ("守っているもの", q(3)),
+                ("避けているもの", q(4)),
+                ("弱さ", q(4)),
+                ("譲れないもの", q(4)),
+                ("変わってはいけない核", "- Q3の大事にしているものを、短期的な甘さやevent都合で消さない。"),
+                ("まだ決めない余白", "- 初回sceneと記憶の積み重ねで確定する。"),
+            ],
+        ),
+        "lilia/main/voice.md": render_document(
+            "LILIA Voice",
+            "固定台詞集ではなく、声の方向と継続性を保存します。",
+            [
+                ("Voice Fixed", q(1)),
+                ("変わってよい揺れ", q(6)),
+                ("口調", q(1)),
+                ("呼び方", "- 未確定。初回会話で自然に決める。"),
+                ("沈黙 / 言い淀み", q(6)),
+                ("第一反応", q(1)),
+                ("言わない言葉", q(4)),
+                ("照れ方", "- 未確定。Q1 / Q5 / Q6の温度から初回sceneで出す。"),
+                ("親密scene後の声の変化", "- 呼び方: 未発生\n- 沈黙: 未発生\n- 第一反応: 未発生\n- 継続的に変わったこと: 未発生"),
+                ("怒り方", "- 未確定。Q4の譲れないものを踏まえる。"),
+                ("甘え方", "- 未確定。初回では確定しない。"),
+                ("距離を置く時の出方", q(5)),
+                ("重要場面前のVoice Check", "- 今ユーザーをどう呼ぶか: 未確定\n- 前回から変えてはいけない声: Q1の雰囲気\n- 今だけ変わってよい温度: Q6の会話温度\n- 言うと壊れること: Q4由来の境界線を説明しすぎること"),
+            ],
+        ),
+        "lilia/main/state.md": render_document(
+            "LILIA State",
+            "ここは volatile / echo の置き場であり、人格核、長期関係、実際に起きた出来事は入れません。",
+            [
+                ("現在の感情", q(6)),
+                ("初回scene前の温度", q(6)),
+                ("直近scene後に更新する点", "- 初回scene後に更新する。"),
+                ("表の気分", q(1)),
+                ("裏の気分", q(4)),
+                ("警戒", q(5)),
+                ("照れ", "- 未確定"),
+                ("Crisis / Ability Condition", "- fatigue: 未発生\n- injury or pain: 未発生\n- fear / agitation: Q4由来の怖さが必要時だけ出る\n- concentration: 初回scene前\n- recovery: 未発生\n- visible trace: 未発生\n- note: 初回では重い危機にしない"),
+                ("親密scene後の一時状態", "- 安心: 未発生\n- 照れ: 未発生\n- 怖さ: 未発生\n- 保留: 未発生\n- 疲労: 未発生"),
+                ("疲労", "- 未設定"),
+                ("第一反応", q(1)),
+                ("保留していること", q(4)),
+            ],
+        ),
+        "lilia/main/relationship.md": render_document(
+            "LILIA Relationship",
+            "好感度数値ではなく、距離、信頼、境界線、相互性が何で動いたかを残します。",
+            [
+                ("ユーザーとの関係", q(2)),
+                ("信頼", q(5)),
+                ("安心感", "- 初回scene前。Q5の距離感から始める。"),
+                ("開示度", "- 未確認。Q4は急に開示しきらない。"),
+                ("距離感", q(5)),
+                ("距離感の根拠", "- Q2の出会い方\n- Q5の初期距離"),
+                ("境界線", q(4)),
+                ("親密さの初期扱い", "- 未確認 / 関心段階 / 明示的親密なし"),
+                ("intimacy / consent / boundary", not_intimate + "\n- いまその状態である理由: 初回scene前で、関係はまだ未確定\n- 何が起きたら変わるか: 会話、選択、境界線の尊重、aftercareが実際に起きた時"),
+                ("相互性", "- 初回sceneで確認する。"),
+                ("合意 / 止まれる余地", "- 初回から親密成立にしない。止まれる余地を維持する。"),
+                ("未確定の期待", q(7)),
+                ("嫉妬", "- 未発生"),
+                ("愛着", "- 未発生"),
+                ("摩擦", q(4)),
+                ("最近の変化", "- Q&A完了。初回sceneは未生成。"),
+                ("重要場面前のRelationship Check", "- 今の距離: Q5由来\n- 信頼 / 警戒 / 誤解: Q5由来、誤解は未確定\n- 親密sceneで確認する境界: Q4由来\n- 成人 / 合意 / 相互性 / 止まれる余地: 未確認\n- 衝突sceneで無かったことにしない摩擦: Q4由来"),
+            ],
+        ),
+        "lilia/main/memory.md": render_document(
+            "LILIA Memory",
+            "すべてのログではなく、次の第一声、距離、沈黙に効く記憶だけを残します。",
+            [
+                ("short_term", "- Q&Aが完了し、初回sceneがこれから始まる。"),
+                ("Q&A由来の初期要約", f"- Q1: {q_line(1)}\n- Q2: {q_line(2)}\n- Q3: {q_line(3)}\n- Q4: {q_line(4)}\n- Q5: {q_line(5)}\n- Q6: {q_line(6)}\n- Q7: {q_line(7)}"),
+                ("mid_term", "- 初回scene後に更新する。"),
+                ("long_term", "- 初回scene後、関係に残る節目だけ保存する。"),
+                ("historical_fixed", "- 実際に起きた出来事: Q&A完了\n- 約束 / 拒否 / 保留: 未発生\n- 無かったことにしない節目: Q2の出会い方、Q3の大事なもの、Q4の境界線"),
+                ("emotional_beats", "- 初回scene後に更新する。"),
+                ("aftercare_memory", "- 終わった後にLILIAが覚えていること: 未発生\n- 次に会った時の第一声: 未発生\n- 呼び方や距離感の変化: 未発生\n- 安心 / 照れ / 怖さ / 保留 / 言い残し: 未発生\n- 確認 / 拒否 / 保留 / 止まれたこと: 未発生"),
+                ("echo", "- 次に響く言い残し: Q4由来の境界線\n- 次に会った時の出方: Q1 / Q6由来の第一反応"),
+                ("忘れてはいけない約束", "- 未発生"),
+                ("まだ覚えていないこと", "- 初回sceneで実際に起きること"),
+                ("保存しないこと", "- ユーザーの内面の断定: しない\n- 例文由来の固定語彙: しない\n- 解釈や思い込みは `beliefs.md` に回す: はい"),
+                ("次に会った時に出る反応", q(1)),
+            ],
+        ),
+        "lilia/main/beliefs.md": render_document(
+            "LILIA Beliefs",
+            "beliefsは正解ではなく、LILIA側の仮説として更新されます。",
+            [
+                ("LILIAがユーザーをどう見ているか", "- 初回scene前のため未確定。Q2 / Q5から仮説だけ持つ。"),
+                ("ユーザーについての仮説", q(5)),
+                ("自分自身をどう見ているか", q(1)),
+                ("世界や関係について信じていること", q(3)),
+                ("誤解や思い込み", "- 初回scene後に必要なら更新する。"),
+                ("親密さで変わった見方", "- ユーザーをどう見直したか: 未発生\n- 安心が増えた点: 未発生\n- 怖さや保留が残った点: 未発生\n- 誤解が変わった点: 未発生"),
+                ("誤解の根拠", "- 未発生"),
+                ("保留している判断", q(4)),
+                ("疑い", q(4)),
+                ("更新条件", "- 何が起きたら変わるか: 初回sceneでのユーザーの言葉、待ち方、踏み込み方\n- 何が起きるまでは保留か: 実際の会話と選択"),
+                ("重要場面前に確認するbeliefs", "- 親密scene: Q4 / Q5の境界線を確認する\n- 衝突scene: Q3の大事なものとQ4の譲れないものを確認する\n- 境界線scene: ユーザーの内面を断定せず、LILIA側仮説として扱う"),
+            ],
+        ),
+        "story/relationship_spine.md": render_document(
+            "Relationship Spine",
+            "この関係で育てたいテーマと、変化の方向を記録します。",
+            [
+                ("この関係で育てたいテーマ", q(3)),
+                ("最初の摩擦", q(4)),
+                ("LILIAが守るもの", q(3)),
+                ("LILIAが避けるもの", q(4)),
+                ("LILIA側の課題", "- Q3の大事なものを守りながら、Q4の怖さや境界線をどう扱うか。"),
+                ("ユーザー側に問うこと", "- Q5の距離感の中で、Q7の小さな出来事にどう触れるか。"),
+                ("関係が変化する方向", "- Q7を通じて、声、距離、信頼、警戒、沈黙のどれが少し動くかを見る。"),
+                ("固定しないこと", "- これはfull plotではない: はい\n- 事前に決めない展開: 初回scene後の反応と選択\n- LILIAの反応とユーザーの選択で変わる余地: あり"),
+                ("次に変わりうる点", "- 声: Q1 / Q6由来\n- 距離感: Q5由来\n- 呼び方: 未確定\n- 信頼 / 警戒: Q5由来\n- 境界線: Q4由来\n- beliefs: 初回scene後に更新\n- 危機後の頼り方 / 頼られ方: 初回では重くしない\n- 能力使用後の信頼 / 警戒: 未発生"),
+            ],
+        ),
+        "story/story_deck.md": render_document(
+            "Story Deck",
+            "例文集ではなく、次イベント判断に必要なものだけを置きます。",
+            [
+                ("現在使えるstory素材", "- Q2の出会い方\n- Q3の大事なもの\n- Q4の怖さ、避けるもの、譲れないもの\n- Q7の小さな出来事"),
+                ("初回sceneで使う小さな出来事", f"- 素材名 / 未回収札: {q_line(7)}\n- 現在sceneで触る内容は `current/event_card.md` に置く"),
+                ("関係を揺らす圧", q(4)),
+                ("未回収札", "- Q4由来のまだ言えない理由\n- Q3由来の大事なものが試される場面"),
+                ("背景化したevent_card", "- 現在sceneから外れた出来事: 未発生\n- 後で戻す条件: 初回scene後に必要なら更新\n- 関係に残った圧: 未発生"),
+                ("World Pressure / 1-3 Scene Return", "- 戻る可能性のある圧: Q4由来の保留\n- 何scene後に小さく戻るか: 1-3 scene後\n- 戻る形: 沈黙、言い残し、距離感\n- LILIAとの関係に何を問い直すか: Q3を守れる相手か\n- 親密sceneを雑に壊さないための注意: 乱入ではなく余韻や翌朝の第一声として戻す"),
+                ("Crisis / Ability Echo", "- unresolved trace: 未発生\n- delayed cost: 未発生\n- returning pressure: Q4由来の保留だけ小さく戻す\n- relationship risk still active: Q5の距離感を壊さない\n- LILIAがまだ言えていないこと: Q4由来\n- 1-3 scene後に戻る形: 小さな沈黙、避け方、確認"),
+                ("NPC / Contact Notes", "- name or label: 未設定\n- tier: 0\n- current role: 初回では保存しない\n- promotion trigger: LILIAのmemory / relationship / beliefsに影響した時\n- storage destination: 必要時のみ `story_deck.md`\n- known: 未設定\n- suspected: 未設定\n- unknown: 未設定\n- LILIAの記憶 / 関係 / beliefsへの影響: 未発生"),
+                ("まだ使わない未回収札", "- Q4の深い理由"),
+                ("次に使うなら", "- Q7の結果がLILIAの声、距離、沈黙にどう戻るかを見る。"),
+            ],
+        ),
+        "style/reference.md": render_document(
+            "Style Reference",
+            "本文コピーではなく、視点距離、描写密度、沈黙、余韻、温度、テンポなどに分解して保存します。",
+            [
+                ("Source Hints", "- 未設定。参照作品名は本文に出さない。"),
+                ("Selected Defaults", "- Q1 / Q6 / Q7の温度に合わせて必要時だけ選ぶ。"),
+                ("Light Story Reference Pass Output", f"- 雰囲気: {q_line(1)}\n- 会話温度: {q_line(6)}\n- 小さな出来事: {q_line(7)}"),
+                ("抽出した表現軸", "- Q1の雰囲気を、固定台詞ではなく視線、沈黙、距離、第一反応へ変換する。"),
+                ("場面温度", q(6)),
+                ("視点距離", "- 近すぎず、LILIAの反応とユーザーの行動余地が見える距離。"),
+                ("描写密度", "- 初回sceneでは短く、触れられるものを具体的に置く。"),
+                ("台詞と沈黙", q(6)),
+                ("余韻", "- Q4 / Q7の言い残しを残す。"),
+                ("LILIAへの変換", "- Q&Aの語彙を固定設定にせず、LILIAの声、距離、沈黙へ変換する。"),
+                ("Avoid Direct Imitation", "- 参照本文、台詞、人物配置、固有文体は使わない"),
+            ],
+        ),
+        "style/rules.md": render_document(
+            "Style Rules",
+            "通常resume 1ターン目の必読ではなく、文体調整が必要な時だけ参照します。",
+            [
+                ("基本ルール", "- LILIAの内面は、説明ではなく声、沈黙、手元、視線、距離に出す\n- ユーザーの内面を断定しない\n- 場所、距離、触れられるものを短く置く\n- 同じ感情表現を繰り返さない\n- 例文や参照作品の語彙を本文へ流用しない\n- 官能・親密場面では、成人・合意・相互性・境界線を守りつつ、清潔すぎて無害なだけの文体に逃げない"),
+                ("感覚チャンネル", "- 視覚: Q7の小さな出来事が見える\n- 聴覚: Q6の会話温度が声に出る\n- 触覚: 初回では必要時だけ\n- 嗅覚: 必要時だけ\n- 体感: Q5の距離感\n- 時間感覚: 初回scene前"),
+                ("LILIA固有の反応の出方", "- 沈黙: Q4 / Q6由来\n- 照れ: 未確定\n- 警戒: Q5由来\n- 甘え: 未確定\n- 怒り: Q4の譲れないもの由来\n- 距離を置く時: Q5由来"),
+                ("Intimacy / Boundary", "- 成人: 未確認\n- 合意: 未確認\n- 相互性: 未確認\n- 関係段階: 初回scene前\n- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q4 / Q5由来の境界線を尊重\n- 止まれる余地: 維持する\n- aftercare: 未発生\n- 官能を薄めすぎないための表現軸: 条件が揃った時だけ扱う"),
+                ("禁止表現・避けたい癖", "- Q&Aの語彙をそのまま固定台詞化しない\n- 初回から恋愛成立済みにしない\n- Q4の境界線をイベント都合で消さない"),
+                ("次に調整する点", "- 初回scene後、声、距離、沈黙、第一反応がQ&Aから自然につながっているか確認する。"),
+            ],
+        ),
+    }
 
 
 def session_sort_value(path: Path) -> str:
@@ -315,6 +620,7 @@ def command_new(args: list[str]) -> None:
     elif prompt_only:
         print_new_prompt_bundle(session_path)
     else:
+        print(f"apply answers: ./lilia apply-newgame {session_path.name} answers.md")
         print(f"next: ./lilia resume {session_path.name} --prompt-only")
         print(f"run:  ./lilia resume {session_path.name} --run --engine auto")
 
@@ -373,6 +679,36 @@ def command_prompt_only(args: list[str]) -> None:
         die("prompt-only accepts 'new' or 'resume'")
 
 
+def command_apply_newgame(args: list[str]) -> None:
+    if len(args) != 2:
+        die("apply-newgame requires <session_name> <answers.md>")
+
+    session_path = resolve_session(args[0])
+    answers_path = Path(args[1]).expanduser()
+    answers = parse_newgame_answers(answers_path)
+    documents = render_newgame_documents(answers)
+
+    for rel_path, content in documents.items():
+        write_session_file(session_path, rel_path, content)
+
+    data = read_session_json(session_path)
+    data["mode"] = data.get("mode") or "new"
+    data["current_phase"] = "first_scene_pending"
+    initialization = data.setdefault("initialization", {})
+    initialization["qa_completed"] = True
+    initialization["light_story_reference_pass"] = "minimal_applied"
+    initialization["first_scene_status"] = "not_generated"
+    write_session_json(session_path, data)
+
+    print(f"applied: {answers_path}")
+    print(f"session: {session_path.relative_to(ROOT)}")
+    print("phase: first_scene_pending")
+    print("updated:")
+    print("  session.json")
+    for rel_path in documents:
+        print(f"  {rel_path}")
+
+
 def main(argv: list[str]) -> None:
     if not argv or argv[0] in {"-h", "--help", "help"}:
         usage()
@@ -387,6 +723,8 @@ def main(argv: list[str]) -> None:
         command_list_sessions()
     elif command == "prompt-only":
         command_prompt_only(args)
+    elif command == "apply-newgame":
+        command_apply_newgame(args)
     else:
         usage()
         die(f"unknown command: {command}")
