@@ -51,12 +51,15 @@ Usage:
   ./lilia new [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia apply-newgame <session_name> <answers.md>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
+  ./lilia codex-new [session_name]
+  ./lilia codex-resume [session_name]
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
 
 This launcher creates and inspects local session scaffolds only.
-AI execution runs only when --run is explicit.
+AI one-shot execution runs only when --run is explicit.
+For Codex interactive play, use codex-new or codex-resume.
 AI Harness, autoplay, exports, and production CI are not included.
 Tip: redirect prompt-only output to a file if you want a quieter terminal.
 """
@@ -510,13 +513,22 @@ def render_file(path: Path) -> str:
     return f"\n--- {path.relative_to(ROOT)} ---\n{path.read_text(encoding='utf-8').rstrip()}"
 
 
+def codex_prompt_path(session_path: Path, mode: str) -> Path:
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", session_path.name)
+    return Path("/tmp") / f"lilia_{safe_name}_{mode}_prompt.md"
+
+
+def write_prompt_file(path: Path, bundle: str) -> None:
+    path.write_text(bundle, encoding="utf-8")
+
+
 def build_new_prompt_bundle(session_path: Path) -> str:
     parts = [
         "# LILIA New Prompt Bundle",
         f"session: {session_path.relative_to(ROOT)}",
         "mode: new",
         "next: answer prompt/newgame.md Q&A, then update the session scaffold.",
-        "note: no AI engine is run unless --run was explicit.",
+        "note: --prompt-only only prints this bundle; if you are reading it inside an AI CLI, follow the mode instructions.",
     ]
     parts.extend(render_file(ROOT / rel) for rel in NEW_PROMPT_FILES)
     parts.append(render_file(session_path / "session.json"))
@@ -529,7 +541,7 @@ def build_resume_prompt_bundle(session_path: Path) -> str:
         f"session: {session_path.relative_to(ROOT)}",
         "mode: resume",
         "read order: prompt/save_resume.md lightweight resume order",
-        "note: no AI engine is run unless --run was explicit.",
+        "note: --prompt-only only prints this bundle; if you are reading it inside an AI CLI, follow the mode instructions.",
     ]
     parts.extend(render_file(ROOT / rel) for rel in RESUME_PROMPT_FILES)
     parts.extend(render_file(session_path / rel) for rel in RESUME_SESSION_FILES)
@@ -544,6 +556,30 @@ def print_resume_prompt_bundle(session_path: Path) -> None:
     print(build_resume_prompt_bundle(session_path), end="")
 
 
+def build_codex_new_prompt_bundle(session_path: Path) -> str:
+    return (
+        "# LILIA Codex Interactive New\n"
+        f"session: {session_path.relative_to(ROOT)}\n"
+        "mode: codex interactive new\n"
+        "instruction: This bundle is for playing LILIA inside Codex interactive mode. "
+        "Ask Q1-Q7, then update the session scaffold or use apply-newgame if the user gives answers.md.\n"
+        "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
+        + build_new_prompt_bundle(session_path)
+    )
+
+
+def build_codex_resume_prompt_bundle(session_path: Path) -> str:
+    return (
+        "# LILIA Codex Interactive Resume\n"
+        f"session: {session_path.relative_to(ROOT)}\n"
+        "mode: codex interactive resume\n"
+        "instruction: This bundle is for continuing LILIA inside Codex interactive mode. "
+        "Read the lightweight resume state, then continue one turn without resetting voice or relationship.\n"
+        "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
+        + build_resume_prompt_bundle(session_path)
+    )
+
+
 def choose_engine(requested: str) -> Optional[str]:
     if requested == "auto":
         if shutil.which("codex"):
@@ -554,6 +590,45 @@ def choose_engine(requested: str) -> Optional[str]:
     if shutil.which(requested):
         return requested
     return None
+
+
+def codex_interactive_command() -> list[str]:
+    return [
+        "codex",
+        "--cd",
+        str(ROOT),
+        "--sandbox",
+        "workspace-write",
+        "--no-alt-screen",
+    ]
+
+
+def codex_interactive_instruction(prompt_path: Path) -> str:
+    return f"Read {prompt_path} and follow it for LILIA. Do not start AI Harness or autoplay."
+
+
+def print_codex_interactive_steps(session_path: Path, prompt_path: Path, mode: str) -> None:
+    command = " ".join(codex_interactive_command())
+    print(f"session: {session_path.relative_to(ROOT)}", flush=True)
+    print(f"mode: codex interactive {mode}", flush=True)
+    print(f"prompt bundle: {prompt_path}", flush=True)
+    print("note: --run uses one-shot 'codex exec'; this flow opens Codex interactive play.", flush=True)
+    print("next:", flush=True)
+    print(f"  1. {command}", flush=True)
+    print("  2. In Codex, paste:", flush=True)
+    print(f"     {codex_interactive_instruction(prompt_path)}", flush=True)
+
+
+def maybe_launch_codex_interactive(prompt_path: Path) -> None:
+    if not shutil.which("codex"):
+        print("codex: not found; install/login to Codex CLI, then use the steps above.", flush=True)
+        return
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print("codex: interactive launch skipped because this shell is not a TTY.", flush=True)
+        return
+
+    print("launching Codex interactive now. Paste the instruction above after it opens.", flush=True)
+    subprocess.run(codex_interactive_command(), cwd=ROOT)
 
 
 def engine_command(engine: str) -> list[str]:
@@ -585,6 +660,8 @@ def run_engine(requested_engine: str, session_path: Path, bundle: str) -> None:
     print(f"session: {session_path.relative_to(ROOT)}", flush=True)
     print(f"engine: {engine} (requested: {requested_engine})", flush=True)
     print("mode: run", flush=True)
+    if engine == "codex":
+        print("note: codex engine uses one-shot 'codex exec'; use codex-new/codex-resume for interactive play.", flush=True)
     print("note: prompt bundle is written to a temporary file and removed after the engine exits.", flush=True)
 
     temp_path: Optional[Path] = None
@@ -639,6 +716,27 @@ def command_resume(args: list[str]) -> None:
         else:
             print(f"prompt: ./lilia resume {session_path.name} --prompt-only")
             print(f"run:    ./lilia resume {session_path.name} --run --engine auto")
+
+
+def command_codex_new(args: list[str]) -> None:
+    if len(args) > 1:
+        die("codex-new accepts at most one session_name")
+    session_path = create_session(args[0] if args else None)
+    prompt_path = codex_prompt_path(session_path, "new")
+    write_prompt_file(prompt_path, build_codex_new_prompt_bundle(session_path))
+    print(f"created: {session_path.relative_to(ROOT)}", flush=True)
+    print_codex_interactive_steps(session_path, prompt_path, "new")
+    maybe_launch_codex_interactive(prompt_path)
+
+
+def command_codex_resume(args: list[str]) -> None:
+    if len(args) > 1:
+        die("codex-resume accepts at most one session_name")
+    session_path = resolve_session(args[0] if args else None)
+    prompt_path = codex_prompt_path(session_path, "resume")
+    write_prompt_file(prompt_path, build_codex_resume_prompt_bundle(session_path))
+    print_codex_interactive_steps(session_path, prompt_path, "resume")
+    maybe_launch_codex_interactive(prompt_path)
 
 
 def command_list_sessions() -> None:
@@ -719,6 +817,10 @@ def main(argv: list[str]) -> None:
         command_new(args)
     elif command == "resume":
         command_resume(args)
+    elif command == "codex-new":
+        command_codex_new(args)
+    elif command == "codex-resume":
+        command_codex_resume(args)
     elif command == "list-sessions":
         command_list_sessions()
     elif command == "prompt-only":
