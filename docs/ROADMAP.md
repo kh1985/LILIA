@@ -30,8 +30,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
+- Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / AI実行未実装
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は Launcher / CLI の最小設計確認
+- 次は Launcher / CLI の最小運用確認
 
 ## 3. Completed Foundation
 
@@ -150,7 +151,13 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - `new` / `resume` / `consult` / session list / prompt-only / engine fallback を扱う。
    - 旧LIRIA `play.sh`、`liria`、`scenarios/liria/config.sh` と inner-galge command系を参考にする。
    - 起動時に全prompt・全stateを総読みしない。
-   - Status: 未着手
+   - `./lilia` を追加済み。
+   - `new`、`resume`、`list-sessions`、`prompt-only` の最小コマンドを実装済み。
+   - `templates/session/` から `saves/<session_name>/` へsession scaffoldを作成できる。
+   - session名未指定時は `session_001` 形式で未使用名を採番し、resume時は最新sessionを検出する。
+   - `saves/` はgit管理外にし、実sessionや個人ログをrepoへ入れない。
+   - AI実行、AI Harness、自動プレイ生成、大量ログ解析、画像/漫画export、production CIは入れていない。
+   - Status: 最小launcher実装済み / prompt-only smoke完了 / AI実行未実装
 
 12. Visual Character Sheet / Manga Export Pipeline
    - MVP後の拡張として残す。
@@ -176,13 +183,13 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Launcher / CLI の最小設計確認。
+次の実作業は Launcher / CLI の最小運用確認。
 
 MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を1周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
 minor follow-upとして `templates/session/session.json` の `source_prompt_versions` 補正も完了している。
 
-次は、旧LIRIAの `play.sh` / `liria` / config運用を参照しつつ、LILIA向けにどこまでを最小Launcher / CLIとして扱うかを確認する。
-まだ実装には入らず、`new` / `resume` / `consult` / session list / prompt-only / engine fallback のうち初期MVPに必要な範囲だけを整理する。
+`./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線を実装済みである。
+次は、実プレイでこの導線を使う時に足りない表示や引数がないかを確認する。
 AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
 
 ## 6. Update Rules

@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+import json
+import re
+import shutil
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent
+TEMPLATE_DIR = ROOT / "templates" / "session"
+SAVES_DIR = ROOT / "saves"
+SESSION_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+NEW_PROMPT_FILES = [
+    "prompt/core.md",
+    "prompt/startup.md",
+    "prompt/newgame.md",
+]
+
+RESUME_PROMPT_FILES = [
+    "prompt/core.md",
+    "prompt/save_resume.md",
+]
+
+RESUME_SESSION_FILES = [
+    "current/hotset.md",
+    "current/scene.md",
+    "current/event_card.md",
+    "current/relationship_overview.md",
+    "lilia/main/core.md",
+    "lilia/main/voice.md",
+    "lilia/main/state.md",
+    "lilia/main/relationship.md",
+    "lilia/main/memory.md",
+    "lilia/main/beliefs.md",
+    "story/relationship_spine.md",
+    "story/story_deck.md",
+]
+
+
+def usage() -> None:
+    print(
+        """LILIA minimal launcher
+
+Usage:
+  ./lilia new [session_name] [--prompt-only]
+  ./lilia resume [session_name] [--prompt-only]
+  ./lilia list-sessions
+  ./lilia prompt-only new [session_name]
+  ./lilia prompt-only resume [session_name]
+
+This launcher creates and inspects local session scaffolds only.
+AI execution, AI Harness, autoplay, exports, and production CI are not included.
+"""
+    )
+
+
+def die(message: str, code: int = 1) -> None:
+    print(f"error: {message}", file=sys.stderr)
+    sys.exit(code)
+
+
+def parse_prompt_only(args: list[str]) -> tuple[list[str], bool]:
+    prompt_only = False
+    cleaned: list[str] = []
+    for arg in args:
+        if arg == "--prompt-only":
+            prompt_only = True
+        else:
+            cleaned.append(arg)
+    return cleaned, prompt_only
+
+
+def validate_session_name(name: str) -> str:
+    if not SESSION_NAME_RE.match(name):
+        die("session name may contain only letters, numbers, underscore, dot, and hyphen")
+    return name
+
+
+def next_session_name() -> str:
+    SAVES_DIR.mkdir(exist_ok=True)
+    index = 1
+    while True:
+        name = f"session_{index:03d}"
+        if not (SAVES_DIR / name).exists():
+            return name
+        index += 1
+
+
+def session_dir(name: str) -> Path:
+    return SAVES_DIR / validate_session_name(name)
+
+
+def read_session_json(path: Path) -> dict:
+    json_path = path / "session.json"
+    if not json_path.exists():
+        return {}
+    try:
+        return json.loads(json_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def write_session_json(path: Path, data: dict) -> None:
+    (path / "session.json").write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def create_session(name: str | None) -> Path:
+    if not TEMPLATE_DIR.exists():
+        die("templates/session/ is missing")
+    if name is None:
+        name = next_session_name()
+    else:
+        validate_session_name(name)
+        SAVES_DIR.mkdir(exist_ok=True)
+
+    dest = session_dir(name)
+    if dest.exists():
+        die(f"session already exists: {dest.relative_to(ROOT)}")
+
+    shutil.copytree(TEMPLATE_DIR, dest)
+    data = read_session_json(dest)
+    now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    data["session_id"] = name
+    data["session_name"] = name
+    data["created_at"] = now
+    data["mode"] = "new"
+    data["current_phase"] = data.get("current_phase") or "qa_pending"
+    data["active_lilia"] = data.get("active_lilia") or "main"
+    write_session_json(dest, data)
+    return dest
+
+
+def session_candidates() -> list[Path]:
+    if not SAVES_DIR.exists():
+        return []
+    return sorted(
+        [path for path in SAVES_DIR.iterdir() if path.is_dir() and (path / "session.json").exists()],
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+
+def latest_session() -> Path:
+    candidates = session_candidates()
+    if not candidates:
+        die("no sessions found; run './lilia new' first")
+    return candidates[0]
+
+
+def resolve_session(name: str | None) -> Path:
+    if name is None:
+        return latest_session()
+    path = session_dir(name)
+    if not path.exists():
+        die(f"session not found: {path.relative_to(ROOT)}")
+    if not (path / "session.json").exists():
+        die(f"session.json not found in {path.relative_to(ROOT)}")
+    return path
+
+
+def print_file(path: Path) -> None:
+    if not path.exists():
+        print(f"\n--- {path.relative_to(ROOT)} (missing) ---")
+        return
+    print(f"\n--- {path.relative_to(ROOT)} ---")
+    print(path.read_text(encoding="utf-8").rstrip())
+
+
+def print_new_prompt_bundle(session_path: Path) -> None:
+    print("# LILIA New Prompt Bundle")
+    print(f"session: {session_path.relative_to(ROOT)}")
+    print("mode: new")
+    print("next: answer prompt/newgame.md Q&A, then update the session scaffold.")
+    for rel in NEW_PROMPT_FILES:
+        print_file(ROOT / rel)
+    print_file(session_path / "session.json")
+
+
+def print_resume_prompt_bundle(session_path: Path) -> None:
+    print("# LILIA Resume Prompt Bundle")
+    print(f"session: {session_path.relative_to(ROOT)}")
+    print("mode: resume")
+    print("read order: prompt/save_resume.md lightweight resume order")
+    for rel in RESUME_PROMPT_FILES:
+        print_file(ROOT / rel)
+    for rel in RESUME_SESSION_FILES:
+        print_file(session_path / rel)
+
+
+def command_new(args: list[str]) -> None:
+    args, prompt_only = parse_prompt_only(args)
+    if len(args) > 1:
+        die("new accepts at most one session_name")
+    session_path = create_session(args[0] if args else None)
+    print(f"created: {session_path.relative_to(ROOT)}")
+    if prompt_only:
+        print_new_prompt_bundle(session_path)
+    else:
+        print(f"prompt: ./lilia resume {session_path.name} --prompt-only")
+
+
+def command_resume(args: list[str]) -> None:
+    args, prompt_only = parse_prompt_only(args)
+    if len(args) > 1:
+        die("resume accepts at most one session_name")
+    session_path = resolve_session(args[0] if args else None)
+    print(f"session: {session_path.relative_to(ROOT)}")
+    if prompt_only:
+        print_resume_prompt_bundle(session_path)
+    else:
+        print(f"prompt: ./lilia resume {session_path.name} --prompt-only")
+
+
+def command_list_sessions() -> None:
+    sessions = list(reversed(session_candidates()))
+    if not sessions:
+        print("No sessions found.")
+        return
+
+    print("SESSION        PHASE        MODE     CREATED_AT                 PATH")
+    for path in sessions:
+        data = read_session_json(path)
+        name = data.get("session_name") or path.name
+        phase = data.get("current_phase") or "-"
+        mode = data.get("mode") or "-"
+        created = data.get("created_at") or "-"
+        print(f"{name:<14} {phase:<12} {mode:<8} {created:<26} {path.relative_to(ROOT)}")
+
+
+def command_prompt_only(args: list[str]) -> None:
+    if not args:
+        command_resume(["--prompt-only"])
+        return
+    command = args[0]
+    rest = args[1:] + ["--prompt-only"]
+    if command == "new":
+        command_new(rest)
+    elif command == "resume":
+        command_resume(rest)
+    else:
+        die("prompt-only accepts 'new' or 'resume'")
+
+
+def main(argv: list[str]) -> None:
+    if not argv or argv[0] in {"-h", "--help", "help"}:
+        usage()
+        return
+
+    command, args = argv[0], argv[1:]
+    if command == "new":
+        command_new(args)
+    elif command == "resume":
+        command_resume(args)
+    elif command == "list-sessions":
+        command_list_sessions()
+    elif command == "prompt-only":
+        command_prompt_only(args)
+    else:
+        usage()
+        die(f"unknown command: {command}")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
