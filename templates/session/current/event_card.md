@@ -51,6 +51,15 @@
 - 次に更新するvisible change:
 - story_deckへ落とす未回収札:
 
+## Story Residue
+
+- memoryに残るもの:
+- relationshipに残るもの:
+- beliefsに残るもの:
+- voiceに残るもの:
+- story_deckへ戻す未回収札:
+- NPC / Contact note optional:
+
 ## Truth Hiding Boundary
 
 - 隠してよい真相:

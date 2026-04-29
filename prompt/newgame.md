@@ -23,6 +23,7 @@ LILIAは固有の人格を持ち、関係の中で人格の出方が変化する
 - `prompt/newgame.md`: Q&A、初期化手順、Q&Aから保存先への写像を扱う。
 - `docs/NEW_SESSION_INITIALIZATION.md`: Q&A完了後の初期生成順、保存粒度、resume-ready最小状態の正本。
 - `docs/EVENT_CARD_PLAYABILITY.md`: 初回event_cardの可プレイ性Gateの正本。
+- `docs/STORY_RELATIONSHIP_ACCUMULATION.md`: Eventは点、Storyは線、full plotは作らないための正本。
 - `docs/VOICE_CONTINUITY.md`: 初期voice baselineと、resume/重要sceneで巻き戻さない確認の正本。
 - `docs/ROMANCE_INTIMACY_GROWTH.md`: 親密・官能・ベッドシーンを関係成長として扱う正本。
 - `docs/RESUME_SMOKE_TEST.md`: `new -> first scene -> save -> resume` の手動smoke正本。

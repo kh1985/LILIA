@@ -26,6 +26,26 @@
 - 後で戻す条件:
 - 関係に残った圧:
 
+## World Pressure / 1-3 Scene Return
+
+- 戻る可能性のある圧:
+- 何scene後に小さく戻るか:
+- 戻る形:
+- LILIAとの関係に何を問い直すか:
+- 親密sceneを雑に壊さないための注意:
+
+## NPC / Contact Notes
+
+- name or label:
+- tier: 0 / 1 / 2 / 3 / 4 / 5
+- current role:
+- promotion trigger:
+- storage destination:
+- known:
+- suspected:
+- unknown:
+- LILIAの記憶 / 関係 / beliefsへの影響:
+
 ## まだ使わない未回収札
 
 - 未設定

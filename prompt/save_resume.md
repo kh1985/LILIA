@@ -6,6 +6,7 @@
 親密・官能・ベッドシーンの保存/再開は `docs/ROMANCE_INTIMACY_GROWTH.md` を正本とします。
 `new -> first scene -> save -> resume` の手動smokeは `docs/RESUME_SMOKE_TEST.md` を正本とします。
 会話後、scene後、event_card進行後の保存更新ループは `docs/GROWTH_UPDATE_LOOP.md` を正本とします。
+Story / Relationship Accumulation は `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を正本とし、Story Residue、未回収札、関係の方向性を次の第一声や距離感へ戻します。
 
 ## 1. 基本方針
 
