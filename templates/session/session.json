@@ -18,7 +18,9 @@
     "voice_continuity": "docs/VOICE_CONTINUITY.md",
     "romance_intimacy_growth": "docs/ROMANCE_INTIMACY_GROWTH.md",
     "resume_smoke_test": "docs/RESUME_SMOKE_TEST.md",
-    "growth_update_loop": "docs/GROWTH_UPDATE_LOOP.md"
+    "growth_update_loop": "docs/GROWTH_UPDATE_LOOP.md",
+    "story_relationship_accumulation": "docs/STORY_RELATIONSHIP_ACCUMULATION.md",
+    "crisis_combat_ability_constraint": "docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md"
   },
   "initialization": {
     "qa_completed": false,
