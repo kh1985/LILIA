@@ -33,7 +33,6 @@ RESUME_SESSION_FILES = [
     "current/event_card.md",
     "current/relationship_overview.md",
     "lilia/main/core.md",
-    "lilia/main/profile.md",
     "lilia/main/voice.md",
     "lilia/main/state.md",
     "lilia/main/relationship.md",
@@ -42,6 +41,8 @@ RESUME_SESSION_FILES = [
     "story/relationship_spine.md",
     "story/story_deck.md",
 ]
+
+RESUME_PROFILE_FILE = "lilia/main/profile.md"
 
 
 def usage() -> None:
@@ -225,7 +226,7 @@ def render_persona_profile_document(answers: dict[int, str]) -> str:
             f"- 頼る / 断る / 待つ の傾向: {q_line(5)}",
             "",
             "## values",
-            f"- 何を大事にしているか: {q_line(3)}",
+            "- 何を大事にしているか: 未確定。character YAML / GM fallbackで生活や反応から補いすぎず抽出する。",
             f"- 何は雑に扱わないか: {q_line(7)}",
             "",
             "## everyday anchors",
@@ -272,13 +273,13 @@ def render_persona_profile_document(answers: dict[int, str]) -> str:
             "## fixed memory",
             "core fixed:",
             f"  - {q_line(1)}",
-            f"  - {q_line(3)}",
+            "  - 価値観はfirst sceneで行動として確認し、core.mdへは最小核だけ昇格する",
             "historical fixed:",
             f"  - {q_line(2)}",
             "",
             "## 5層構造 / Self-Understanding",
             f"Layer 1（自己物語）: {q_line(2)}",
-            f"Layer 2（心の核）: {q_line(3)}",
+            "Layer 2（心の核）: 未確定。生活、反応、境界線からfirst scene後に抽出する。",
             "Layer 3（防壁マップ）:",
             f"  Say/Do Gap: {q_line(1)} / {q_line(4)}",
             f"  逃げ方: {q_line(5)}",
@@ -312,7 +313,7 @@ def render_persona_profile_document(answers: dict[int, str]) -> str:
             "## 人格設計",
             "骨:",
             f"  境遇: {q_line(2)}",
-            f"  価値観: {q_line(3)}",
+            "  価値観: 未確定。profile生成時に補いすぎない。",
             f"  欠点: {q_line(4)}",
             f"  口調: {q_line(1)}",
             "",
@@ -485,16 +486,16 @@ def render_newgame_documents(answers: dict[int, str]) -> dict[str, str]:
         ),
         "lilia/main/core.md": render_document(
             "LILIA Core",
-            "LILIAの固有人格と、関係が深まっても変わってはいけない核を記録します。",
+            "LILIAの短期都合で変えてはいけない核だけを記録します。profile.mdの要約やコピーではありません。",
             [
-                ("固有人格", q(1)),
-                ("価値観", q(3)),
-                ("守っているもの", q(3)),
-                ("避けているもの", q(4)),
-                ("弱さ", q(4)),
-                ("譲れないもの", q(4)),
-                ("変わってはいけない核", "- Q3の大事にしているものを、短期的な甘さやevent都合で消さない。"),
-                ("まだ決めない余白", "- 初回sceneと記憶の積み重ねで確定する。"),
+                ("固有人格", "- profile.mdから抽出された最小核だけを置く。\n- 初回の見え方や演技ディテールは `profile.md` / `voice.md` / `state.md` に置く。"),
+                ("価値観", "- 未確定。profile生成時にcharacter YAML / GM fallbackから抽出された最小核だけを置く。"),
+                ("守っているもの", "- 初回scene後、短期scene都合で消してはいけないと確認されたものだけを残す。"),
+                ("避けているもの", "- Q4の一時的な保留や恐れは `state.md` / `beliefs.md` / `profile.md` を優先する。\n- core fixedとして確定したものだけここへ残す。"),
+                ("弱さ", "- 初期時点では固定しすぎない。\n- 初回scene後、関係で繰り返し確認された場合だけcoreへ昇格する。"),
+                ("譲れないもの", "- Q4 / Q5から、境界線として変えてはいけないものだけを残す。"),
+                ("変わってはいけない核", "- character YAML / profile.md から抽出された最小核だけを残す。\n- profile.mdの生活、職能、反応、矛盾、禁忌を丸ごとコピーしない。"),
+                ("まだ決めない余白", "- 初回sceneと記憶の積み重ねで確定する。\n- 育った後は `memory.md` / `relationship.md` / `beliefs.md` / `voice.md` を優先する。"),
             ],
         ),
         "lilia/main/voice.md": render_document(
@@ -750,16 +751,38 @@ def build_new_prompt_bundle(session_path: Path) -> str:
 
 
 def build_resume_prompt_bundle(session_path: Path) -> str:
+    include_profile = resume_requires_profile(session_path)
     parts = [
         "# LILIA Resume Prompt Bundle",
         f"session: {session_path.relative_to(ROOT)}",
         "mode: resume",
         "read order: prompt/save_resume.md lightweight resume order",
+        (
+            "profile: included because first_scene_pending"
+            if include_profile
+            else "profile: omitted by default; read lilia/main/profile.md only for voice/personality drift or initial-core checks"
+        ),
         "note: --prompt-only only prints this bundle; if you are reading it inside an AI CLI, follow the mode instructions.",
     ]
     parts.extend(render_file(ROOT / rel) for rel in RESUME_PROMPT_FILES)
-    parts.extend(render_file(session_path / rel) for rel in RESUME_SESSION_FILES)
+    for rel in RESUME_SESSION_FILES:
+        parts.append(render_file(session_path / rel))
+        if rel == "lilia/main/core.md" and include_profile:
+            parts.append(render_file(session_path / RESUME_PROFILE_FILE))
     return "\n".join(parts).rstrip() + "\n"
+
+
+def resume_requires_profile(session_path: Path) -> bool:
+    data = read_session_json(session_path)
+    if data.get("current_phase") == "first_scene_pending":
+        return True
+    initialization = data.get("initialization")
+    if isinstance(initialization, dict):
+        return (
+            initialization.get("qa_completed") is True
+            and initialization.get("first_scene_status") == "not_generated"
+        )
+    return False
 
 
 def print_new_prompt_bundle(session_path: Path) -> None:

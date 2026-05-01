@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Generate minimal character YAML material for a LILIA session."""
+"""Generate minimal character YAML material for a LILIA session.
+
+This standalone wrapper invokes Claude CLI through tools.character.core.master.
+The ./lilia launcher does not call it automatically.
+"""
 
 from __future__ import annotations
 
@@ -109,4 +113,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
