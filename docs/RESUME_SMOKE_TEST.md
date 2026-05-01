@@ -37,9 +37,10 @@ LILIAは、会話、選択、物語、記憶、関係性によって人格の出
 
 1. `prompt/newgame.md` と `docs/NEW_SESSION_INITIALIZATION.md` に従ってnew sessionを作る。
 2. 初回sceneの入口を作り、`current/scene.md` と `current/event_card.md` を現在形にする。
-3. 1ターン以上のやりとり、または重要scene後の保存を行う。
-4. `prompt/save_resume.md` の軽量順でresumeする。
-5. resume 1ターン目で、ユーザーが今何に触れられるか、LILIAがどう続いているかを確認する。
+3. 1ターン以上の通常プレイを行う。この通常ターンでは保存更新やgit確認を割り込ませず、本文だけを返す。
+4. ユーザーが「保存」「save」「ここまで反映」「セーブして」と明示した時、またはscene終了・章区切りで保存確認が出た時だけ保存を行う。
+5. `prompt/save_resume.md` の軽量順でresumeする。
+6. resume 1ターン目で、ユーザーが今何に触れられるか、LILIAがどう続いているかを確認する。
 
 ## 4. Not Scope
 
@@ -94,10 +95,14 @@ new後のsession rootには、最低限以下があること。
 - `current/event_card.md` が、story素材ではなく、今触れる可視イベントになっている。
 - 初回から恋愛成立やベッドシーンを確定しない。
 - 官能・親密の余地は削らず、成人、合意、相互性、境界線、止まれる余地が揃った時に温度を上げられる状態にする。
+- first scene中の通常応答は、LILIAの反応、場の変化、次に触れられるもの、自然な行動余地だけにする。
+- first scene中の通常応答では、保存します、stateを更新します、git status、Edited files、diff / stat、session stateには保存済みです、などを出さない。
+- ユーザーが通常返答した直後にファイル編集しない。保存候補は内部的に保持し、Save Modeまで実ファイル更新しない。
 
 ### 6.3 save
 
-会話またはscene後、次回の1ターン目に効くものだけを保存する。
+Save Modeに入った時だけ、会話またはscene後、次回の1ターン目に効くものだけを保存する。
+通常プレイ中の各ターンで自動的にこの処理を走らせない。
 
 - `current/hotset.md`: 温度、第一反応、呼び方/距離のecho、event_card要約、aftercareの短い余韻。
 - `current/scene.md`: 場所、現在場面、直前のやりとり、次の行動余地。
@@ -141,6 +146,8 @@ resume 1ターン目の前に、必要に応じて以下を確認する。
 - sceneから現在地、距離、行動余地が分かる。
 - event_cardから visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change が分かる。
 - story_deckではなくevent_cardが、今触れる可視イベントになっている。
+- resume 1ターン目の通常応答で保存更新やgit確認を割り込ませていない。
+- playable scene textが最初に出ている。
 
 ### 7.3 voice continuity
 
@@ -188,6 +195,8 @@ resume 1ターン目は、以下を満たせば通過とする。
 - story_deckとevent_cardが同じ内容になっている。
 - beliefsがユーザーの内面を断定している。
 - resume 1ターン目で、現在地、距離、触れる入口が見えない。
+- 通常プレイの返答で「保存します」「stateを更新します」「Edited files」「diff / stat」などが出る。
+- ユーザーが保存を求めていないのに、通常ターン後にファイル編集やgit確認が走る。
 
 ## 10. Result Record Format
 

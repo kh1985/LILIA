@@ -802,7 +802,10 @@ def build_codex_new_prompt_bundle(session_path: Path) -> str:
         "instruction: This bundle is for playing LILIA inside Codex interactive mode. "
         "Ask Q1-Q7, generate character YAML if available or use the GM/AI fallback schema, "
         "convert it into lilia/main/profile.md, read that profile, update the session scaffold, "
-        "then write the first scene. Do not stop at first_scene_pending unless the user asks to pause.\n"
+        "then write the first scene. Do not stop at first_scene_pending unless the user asks to pause. "
+        "After the first scene begins, normal play is Play Mode: do not edit files or run git checks after every user turn. "
+        "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
+        "or when initialization requires file generation. Do not expose internal save reasoning to the player.\n"
         "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
         + build_new_prompt_bundle(session_path)
     )
@@ -814,7 +817,10 @@ def build_codex_resume_prompt_bundle(session_path: Path) -> str:
         f"session: {session_path.relative_to(ROOT)}\n"
         "mode: codex interactive resume\n"
         "instruction: This bundle is for continuing LILIA inside Codex interactive mode. "
-        "Read the lightweight resume state, then continue one turn without resetting voice or relationship.\n"
+        "Read the lightweight resume state, then continue one turn without resetting voice or relationship. "
+        "During normal play, do not edit files or run git checks after every user turn. "
+        "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
+        "or when initialization requires file generation. Do not expose internal save reasoning to the player.\n"
         "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
         + build_resume_prompt_bundle(session_path)
     )
@@ -852,7 +858,10 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             f"Read {prompt_path} and follow it for LILIA. "
             "Do not start AI Harness or autoplay. "
             "Ask Q1-Q7, generate lilia/main/profile.md, then start the first scene. "
-            "Do not stop at first_scene_pending."
+            "Do not stop at first_scene_pending. "
+            "During normal play after the first scene starts, do not edit files or run git checks after every user turn. "
+            "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
+            "or when initialization requires file generation. Do not expose internal save reasoning to the player."
         )
 
     data = read_session_json(session_path)
@@ -861,13 +870,19 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             f"Read {prompt_path} and continue LILIA from first_scene_pending. "
             "Start the first scene now. Do not run checks. "
             "Do not edit files unless the prompt explicitly requires it. "
-            "Output the playable scene text first."
+            "Output the playable scene text first. "
+            "After the first scene starts, do not edit files or run git checks after every user turn. "
+            "Enter save/update mode only when the user explicitly asks to save/update. "
+            "Do not expose internal save reasoning to the player."
         )
 
     return (
         f"Read {prompt_path} and continue LILIA. "
         "Do not start AI Harness or autoplay. "
-        "Output the playable scene text first unless the prompt requires a save/update step."
+        "During normal play, do not edit files or run git checks after every user turn. "
+        "Respond in playable scene text first. "
+        "Enter save/update mode only when the user explicitly asks to save/update or when initialization requires file generation. "
+        "Do not expose internal save reasoning to the player."
     )
 
 

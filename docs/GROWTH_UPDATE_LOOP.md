@@ -1,11 +1,12 @@
 # LILIA Growth Update Loop
 
-この文書は、会話後、scene後、event_card進行後、親密scene後に、LILIAのstateをどう更新するかを定義する設計正本です。
+この文書は、Save Modeで、会話後、scene後、event_card進行後、親密scene後に、LILIAのstateをどう更新するかを定義する設計正本です。
 実装コード、CLI、自動検証ではなく、Markdown stateを軽量に更新するための運用ルールです。
 
 ## 1. Purpose
 
 Growth Update Loop は、LILIAが会話、選択、物語、記憶、関係性によって少しずつ変化するための保存更新ループである。
+これはSave Modeで「何を反映するか」を決めるルールであり、通常プレイの各ターンで即座に全ファイル編集するルールではない。
 
 目的は、すべてのファイルを毎回更新することではない。
 何が変わったかを見て、次回の第一声、距離、信頼、境界線、event_card入口に効くものだけを、正しい保存先へ分ける。
@@ -27,27 +28,34 @@ Growth Update は好感度加算、攻略ルート進行、報酬付与ではな
 
 この文書は、会話後に何をどこへ保存するかの正本である。
 各Gateの詳細は既存正本に委ね、ここでは更新判断と保存先の分離を扱う。
+ただし、通常プレイ中はPlay Modeを優先し、プレイヤーへの返答に保存判断やファイル更新ログを混ぜない。
 
 ## 3. Update Trigger
 
-Growth Update は、以下のタイミングで短く確認する。
+Growth Update は、Save Modeで以下のタイミングに短く確認する。
 
-- 通常会話後。
-- scene後。
-- event_cardが進んだ後。
-- 境界線が確認された後。
-- 拒否、保留、約束が出た後。
-- 親密scene後。
-- 衝突scene後。
+- ユーザーが「保存」「save」「ここまで反映」「セーブして」と明示した後。
+- GMがscene終了や章区切りとして、明示的に保存確認を出した後。
+- codex-new / new初期化で、profile、scene、event_card、resume-ready scaffoldを生成する時。
+- Save Modeに入ったうえで、scene後。
+- Save Modeに入ったうえで、event_cardが進んだ後。
+- Save Modeに入ったうえで、境界線が確認された後。
+- Save Modeに入ったうえで、拒否、保留、約束が出た後。
+- Save Modeに入ったうえで、親密scene後。
+- Save Modeに入ったうえで、衝突scene後。
 - save前。
 - resume smokeで破綻が見えた時。
 
 ただし、何も変わっていない時は更新しない。
 毎ターン全ファイルを機械的に更新しない。
 
+Play Modeの通常会話中は、保存候補を内部的に保持するだけに留める。
+ユーザーへの返答では、保存します、stateを更新します、git statusを確認します、Edited files、diff / stat、session stateには保存済みです、などのメタ発言を出さない。
+まずLILIA / GMのplayable scene textを返す。
+
 ## 4. First Question
 
-保存前に、まず以下を見る。
+Save Modeで保存前に、まず以下を見る。
 
 - `what changed`: 何が実際に変わったか。
 - `what LILIA now feels`: LILIAの今だけの感情は何か。
@@ -227,6 +235,9 @@ NPCが関わる場合は、Tier 0-2なら短いメモに留め、Tier 3以上で
 
 ## 6. Update Flow
 
+このflowはSave Mode専用である。
+Play Modeのユーザー通常入力に対しては、このflowを実行してファイル編集するのではなく、候補として内部的に保持する。
+
 1. 直前の会話、scene、event_cardで実際に変わったものだけを見る。
 2. 一時感情、関係変化、実際の記憶、LILIA側の認識を分ける。
 3. 必要な正本だけを更新する。
@@ -240,9 +251,10 @@ NPCが関わる場合は、Tier 0-2なら短いメモに留め、Tier 3以上で
 
 ### 通常会話後
 
-- 新しい約束、拒否、保留、境界線がなければ、必要最小限の `state` と `hotset` だけでよい。
-- 呼び方や距離が継続的に変わるなら `voice` や `relationship` も確認する。
-- 何も変わっていなければ更新しない。
+Play Modeの通常会話後は、ファイル編集しない。
+新しい約束、拒否、保留、境界線が出た場合でも、ユーザーが保存を求めるまでは保存候補として内部的に保持する。
+Save Modeに入った時だけ、必要最小限の `state`、`hotset`、`voice`、`relationship`、`memory`、`beliefs` を判断する。
+何も変わっていなければ更新しない。
 
 ### event_cardが進んだ後
 
@@ -304,6 +316,9 @@ NPCが関わる場合は、Tier 0-2なら短いメモに留め、Tier 3以上で
 
 ## 8. Do Not Update
 
+- Play Modeの通常ターンでファイル編集しない。
+- ユーザーが保存を求めていないのに、保存更新、git確認、diff確認を割り込ませない。
+- 保存判断をプレイヤー向け本文に出さない。
 - 何も変わっていない時に無理に更新しない。
 - すべてのファイルを毎回更新しない。
 - 一時的な感情を `core.md` に書かない。
@@ -325,11 +340,14 @@ NPCが関わる場合は、Tier 0-2なら短いメモに留め、Tier 3以上で
 - 親密scene後の aftercare / boundary / consent が保存されていない。
 - 官能表現が安全の名目で消されている。
 - すべてのファイルを毎回機械的に更新している。
+- Play Modeの通常応答で、保存します、stateを更新します、Edited files、diff / statなどを出している。
 - archive/beatsが巨大ログ置き場になっている。
 
 ## 10. Gate Passing Conditions
 
 - 何が変わったかを見て、必要なファイルだけ更新している。
+- Save Modeに入っている時だけ更新している。
+- Play Modeではplayable scene textを先に返し、保存ログを出していない。
 - state / relationship / memory / beliefs の責務が分かれている。
 - hotsetが正本ではなく、次回1ターンのechoになっている。
 - event_cardが、継続 / 解決 / 背景化 / 保留のどれかとして扱われている。
