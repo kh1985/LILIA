@@ -45,6 +45,27 @@ RESUME_SESSION_FILES = [
 
 RESUME_PROFILE_FILE = "lilia/main/profile.md"
 
+AUTOSAVE_DEFAULTS = {
+    "enabled": True,
+    "interval_turns": 10,
+    "turns_since_save": 0,
+    "autosave_required": False,
+}
+
+TURN_UPDATE_TARGETS = {
+    "scene": "current/scene.md",
+    "state": "lilia/main/state.md",
+    "voice": "lilia/main/voice.md",
+    "relationship_overview": "current/relationship_overview.md",
+    "relationship": "lilia/main/relationship.md",
+    "memory": "lilia/main/memory.md",
+    "beliefs": "lilia/main/beliefs.md",
+    "event_card": "current/event_card.md",
+    "story_deck": "story/story_deck.md",
+    "relationship_spine": "story/relationship_spine.md",
+    "hotset": "current/hotset.md",
+}
+
 
 def usage() -> None:
     print(
@@ -53,6 +74,8 @@ def usage() -> None:
 Usage:
   ./lilia new [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia apply-newgame <session_name> <answers.md>
+  ./lilia apply-turn <session_name> <turn_update.md>
+  ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia codex-new [session_name]
   ./lilia codex-resume [session_name]
@@ -141,10 +164,28 @@ def write_session_json(path: Path, data: dict) -> None:
     )
 
 
+def ensure_autosave(data: dict) -> dict:
+    autosave = data.get("autosave")
+    if not isinstance(autosave, dict):
+        autosave = {}
+        data["autosave"] = autosave
+    for key, value in AUTOSAVE_DEFAULTS.items():
+        autosave.setdefault(key, value)
+    return autosave
+
+
 def write_session_file(session_path: Path, rel_path: str, content: str) -> None:
     target = session_path / rel_path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def append_session_file(session_path: Path, rel_path: str, content: str) -> None:
+    target = session_path / rel_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    existing = target.read_text(encoding="utf-8") if target.exists() else ""
+    separator = "\n\n" if existing.strip() else ""
+    target.write_text(existing.rstrip() + separator + content.rstrip() + "\n", encoding="utf-8")
 
 
 def bullet_block(text: str) -> str:
@@ -176,6 +217,34 @@ def parse_newgame_answers(path: Path) -> dict[int, str]:
     return answers
 
 
+def normalize_turn_update_heading(heading: str) -> str:
+    return re.sub(r"[\s-]+", "_", heading.strip().lower())
+
+
+def parse_turn_update(path: Path) -> dict[str, str]:
+    if not path.exists():
+        die(f"turn update file not found: {path}")
+
+    sections: dict[str, list[str]] = {}
+    current: Optional[str] = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"^##\s+(.+?)\s*$", line)
+        if match:
+            key = normalize_turn_update_heading(match.group(1))
+            current = key if key in TURN_UPDATE_TARGETS else None
+            if current is not None:
+                sections.setdefault(current, [])
+            continue
+        if current is not None:
+            sections[current].append(line)
+
+    return {
+        key: "\n".join(lines).strip()
+        for key, lines in sections.items()
+        if "\n".join(lines).strip()
+    }
+
+
 def answer(answers: dict[int, str], number: int) -> str:
     return answers[number].strip()
 
@@ -191,6 +260,26 @@ def render_document(title: str, intro: str, sections: list[tuple[str, str]]) -> 
     for heading, body in sections:
         parts.extend(["", f"## {heading}", "", body.strip()])
     return "\n".join(parts) + "\n"
+
+
+def render_turn_update_block(timestamp: str, body: str) -> str:
+    return f"## Turn Update - {timestamp}\n\n{body.strip()}\n"
+
+
+def render_hotset_update(timestamp: str, body: str) -> str:
+    return "\n".join(
+        [
+            "# Hotset",
+            "",
+            "このファイルは再開時の短い温度キャッシュです。正本ではありません。",
+            "apply-turnでは肥大化を避けるため、最新のhotsetだけを短く保持します。",
+            "",
+            f"## Turn Update - {timestamp}",
+            "",
+            body.strip(),
+            "",
+        ]
+    )
 
 
 def render_persona_profile_document(answers: dict[int, str]) -> str:
@@ -686,6 +775,7 @@ def create_session(name: Optional[str]) -> Path:
     data["mode"] = "new"
     data["current_phase"] = data.get("current_phase") or "qa_pending"
     data["active_lilia"] = data.get("active_lilia") or "main"
+    ensure_autosave(data)
     write_session_json(dest, data)
     return dest
 
@@ -803,9 +893,11 @@ def build_codex_new_prompt_bundle(session_path: Path) -> str:
         "Ask Q1-Q7, generate character YAML if available or use the GM/AI fallback schema, "
         "convert it into lilia/main/profile.md, read that profile, update the session scaffold, "
         "then write the first scene. Do not stop at first_scene_pending unless the user asks to pause. "
-        "After the first scene begins, normal play is Play Mode: do not edit files or run git checks after every user turn. "
+        "After the first scene begins, normal play is Play Mode: do not edit story/state files or run git checks after every user turn. "
         "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
-        "or when initialization requires file generation. Do not expose internal save reasoning to the player.\n"
+        "or when initialization requires file generation. If needed after a normal play turn, scene-tick may update only the "
+        "autosave counter; it is not a save. If autosave_required becomes true, suggest saving but do not run apply-turn "
+        "unless the user asks. Do not expose internal save reasoning to the player.\n"
         "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
         + build_new_prompt_bundle(session_path)
     )
@@ -818,9 +910,11 @@ def build_codex_resume_prompt_bundle(session_path: Path) -> str:
         "mode: codex interactive resume\n"
         "instruction: This bundle is for continuing LILIA inside Codex interactive mode. "
         "Read the lightweight resume state, then continue one turn without resetting voice or relationship. "
-        "During normal play, do not edit files or run git checks after every user turn. "
+        "During normal play, do not edit story/state files or run git checks after every user turn. "
         "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
-        "or when initialization requires file generation. Do not expose internal save reasoning to the player.\n"
+        "or when initialization requires file generation. If needed after a normal play turn, scene-tick may update only the "
+        "autosave counter; it is not a save. If autosave_required becomes true, suggest saving but do not run apply-turn "
+        "unless the user asks. Do not expose internal save reasoning to the player.\n"
         "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
         + build_resume_prompt_bundle(session_path)
     )
@@ -859,9 +953,11 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             "Do not start AI Harness or autoplay. "
             "Ask Q1-Q7, generate lilia/main/profile.md, then start the first scene. "
             "Do not stop at first_scene_pending. "
-            "During normal play after the first scene starts, do not edit files or run git checks after every user turn. "
+            "During normal play after the first scene starts, do not edit story/state files or run git checks after every user turn. "
             "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
-            "or when initialization requires file generation. Do not expose internal save reasoning to the player."
+            "or when initialization requires file generation. If needed after a normal play turn, run ./lilia scene-tick "
+            f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
+            "suggest saving but do not run apply-turn unless the user asks. Do not expose internal save reasoning to the player."
         )
 
     data = read_session_json(session_path)
@@ -871,18 +967,22 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             "Start the first scene now. Do not run checks. "
             "Do not edit files unless the prompt explicitly requires it. "
             "Output the playable scene text first. "
-            "After the first scene starts, do not edit files or run git checks after every user turn. "
+            "After the first scene starts, do not edit story/state files or run git checks after every user turn. "
             "Enter save/update mode only when the user explicitly asks to save/update. "
-            "Do not expose internal save reasoning to the player."
+            "If needed after a normal play turn, run ./lilia scene-tick "
+            f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
+            "suggest saving but do not run apply-turn unless the user asks. Do not expose internal save reasoning to the player."
         )
 
     return (
         f"Read {prompt_path} and continue LILIA. "
         "Do not start AI Harness or autoplay. "
-        "During normal play, do not edit files or run git checks after every user turn. "
+        "During normal play, do not edit story/state files or run git checks after every user turn. "
         "Respond in playable scene text first. "
         "Enter save/update mode only when the user explicitly asks to save/update or when initialization requires file generation. "
-        "Do not expose internal save reasoning to the player."
+        "If needed after a normal play turn, run ./lilia scene-tick "
+        f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
+        "suggest saving but do not run apply-turn unless the user asks. Do not expose internal save reasoning to the player."
     )
 
 
@@ -1087,6 +1187,7 @@ def command_apply_newgame(args: list[str]) -> None:
     initialization["qa_completed"] = True
     initialization["light_story_reference_pass"] = "minimal_applied"
     initialization["first_scene_status"] = "not_generated"
+    ensure_autosave(data)
     write_session_json(session_path, data)
 
     print(f"applied: {answers_path}")
@@ -1096,6 +1197,82 @@ def command_apply_newgame(args: list[str]) -> None:
     print("  session.json")
     for rel_path in documents:
         print(f"  {rel_path}")
+
+
+def command_apply_turn(args: list[str]) -> None:
+    if len(args) != 2:
+        die("apply-turn requires <session_name> <turn_update.md>")
+
+    session_path = resolve_session(args[0])
+    update_path = Path(args[1]).expanduser()
+    sections = parse_turn_update(update_path)
+    if not sections:
+        die("turn_update.md has no non-empty supported sections")
+
+    timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    updated: list[str] = []
+    for key, body in sections.items():
+        rel_path = TURN_UPDATE_TARGETS[key]
+        if key == "hotset":
+            write_session_file(session_path, rel_path, render_hotset_update(timestamp, body))
+        else:
+            append_session_file(session_path, rel_path, render_turn_update_block(timestamp, body))
+        updated.append(rel_path)
+
+    data = read_session_json(session_path)
+    autosave = ensure_autosave(data)
+    autosave["turns_since_save"] = 0
+    autosave["autosave_required"] = False
+    write_session_json(session_path, data)
+    updated.append("session.json")
+
+    print(f"applied: {update_path}")
+    print(f"session: {session_path.relative_to(ROOT)}")
+    print(f"timestamp: {timestamp}")
+    print("updated:")
+    for rel_path in updated:
+        print(f"  {rel_path}")
+
+
+def command_scene_tick(args: list[str]) -> None:
+    if len(args) != 1:
+        die("scene-tick requires <session_name>")
+
+    session_path = resolve_session(args[0])
+    data = read_session_json(session_path)
+    autosave = ensure_autosave(data)
+
+    try:
+        interval = int(autosave.get("interval_turns", AUTOSAVE_DEFAULTS["interval_turns"]))
+    except (TypeError, ValueError):
+        interval = AUTOSAVE_DEFAULTS["interval_turns"]
+    if interval < 1:
+        interval = AUTOSAVE_DEFAULTS["interval_turns"]
+    autosave["interval_turns"] = interval
+
+    try:
+        turns_since_save = int(autosave.get("turns_since_save", 0))
+    except (TypeError, ValueError):
+        turns_since_save = 0
+    if turns_since_save < 0:
+        turns_since_save = 0
+
+    turns_since_save += 1
+    autosave["turns_since_save"] = turns_since_save
+
+    enabled = bool(autosave.get("enabled", True))
+    autosave["enabled"] = enabled
+    autosave["autosave_required"] = enabled and turns_since_save >= interval
+    write_session_json(session_path, data)
+
+    display_turn = min(turns_since_save, interval)
+    print(f"scene tick: {display_turn}/{interval}")
+    print(f"autosave_required: {str(autosave['autosave_required']).lower()}")
+    if autosave["autosave_required"]:
+        print(
+            "save recommended: create turn_update.md and run "
+            f"./lilia apply-turn {session_path.name} <turn_update.md>"
+        )
 
 
 def main(argv: list[str]) -> None:
@@ -1118,6 +1295,10 @@ def main(argv: list[str]) -> None:
         command_prompt_only(args)
     elif command == "apply-newgame":
         command_apply_newgame(args)
+    elif command == "apply-turn":
+        command_apply_turn(args)
+    elif command == "scene-tick":
+        command_scene_tick(args)
     else:
         usage()
         die(f"unknown command: {command}")

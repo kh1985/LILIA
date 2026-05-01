@@ -29,5 +29,11 @@
     "first_scene_status": "not_generated",
     "resume_smoke_status": "not_run"
   },
+  "autosave": {
+    "enabled": true,
+    "interval_turns": 10,
+    "turns_since_save": 0,
+    "autosave_required": false
+  },
   "description": "1人のLILIAとの関係を保存・再開するための最小セッションテンプレートです。"
 }
