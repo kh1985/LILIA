@@ -33,6 +33,19 @@ DEEPENING_TAGS = [
     "能力との相互作用を確認した",
 ]
 
+META_PATTERNS = [
+    r"初回\s*sceneで観察する",
+    r"まだ言わないことは初回\s*sceneで小さく観察する",
+    r"関係で育つ余白",
+    r"未確定",
+    r"数値ではなく",
+    r"保存する",
+    r"\bprofile\b",
+    r"\bprompt\b",
+]
+
+SOURCE_FALLBACK = "まだ固定しない"
+
 
 def load_yaml(path: Path) -> dict:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -84,6 +97,61 @@ def kv_block(items: Iterable[tuple[str, str]]) -> str:
     return "\n".join(f"{key}: {value}" for key, value in items)
 
 
+def compact_text(text: str | None) -> str:
+    if text is None:
+        return ""
+    return re.sub(r"\s+", " ", str(text)).strip()
+
+
+def is_meta_text(text: str | None) -> bool:
+    clean = compact_text(text)
+    if not clean or clean in {"未設定", "未確定"}:
+        return True
+    return any(re.search(pattern, clean, re.IGNORECASE) for pattern in META_PATTERNS)
+
+
+def source_text(text: str | None, fallback: str = "") -> str:
+    clean = compact_text(text)
+    if is_meta_text(clean):
+        return fallback
+    return clean
+
+
+def source_answer(answers: dict[int | str, str], key: int | str, fallback: str = "") -> str:
+    return source_text(answers.get(key, ""), fallback)
+
+
+def first_sentence(text: str | None) -> str:
+    clean = source_text(text)
+    if not clean:
+        return ""
+    return re.split(r"[。.!?！？]", clean, maxsplit=1)[0].strip()
+
+
+def dedupe(items: Iterable[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        clean = source_text(item)
+        if not clean:
+            continue
+        key = re.sub(r"\s+", "", clean)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(clean)
+    return result
+
+
+def join_items(items: Iterable[str], fallback: str = SOURCE_FALLBACK) -> str:
+    clean = dedupe(items)
+    return "、".join(clean) if clean else fallback
+
+
+def contains_any(text: str, words: Iterable[str]) -> bool:
+    return any(word in text for word in words)
+
+
 def appearance_text(char: CharacterSheet) -> str:
     parts = []
     if char.appearance.hair_style:
@@ -110,38 +178,240 @@ def tone_examples(char: CharacterSheet) -> str:
 def reaction_value(char: CharacterSheet, *keywords: str, fallback: str = "未設定") -> str:
     for key, value in char.reactions.items():
         if any(word in key for word in keywords):
-            return value
+            return source_text(value, fallback)
     return fallback
 
 
 def all_reactions(char: CharacterSheet) -> str:
     if not char.reactions:
         return "- 未設定"
-    return "\n".join(f"- {key}: {value}" for key, value in char.reactions.items())
+    lines = []
+    for key, value in char.reactions.items():
+        clean = source_text(value)
+        if clean:
+            lines.append(f"- {key}: {clean}")
+    return "\n".join(lines) if lines else "- 未設定"
+
+
+def source_personality(char: CharacterSheet) -> list[str]:
+    return dedupe(char.personality)
+
+
+def infer_values(char: CharacterSheet) -> list[str]:
+    text = " ".join(
+        source_text(value)
+        for value in [
+            char.occupation,
+            char.tone.rule,
+            " ".join(char.personality),
+            " ".join(char.reactions.values()),
+            char.context.backstory,
+            char.context.current_situation,
+        ]
+    )
+    values = [
+        "自分で決める余地を残すこと",
+        "相手に負担を渡しすぎないこと",
+    ]
+    if contains_any(text, ["予定", "ドタキャン", "帰るタイミング", "崩れ"]):
+        values.append("予定が崩れても平気な顔を保つこと")
+    if contains_any(text, ["踏み込", "軽口", "軽く", "距離", "扱われ"]):
+        values.append("軽く扱われないこと")
+    if contains_any(text, ["クライアント", "フリーランス", "在宅", "一人でやれる"]):
+        values.append("仕事と生活の範囲を自分で決めること")
+    return dedupe(values)
+
+
+def infer_everyday_anchors(char: CharacterSheet) -> dict[str, str]:
+    role = source_text(char.occupation)
+    backstory = source_text(char.context.backstory)
+    current = source_text(char.context.current_situation)
+    appearance = source_text(char.appearance.notes)
+    text = " ".join([role, backstory, current, appearance])
+
+    places: list[str] = []
+    if "コンビニ" in text:
+        places.append("夜のコンビニ前")
+    if "帰" in current:
+        places.append("帰り道")
+    if contains_any(text, ["在宅", "上京", "一人でやれる"]):
+        places.append("一人で戻る部屋")
+    if not places:
+        places.append("日常の用事が残る場所")
+
+    tasks: list[str] = []
+    role_summary = first_sentence(role)
+    if role_summary:
+        tasks.append(role_summary)
+    if contains_any(text, ["Web", "デザイナー"]):
+        tasks.append("Web制作")
+    if "クライアント" in text:
+        tasks.append("クライアント連絡")
+    if "在宅" in text:
+        tasks.append("在宅作業")
+    if "コンビニ" in current:
+        tasks.append("夜の買い物")
+    if contains_any(current, ["予定", "ドタキャン"]):
+        tasks.append("予定変更後の帰り支度")
+
+    objects: list[str] = []
+    if contains_any(text, ["スマホ", "連絡", "予定", "ドタキャン", "クライアント"]):
+        objects.append("スマホ")
+    if "コンビニ" in text:
+        objects.extend(["レシート", "コンビニ袋"])
+    if "トート" in text:
+        objects.append("トートバッグ")
+    if contains_any(text, ["傘", "雨", "濡"]):
+        objects.append("ビニール傘")
+
+    scene_objects: list[str] = []
+    if "コンビニ" in text:
+        scene_objects.extend(["温かい飲み物", "レシート", "コンビニ袋"])
+    if contains_any(text, ["予定", "ドタキャン", "連絡"]):
+        scene_objects.append("未読通知のあるスマホ")
+    if "トート" in text:
+        scene_objects.append("ロゴ入りのトートバッグ")
+    if contains_any(text, ["傘", "雨", "濡"]):
+        scene_objects.append("開きにくいビニール傘")
+    if not scene_objects:
+        scene_objects.append("手元に残っている小さな持ち物")
+
+    return {
+        "places": join_items(places),
+        "tasks": join_items(tasks),
+        "objects": join_items(objects),
+        "scene_objects": join_items(scene_objects),
+    }
+
+
+def infer_context_event(char: CharacterSheet, q6: str) -> str:
+    current = source_text(char.context.current_situation)
+    if q6 and q6 != current:
+        return q6
+    if contains_any(current, ["予定", "ドタキャン", "コンビニ"]):
+        return "帰るタイミングを探す間に、スマホの通知か手元の買い物が会話のきっかけになる"
+    return "生活上の小さな用事が会話のきっかけになる"
+
+
+def infer_presence_reason(char: CharacterSheet) -> str:
+    current = source_text(char.context.current_situation)
+    if contains_any(current, ["友人", "ドタキャン", "予定"]):
+        return "友人との予定が消えて、帰る踏ん切りがつかないため"
+    if "コンビニ" in current:
+        return "買い物のあと、帰る前に少し足が止まっているため"
+    if "仕事" in current:
+        return "仕事か用事の切れ目で、次の行動を決めきれていないため"
+    return "日常の用事の途中で、少しだけ足が止まっているため"
+
+
+def infer_contradictions(char: CharacterSheet) -> list[str]:
+    tone = source_text(char.tone.rule)
+    personality = " ".join(source_personality(char))
+    current = source_text(char.context.current_situation)
+    text = " ".join([tone, personality, current])
+
+    outward = "平気な顔で軽口を返す" if contains_any(text, ["軽口", "平気", "フラット"]) else "落ち着いて見える態度を保つ"
+    inward = "予定が崩れて少し所在なくなっている" if contains_any(current, ["予定", "ドタキャン", "帰るタイミング"]) else "言葉にする前に気持ちを内側で整理している"
+    contradiction = "誰かと話したいが、自分から寂しいとは言わない"
+    if contains_any(personality, ["頼る", "一人で抱え", "最後の手段"]):
+        contradiction = "助けがあると楽になる場面ほど、頼る相手を選びすぎる"
+    return [
+        f"表: {outward}",
+        f"裏: {inward}",
+        f"矛盾: {contradiction}",
+        "矛盾: 近づきたい気配があっても、踏み込まれると返事が遅れる",
+    ]
+
+
+def infer_unspoken(char: CharacterSheet) -> list[str]:
+    current = source_text(char.context.current_situation)
+    backstory = source_text(char.context.backstory)
+    appearance = source_text(char.appearance.notes)
+    text = " ".join([current, backstory, appearance, char.occupation or ""])
+    items: list[str] = []
+    if contains_any(current, ["友人", "ドタキャン"]):
+        items.append("友人にドタキャンされたことを、気にしていないふりをしている")
+    if contains_any(text, ["スマホ", "連絡", "予定", "ドタキャン", "レシート"]):
+        items.append("スマホの通知やレシートの内容を見られたくない")
+    if contains_any(current, ["帰る", "帰り", "タイミング"]):
+        items.append("一緒に帰れると少し助かるが、送ってほしいとは言いたくない")
+    if contains_any(backstory, ["仕事", "広げる気", "一人でやれる"]):
+        items.append("仕事の範囲を広げない理由は、まだ説明しない")
+    if not items:
+        items.append("事情を聞かれても、すぐ整理して話せる状態ではない")
+    return dedupe(items)
+
+
+def infer_layer_one(char: CharacterSheet) -> str:
+    backstory = source_text(char.context.backstory)
+    role = source_text(char.occupation)
+    if contains_any(backstory, ["上京", "地方"]) and role:
+        return "上京して数年、自分で扱える範囲の仕事と生活を守っている"
+    if backstory:
+        return first_sentence(backstory) or backstory
+    return first_sentence(role) or "自分の生活を自分の速度で保っている"
+
+
+def infer_layer_two(values: list[str]) -> str:
+    if values:
+        return " / ".join(values[:2])
+    return "自分で選べる余地と、相手への負担を増やしすぎない距離感"
+
+
+def infer_person_design_flaw(char: CharacterSheet) -> str:
+    personality = " ".join(source_personality(char))
+    if contains_any(personality, ["頼る", "一人で抱え", "最後の手段"]):
+        return "頼れば楽になる場面でも、相手を選びすぎて言い出すのが遅れる"
+    if contains_any(personality, ["流す", "寡黙", "沈黙"]):
+        return "踏み込まれると軽く流すか黙り、必要な説明まで遅れる"
+    return "平気な顔を保ちすぎて、困っていることが伝わりにくい"
 
 
 def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
-    q1 = answer(answers, 1, "初回sceneで観察する")
-    q2 = answer(answers, 2, "初回scene前。関係位置は未確定")
-    q3 = answer(answers, 3, char.context.current_situation or "初回sceneで具体化する")
-    q4 = answer(answers, 4, "まだ言わないことは初回sceneで小さく観察する")
-    q5 = answer(answers, 5, "踏み込みすぎず、境界線を確認する")
-    q6 = answer(answers, 6, char.context.current_situation or "小さな生活上の出来事から始める")
-    q7 = answer(answers, 7, "恋愛成立や重い事件を急がない")
-
     age = f"{char.age}" if char.age is not None else "未設定"
-    role = char.occupation or "未設定"
-    backstory = char.context.backstory or "未設定。深い過去は初回sceneで説明しきらない。"
-    current = char.context.current_situation or q3
-    first_personality = char.personality[0] if char.personality else "初回sceneで観察する"
-    second_personality = char.personality[1] if len(char.personality) > 1 else first_personality
+    role = source_text(char.occupation, SOURCE_FALLBACK)
+    backstory = source_text(char.context.backstory, "深い過去はまだ固定しない")
+    current = source_text(char.context.current_situation, "日常の小さな用事の途中にいる")
+    q1 = source_answer(answers, 1, "落ち着いて見えるが、返答の間や持ち物に乱れが出る")
+    q2 = source_answer(answers, 2, "互いをまだ深く知らない距離")
+    q5 = source_answer(answers, 5, "踏み込みすぎず、境界線を確認する")
+    q6 = source_answer(answers, 6, "")
+    q7 = source_answer(answers, 7, "恋愛成立や重い事件を急がない")
+
+    personality = source_personality(char)
+    first_personality = personality[0] if personality else "話しかけられれば返すが、自分から急に距離を詰めない"
+    second_personality = (
+        personality[1]
+        if len(personality) > 1
+        else "困った時ほど一人で抱え、頼る相手を選ぶまで時間がかかる"
+    )
+    third_personality = (
+        personality[2]
+        if len(personality) > 2
+        else "褒められると一度受け流し、話題を変えようとする"
+    )
+    values = infer_values(char)
+    anchors = infer_everyday_anchors(char)
+    small_event = infer_context_event(char, q6)
+    contradictions = infer_contradictions(char)
+    unspoken = infer_unspoken(char)
+    layer_one = infer_layer_one(char)
+    layer_two = infer_layer_two(values)
+    flaw = infer_person_design_flaw(char)
+    forbidden = dedupe(
+        [
+            *char.forbidden,
+            q7,
+            "初期から恋愛成立や親密成立を確定しない",
+        ]
+    )
 
     sections = [
         "# LILIA Persona Profile",
         "",
         "このファイルは、初回からLILIAを安定して演じるための人格正本である。",
         "ただし、完成済み攻略キャラカードではない。",
-        "関係で育った内容は core / voice / relationship / memory / beliefs へ分解して保存する。",
+        "関係で育った内容は core / voice / relationship / memory / beliefs へ分解して記録する。",
         "",
         "## 基礎情報",
         kv_block(
@@ -160,20 +430,19 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "",
         "## personality",
         f"- 行動で見える性格: {first_personality}",
-        f"- 困った時の出方: {reaction_value(char, '困', fallback=q4)}",
-        f"- 褒められた時の反応: {reaction_value(char, '褒', fallback='少し受け取り、すぐには距離を詰めない')}",
+        f"- 困った時の出方: {reaction_value(char, '困', fallback=second_personality)}",
+        f"- 褒められた時の反応: {reaction_value(char, '褒', fallback=third_personality)}",
         f"- 怒った時の反応: {reaction_value(char, '怒', fallback='声を荒げるより、言葉数や距離に出る')}",
         f"- 頼る / 断る / 待つ の傾向: {q5}",
         "",
         "## values",
-        f"- 何を大事にしているか: {q3 if q3 != '初回sceneで具体化する' else role}",
-        f"- 何は雑に扱わないか: {q7}",
+        bullets(values),
         "",
         "## everyday anchors",
-        f"- 生活の場所: {q3}",
-        f"- 仕事 / 用事 / 習慣: {role}",
-        f"- よく触る物: {current}",
-        f"- 初回sceneで使える具体物: {q6}",
+        f"- 生活の場所: {anchors['places']}",
+        f"- 仕事 / 用事 / 習慣: {anchors['tasks']}",
+        f"- よく触る物: {anchors['objects']}",
+        f"- 初回sceneで使える具体物: {anchors['scene_objects']}",
         "",
         "## memories",
         "- 初期時点で既にある生活上の記憶",
@@ -181,13 +450,11 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "- 実際に過去として固定してよいものだけ",
         "",
         "## contradictions",
-        f"- 表の態度と内側の矛盾: {q1} / {q4}",
-        f"- 頼りたい / 頼れない: {q5}",
-        f"- 近づきたい / 距離を守りたい: {second_personality}",
+        bullets(contradictions),
         "",
         "## unspoken",
-        f"- まだ言わないこと: {q4}",
-        "- すぐには開示しない理由: 初回sceneで全部説明すると、関係で育つ余白が消えるため。",
+        bullets(unspoken),
+        "- すぐには開示しない理由: 事情を整理する前に同情や判断を向けられたくないため。",
         "",
         "## reactions",
         f"能力や異常性に触れた相手には: {reaction_value(char, '能力', '異常', fallback='すぐには信じず、境界線と安全を確認する')}",
@@ -199,32 +466,29 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         f"助けられすぎたとき: {reaction_value(char, '助', fallback='ありがたさと、自分で決めたい気持ちがぶつかる')}",
         f"軽く扱われたとき: {reaction_value(char, '軽', fallback='表情や声が硬くなり、距離を置く')}",
         "",
-        "### source reactions",
-        all_reactions(char),
-        "",
         "## forbidden",
-        bullets(char.forbidden, "初期から恋愛成立や親密成立を確定しない"),
+        bullets(forbidden, "初期から恋愛成立や親密成立を確定しない"),
         "",
         "## context",
         f"- 初回scene開始時点の状況: {current}",
         f"- ユーザーとの関係位置: {q2}",
-        f"- 今日なぜそこにいるか: {q3}",
-        f"- 初回sceneの生活上の用事: {q6}",
+        f"- 今日なぜそこにいるか: {infer_presence_reason(char)}",
+        f"- 初回sceneの生活上の用事: {small_event}",
         "",
         "## fixed memory",
         "core fixed:",
         f"  - {char.tone.rule}",
-        f"  - {first_personality}",
+        f"  - {values[0] if values else layer_two}",
         "historical fixed:",
         f"  - {backstory}",
         "",
         "## 5層構造 / Self-Understanding",
-        f"Layer 1（自己物語）: {backstory}",
-        f"Layer 2（心の核）: {q3}",
+        f"Layer 1（自己物語）: {layer_one}",
+        f"Layer 2（心の核）: {layer_two}",
         "Layer 3（防壁マップ）:",
-        f"  Say/Do Gap: {q1} / {q4}",
+        f"  Say/Do Gap: {q1} / 内側では言葉にする前に整理している",
         f"  逃げ方: {reaction_value(char, '踏', '急', fallback=q5)}",
-        f"  強がり方: {second_personality}",
+        "  強がり方: 平気な顔で軽く流し、必要な説明を短くする",
         "Layer 4（心の扉マップ）:",
         "  CHINKトリガー:",
         "    - 境界線を尊重される",
@@ -233,7 +497,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "    - 急かされる",
         "    - 軽く扱われる",
         "Layer 5（段階的な開き方）:",
-        "  Stage 1: 初回scene。観察と境界線。",
+        "  Stage 1: 出会いから序盤。軽口と沈黙で距離を測る。",
         "  Stage 2: 小さな約束や待つことが記憶に残る。",
         "  Stage 3: 摩擦や誤解を処理しても関係が消えない。",
         "  Stage 4: 明示的な合意と相互性がある時だけ親密さが進む。",
@@ -253,20 +517,20 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "",
         "## 人格設計",
         "骨:",
-        f"  境遇: {backstory}",
-        f"  価値観: {q3}",
-        f"  欠点: {q4}",
+        f"  境遇: {layer_one}",
+        f"  価値観: {layer_two}",
+        f"  欠点: {flaw}",
         f"  口調: {char.tone.rule}",
         "",
         "壁:",
-        f"  秘密: {q4}",
-        "  開示条件: 数値ではなく、会話、記憶、境界線の尊重で変化する。",
+        f"  秘密: {unspoken[0] if unspoken else '事情をすぐ整理して話せない'}",
+        "  開示条件: 待たれた経験、軽く扱われなかった経験、小さな約束が残った時。",
         f"  拒否トリガー: {q5}",
         "",
         "育つ部分:",
-        "  性格の発見: 初回sceneでユーザーの触れ方に反応して見える。",
-        "  ユーザーとの関係変化: relationship / memory / beliefsへ保存する。",
-        "  個人ストーリーの種: everyday anchorsとunspokenから小さく戻す。",
+        "  性格の発見: 待たれた時に言葉が増えるか、急かされた時に閉じるか。",
+        "  ユーザーとの関係変化: 待つ、断る、頼るの経験が距離感を変える。",
+        f"  個人ストーリーの種: {small_event}",
         "",
         "## Relationship Progression",
         "rapport:",

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -831,8 +832,8 @@ def choose_engine(requested: str) -> Optional[str]:
     return None
 
 
-def codex_interactive_command() -> list[str]:
-    return [
+def codex_interactive_command(instruction: Optional[str] = None) -> list[str]:
+    command = [
         "codex",
         "--cd",
         str(ROOT),
@@ -840,34 +841,70 @@ def codex_interactive_command() -> list[str]:
         "workspace-write",
         "--no-alt-screen",
     ]
+    if instruction:
+        command.append(instruction)
+    return command
 
 
-def codex_interactive_instruction(prompt_path: Path) -> str:
-    return f"Read {prompt_path} and follow it for LILIA. Do not start AI Harness or autoplay."
+def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Path) -> str:
+    if mode == "new":
+        return (
+            f"Read {prompt_path} and follow it for LILIA. "
+            "Do not start AI Harness or autoplay. "
+            "Ask Q1-Q7, generate lilia/main/profile.md, then start the first scene. "
+            "Do not stop at first_scene_pending."
+        )
+
+    data = read_session_json(session_path)
+    if data.get("current_phase") == "first_scene_pending":
+        return (
+            f"Read {prompt_path} and continue LILIA from first_scene_pending. "
+            "Start the first scene now. Do not run checks. "
+            "Do not edit files unless the prompt explicitly requires it. "
+            "Output the playable scene text first."
+        )
+
+    return (
+        f"Read {prompt_path} and continue LILIA. "
+        "Do not start AI Harness or autoplay. "
+        "Output the playable scene text first unless the prompt requires a save/update step."
+    )
 
 
 def print_codex_interactive_steps(session_path: Path, prompt_path: Path, mode: str) -> None:
-    command = " ".join(codex_interactive_command())
+    instruction = codex_interactive_instruction(prompt_path, mode, session_path)
+    command = shlex.join(codex_interactive_command(instruction))
     print(f"session: {session_path.relative_to(ROOT)}", flush=True)
     print(f"mode: codex interactive {mode}", flush=True)
     print(f"prompt bundle: {prompt_path}", flush=True)
     print("note: --run uses one-shot 'codex exec'; this flow opens Codex interactive play.", flush=True)
-    print("next:", flush=True)
-    print(f"  1. {command}", flush=True)
-    print("  2. In Codex, paste:", flush=True)
-    print(f"     {codex_interactive_instruction(prompt_path)}", flush=True)
+    print("launching Codex interactive with initial instruction:", flush=True)
+    print(f"  {instruction}", flush=True)
+    print("command:", flush=True)
+    print(f"  {command}", flush=True)
 
 
-def maybe_launch_codex_interactive(prompt_path: Path) -> None:
+def print_codex_interactive_fallback(instruction: str) -> None:
+    print("fallback: open Codex interactive manually, then paste:", flush=True)
+    print(f"  {instruction}", flush=True)
+
+
+def maybe_launch_codex_interactive(prompt_path: Path, mode: str, session_path: Path) -> None:
+    instruction = codex_interactive_instruction(prompt_path, mode, session_path)
     if not shutil.which("codex"):
-        print("codex: not found; install/login to Codex CLI, then use the steps above.", flush=True)
+        print("codex: not found; install/login to Codex CLI.", flush=True)
+        print_codex_interactive_fallback(instruction)
         return
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         print("codex: interactive launch skipped because this shell is not a TTY.", flush=True)
+        print_codex_interactive_fallback(instruction)
         return
 
-    print("launching Codex interactive now. Paste the instruction above after it opens.", flush=True)
-    subprocess.run(codex_interactive_command(), cwd=ROOT)
+    print("launching Codex interactive now.", flush=True)
+    result = subprocess.run(codex_interactive_command(instruction), cwd=ROOT)
+    if result.returncode != 0:
+        print(f"codex: interactive launch exited with status {result.returncode}.", flush=True)
+        print_codex_interactive_fallback(instruction)
 
 
 def engine_command(engine: str) -> list[str]:
@@ -965,7 +1002,7 @@ def command_codex_new(args: list[str]) -> None:
     write_prompt_file(prompt_path, build_codex_new_prompt_bundle(session_path))
     print(f"created: {session_path.relative_to(ROOT)}", flush=True)
     print_codex_interactive_steps(session_path, prompt_path, "new")
-    maybe_launch_codex_interactive(prompt_path)
+    maybe_launch_codex_interactive(prompt_path, "new", session_path)
 
 
 def command_codex_resume(args: list[str]) -> None:
@@ -975,7 +1012,7 @@ def command_codex_resume(args: list[str]) -> None:
     prompt_path = codex_prompt_path(session_path, "resume")
     write_prompt_file(prompt_path, build_codex_resume_prompt_bundle(session_path))
     print_codex_interactive_steps(session_path, prompt_path, "resume")
-    maybe_launch_codex_interactive(prompt_path)
+    maybe_launch_codex_interactive(prompt_path, "resume", session_path)
 
 
 def command_list_sessions() -> None:
