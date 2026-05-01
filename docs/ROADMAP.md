@@ -25,16 +25,17 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Relationship / Character Voice Continuity Gate: 設計仕様完了 / 実生成コード未実装
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
-- Growth Update Loop: 設計仕様完了 / 実生成コード未実装
+- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / autosave counter導入済み / scene-tick MVP実装済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
+- Full Loop Manual Smoke: checklist追加済み
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
 - Newgame Q&A v1.1: 初回scene品質改善のため調整済み / 質問文具体化完了
 - LILIA Persona Profile: character YAML素材生成と `lilia/main/profile.md` 変換導線を追加済み
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は 新Q&A + Persona Profileで実プレイ再テスト
+- 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
 
 ## 3. Completed Foundation
 
@@ -124,7 +125,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 関係が変わった出来事は `archive/beats/` に節目として保存する。
    - `docs/GROWTH_UPDATE_LOOP.md` を正本として、更新タイミング、各ファイルの保存責務、親密scene後/event_card後/archive/beatsの扱い、failure条件を固定した。
    - `templates/session/current/event_card.md` と `templates/session/story/story_deck.md` を、event_cardの進行状態と背景化した未回収札を扱える最小形へ補強した。
-   - Status: 完了
+   - `./lilia apply-turn <session> <turn_update.md>` をSave Mode用MVPとして追加済み。`scene` / `relationship_overview` もturn_update経由で反映できる。
+   - 通常プレイ中は自動保存せず、ユーザーの明示saveやscene区切りでSave Modeに入った時だけ使う。
+   - autosave counterは `session.json` に持ち、`./lilia scene-tick <session>` で通常プレイ1ターンごとに進める。
+   - `scene-tick` は10ターン到達時に `autosave_required: true` にするが、自動保存や `apply-turn` 実行はしない。
+   - 次タスクは、実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証。
+   - Status: apply-turn MVP実装済み / scene-tick MVP実装済み / 自動保存は未実装
 
 8. Story / Relationship Accumulation Loop
    - イベントを点、ストーリーを線として扱い、出来事がLILIAの記憶、関係、beliefs、voiceへ残ることで物語が進む形にする。
@@ -199,7 +205,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は、新Q&A v1.1で `./lilia codex-new <session>` を再テストすること。
+次の実作業は、実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証。
 
 MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を1周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
 minor follow-upとして `templates/session/session.json` の `source_prompt_versions` 補正も完了している。
@@ -209,7 +215,7 @@ minor follow-upとして `templates/session/session.json` の `source_prompt_ver
 `--run` と `--engine codex|claude|auto` によりAI CLI接続も追加済みである。
 Newgame Q&A v1.1では、初回sceneが「困っているLILIAを優しく助ける」だけの一本道にならないよう、表へ出る側面、関係位置、生活の足場、今日の保留、許されている距離、小さな出来事、避けたいことを聞く形へ調整済みである。各Qは「この質問で決めること」「選択肢風の例」「答え方例」を持つ具体文へ調整済みで、例は固定選択肢ではなく抽象軸として扱う。
 Persona Profile導線では、first scene前に `lilia/main/profile.md` を作り、profileの具体物、職能、生活、反応、矛盾、禁忌を使って初回sceneを書く。
-次は、新Q&A + Persona Profileで実プレイ再テストを行う。
+次は、scene中のテンポを壊さずに `scene-tick` が10ターン到達を知らせられるか、実プレイで確認する。
 AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
 
 ## 6. Update Rules
