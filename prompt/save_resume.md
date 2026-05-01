@@ -8,6 +8,9 @@
 会話後、scene後、event_card進行後の保存更新ループは `docs/GROWTH_UPDATE_LOOP.md` を正本とします。
 Story / Relationship Accumulation は `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を正本とし、Story Residue、未回収札、関係の方向性を次の第一声や距離感へ戻します。
 Crisis / Combat / Ability Constraint は `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md` を正本とし、危機後のstate、ability trace、relationship risk、voice変化を必要分だけ戻します。
+Persona Profile は `docs/LILIA_PERSONA_PROFILE.md` を正本とし、`first_scene_pending`、voice崩れ、人格崩れ、正本不足の時に `lilia/main/profile.md` の必要箇所を読みます。
+`profile.md` は初期人格正本だが、現在の関係・記憶より優先しません。
+実際に起きた変化は `memory.md`、`relationship.md`、`beliefs.md`、`voice.md` を優先します。
 
 ## 1. 基本方針
 
@@ -169,19 +172,27 @@ voiceは固定台詞集にしない。
 6. `current/event_card.md`
 7. `current/relationship_overview.md` の必要箇所
 8. `lilia/main/core.md`
-9. `lilia/main/voice.md`
-10. `lilia/main/state.md`
-11. `lilia/main/relationship.md`
-12. `lilia/main/memory.md`
-13. `lilia/main/beliefs.md` の必要箇所
-14. `story/relationship_spine.md`
-15. `story/story_deck.md` の必要箇所
+9. `lilia/main/profile.md` の必要箇所
+10. `lilia/main/voice.md`
+11. `lilia/main/state.md`
+12. `lilia/main/relationship.md`
+13. `lilia/main/memory.md`
+14. `lilia/main/beliefs.md` の必要箇所
+15. `story/relationship_spine.md`
+16. `story/story_deck.md` の必要箇所
 
 `current/relationship_overview.md` は、現在の関係全体を把握するための補助要約として扱う。
 
 `story/story_deck.md` は、再開後に次のイベント候補を判断する時に参照する。
 
 再開1ターン目は、`current/hotset.md` の温度を入口にし、`current/scene.md` と `current/event_card.md` の最小状態を確認したうえで、`relationship_overview`、`story_deck`、`beliefs` の必要箇所だけを参照する。
+
+通常resumeで毎回 `profile.md` 全文を読む必要はない。
+ただし `first_scene_pending` の場合は必読にする。
+voice / relationship / memory / beliefs が不足している時、voice崩れ、人格崩れ、関係段階の確認が必要な時も、hotsetだけで代替せず `profile.md` の必要箇所を読む。
+その場合でも、`profile.md` は初期核と初回演技の補助であり、実際に起きた関係変化、約束、拒否、保留、呼び方の変化より優先しない。
+矛盾した場合は、`memory.md`、`relationship.md`、`beliefs.md`、`voice.md` を優先し、`profile.md` は初期状態として解釈し直す。
+`profile.md` を長期ログや毎ターン追記先にしない。
 
 `current/event_card.md` がGate未通過の場合は、本文を始める前に `visible problem`、`first concrete action`、`handles 2-4`、`relationship stake`、`if ignored`、`next visible change` を最小補正する。
 現在sceneから外れたeventは、必要に応じて `story/story_deck.md` の未回収札へ落とし、今触れる可視イベントを1つだけ立て直す。
@@ -249,6 +260,7 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 - `current/scene.md` に場所、距離、見えているもの、行動余地がある。
 - `current/event_card.md` に visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change がある。
 - `current/relationship_overview.md` に距離感、信頼、警戒、興味、誤解や保留がある。
+- `lilia/main/profile.md` に初回から演じるための具体物、職能、生活、反応、矛盾、禁忌がある。
 - `lilia/main/voice.md` に呼び方、声の基準、第一反応の方向がある。
 - `lilia/main/state.md` に第一反応がある。
 - `lilia/main/relationship.md` に境界線と未確定の期待がある。

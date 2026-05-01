@@ -18,6 +18,7 @@ LILIAは、会話、選択、物語、記憶、関係性によって人格の出
 - 起動分岐: `prompt/startup.md`
 - save / resume: `prompt/save_resume.md`
 - session構造: `docs/STATE_STRUCTURE.md`
+- persona profile: `docs/LILIA_PERSONA_PROFILE.md`
 - new初期化: `docs/NEW_SESSION_INITIALIZATION.md`
 - event_card可プレイ性: `docs/EVENT_CARD_PLAYABILITY.md`
 - voice continuity: `docs/VOICE_CONTINUITY.md`
@@ -62,6 +63,7 @@ new後のsession rootには、最低限以下があること。
 - `current/hotset.md`
 - `current/event_card.md`
 - `current/relationship_overview.md`
+- `lilia/main/profile.md`
 - `lilia/main/core.md`
 - `lilia/main/voice.md`
 - `lilia/main/state.md`
@@ -82,6 +84,7 @@ new後のsession rootには、最低限以下があること。
 
 - Q&A結果を、`docs/NEW_SESSION_INITIALIZATION.md` の写像に従って各ファイルへ分ける。
 - 初期状態を埋めすぎず、未確定の余白を残す。
+- 初回scene前に `lilia/main/profile.md` があり、具体物、生活、反応、矛盾、禁忌を読める。
 - 初回scene前に `current/event_card.md` がPlayability Gateを通るか確認する。
 - `lilia/main/voice.md` に固定台詞ではなく、呼び方、声の基準、第一反応の方向を置く。
 
@@ -130,6 +133,7 @@ resume 1ターン目の前に、必要に応じて以下を確認する。
 - 必須ファイルが揃っている。
 - `session.json` にphase、first scene status、source prompt/doc参照がある。
 - style系は存在するが、通常resume 1ターン目の必読になっていない。
+- `profile.md` は first scene前に読む人格正本であり、hotsetの代替や毎ターン追記先になっていない。
 
 ### 7.2 resume 1ターン目の入口
 

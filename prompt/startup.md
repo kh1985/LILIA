@@ -56,6 +56,7 @@ LILIAは、ユーザーとの会話・選択・物語・記憶・関係性によ
 
 設計相談、GM相談、prompt設計、開発方針相談の意図が明確な場合は、`docs/CORE_CONCEPT.md` と `docs/HANDOFF.md` を優先して読む。
 state / memory / relationship / story構造の相談では、`docs/STATE_STRUCTURE.md` も読む。
+persona profile、character YAML移植、first scene前の人格正本についての相談では、`docs/LILIA_PERSONA_PROFILE.md` も読む。
 voice continuity、呼び方、関係の巻き戻り、重要scene前の確認についての相談では、`docs/VOICE_CONTINUITY.md` も読む。
 romance / intimacy、親密scene、合意、境界線、aftercareについての相談では、`docs/ROMANCE_INTIMACY_GROWTH.md` も読む。
 resume smoke、手動検証、`new -> first scene -> save -> resume` の相談では、`docs/RESUME_SMOKE_TEST.md` も読む。
@@ -91,6 +92,7 @@ event_card / case / playability の相談では、`docs/EVENT_CARD_PLAYABILITY.m
 - `new` は `prompt/newgame.md` を正本にする。
 - `resume` は `prompt/save_resume.md` を正本にする。
 - `consult` は `docs/CORE_CONCEPT.md` と `docs/HANDOFF.md` を優先し、state構造の相談では `docs/STATE_STRUCTURE.md` も読む。
+- persona profileの相談では `docs/LILIA_PERSONA_PROFILE.md` を読む。
 - voice continuityの相談では `docs/VOICE_CONTINUITY.md` を読む。
 - romance / intimacyの相談では `docs/ROMANCE_INTIMACY_GROWTH.md` を読む。
 - resume smokeや手動検証の相談では `docs/RESUME_SMOKE_TEST.md` を読む。

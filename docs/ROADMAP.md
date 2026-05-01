@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本にする。
 
 ## 1. Goal
 
@@ -31,9 +31,10 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
-- Newgame Q&A v1.1: 初回scene品質改善のため調整済み
+- Newgame Q&A v1.1: 初回scene品質改善のため調整済み / 質問文具体化完了
+- LILIA Persona Profile: character YAML素材生成と `lilia/main/profile.md` 変換導線を追加済み
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は 新Q&Aで実プレイ再テスト
+- 次は 新Q&A + Persona Profileで実プレイ再テスト
 
 ## 3. Completed Foundation
 
@@ -70,6 +71,16 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - `docs/NEW_SESSION_INITIALIZATION.md` を正本として、Q&Aから各ファイルへの写像、Light Story Reference Passの出力先、new直後resume可能な最小状態を固定した。
    - `templates/session/` は `session.json`、`current/event_card.md`、`current/hotset.md`、`style/rules.md` などを初期化ルールに合わせて補強済み。
    - Status: 完了
+
+2.5 LILIA Persona Profile Generation
+   - inner-galge / character の「自然言語指示 -> character YAML -> 登場前キャラmd」の流れを、LILIA向けに「character YAML -> `lilia/main/profile.md`」へ変換して採用する。
+   - `profile.md` は、first scene前に読む人格正本であり、完成済み攻略キャラカードではない。
+   - 関係で育った内容は `core / voice / relationship / memory / beliefs` へ分解して保存する。
+   - Multi-Relationship / Jealousy Profile は latent、Ability / Intimacy Resonance は dormant として持つ。
+   - AFFINITY、bond、好感度、攻略ルート、ハーレム前提は採用しない。
+   - `scripts/lilia_generate_character_yaml.py` はstandalone wrapperとしてClaude CLIを実際に呼び、character YAMLを生成できる。
+   - `./lilia` launcherは外部character YAML生成を自動実行しない。Claude CLIがない場合や自動生成を使わない場合は、GM/AIが同schemaのfallbackを作る。
+   - Status: 実装済み / prompt-only smoke完了
 
 3. Case / Event Card Playability Gate
    - 旧LIRIAの Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate を、LILIAの `current/event_card.md` 向けに再設計する。
@@ -196,8 +207,9 @@ minor follow-upとして `templates/session/session.json` の `source_prompt_ver
 `./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線を実装済みである。
 最小運用確認では、最新session表示とprompt-only案内を小修正済みである。
 `--run` と `--engine codex|claude|auto` によりAI CLI接続も追加済みである。
-Newgame Q&A v1.1では、初回sceneが「困っているLILIAを優しく助ける」だけの一本道にならないよう、表へ出る側面、関係位置、生活の足場、今日の保留、許されている距離、小さな出来事、避けたいことを聞く形へ調整済みである。
-次は、新Q&Aで実プレイ再テストを行う。
+Newgame Q&A v1.1では、初回sceneが「困っているLILIAを優しく助ける」だけの一本道にならないよう、表へ出る側面、関係位置、生活の足場、今日の保留、許されている距離、小さな出来事、避けたいことを聞く形へ調整済みである。各Qは「この質問で決めること」「選択肢風の例」「答え方例」を持つ具体文へ調整済みで、例は固定選択肢ではなく抽象軸として扱う。
+Persona Profile導線では、first scene前に `lilia/main/profile.md` を作り、profileの具体物、職能、生活、反応、矛盾、禁忌を使って初回sceneを書く。
+次は、新Q&A + Persona Profileで実プレイ再テストを行う。
 AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
 
 ## 6. Update Rules
