@@ -41,7 +41,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 2（echo拡張・decision_index）: 実装済み
 - Wave 3（50作品参考カタログ）: 実装済み
 - Wave 4（Structure / Pattern Reference Libraries）: 実装済み
-- Wave 5（story_spine導入）: 予定
+- Wave 5（story_spine導入）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -52,12 +52,20 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Event Creation Procedure §4 を3 reference対応に拡張。
 - Story Diagnosis セクション追加。
 
-### Wave 5: Story Spine [予定]
+### Wave 5: Story Spine [完了]
 
-- `templates/session/story/story_spine.md` 新規。
-- Main Question / Reveal Ladder / Background Truth / Pressure Direction / Heroine Tie / if ignored / Drift Guard。
-- newgameでの初期生成。
+- `templates/session/story/story_spine.md` を追加。
+- newgameで `current/story_spine.md` を初期生成。
+- Story Spine Awareness（prompt/core.md）を追加。
+- Event Creation Procedureと連携。
 - save / apply-turn連携。
+- responsibility separation: relationship_spine vs story_spine。
+
+## 候補（優先度順、未確定）
+
+- 既存セッションへのretrofit。
+- 複数LILIA運用拡張。
+- reference多様化。
 
 ## 3. Completed Foundation
 

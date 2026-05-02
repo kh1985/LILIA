@@ -47,6 +47,23 @@ LILIAでは、敵を倒したことや事件を解決したことだけがスト
 
 この例は説明であり、固定イベントではない。
 
+## relationship_spine と story_spine の責務分離
+
+| ファイル | 責務 | 更新頻度 |
+|---------|------|---------|
+| `story/relationship_spine.md` | 関係の方向、テーマ、関係温度、深化の段 | 高（関係の各段で更新） |
+| `current/story_spine.md` | 物語の進行、Reveal Ladder、Background Truth、Pressure Direction | 中（段階変化・発火時に更新） |
+
+### 簡単な見分け方
+
+- 関係がどうなっているか -> `story/relationship_spine.md`
+- 話がどこに向かっているか -> `current/story_spine.md`
+- ヒロインが今どう感じているか -> `story/relationship_spine.md`
+- ヒロインの過去の傷が今に効いているか -> `current/story_spine.md`
+
+両方が連携することで、関係と物語が同時に進む。
+同じ情報を両方に重複して書かない。
+
 ## 4. キャラ人格とイベント進行を両立する原則
 
 イベントでLILIAを動かさない。
@@ -84,7 +101,7 @@ Story Reference Engine は、参照作品や過去知見から、本文、固有
 4. 採用engineを1-3個までに絞る。
 5. 参照元から、感情の骨、抽象構造、選択の力学だけを抜く。
 6. LILIAの `core / voice / state / relationship / memory / beliefs` に合わせて具体化する。
-7. `current/event_card.md`、`story/story_deck.md`、`story/relationship_spine.md` に分けて保存する。
+7. `current/event_card.md`、`current/story_spine.md`、`story/story_deck.md`、`story/relationship_spine.md` に分けて保存する。
    文体や表現軸が必要な場合だけ `style/reference.md` に短く分離する。
 
 禁止:

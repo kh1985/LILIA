@@ -35,6 +35,7 @@ RESUME_SESSION_FILES = [
     "current/event_card.md",
     "current/relationship_overview.md",
     "current/decision_index.md",
+    "current/story_spine.md",
     "lilia/main/core.md",
     "lilia/main/voice.md",
     "lilia/main/state.md",
@@ -80,6 +81,7 @@ TURN_UPDATE_TARGETS = {
     "next_hook": "current/event_card.md",
     "story_deck": "story/story_deck.md",
     "relationship_spine": "story/relationship_spine.md",
+    "story_spine": "current/story_spine.md",
     "hotset": "current/hotset.md",
 }
 
@@ -696,6 +698,71 @@ def infer_scene_exit_beats(text: str, name: str) -> list[str]:
     return deduped[:5]
 
 
+def render_story_spine_document(
+    *,
+    name: str,
+    main_question: str,
+    visible: str,
+    near_reveal: str,
+    deep_reveal: str,
+    background_truth: str,
+    pressure_items: list[str],
+    prize: str,
+    life: str,
+    secret: str,
+    boundary: str,
+    emotion: str,
+    ignored_items: list[str],
+    drift_items: list[str],
+) -> str:
+    return render_document(
+        "Story Spine",
+        (
+            "物語の固めの背骨。relationship_spine.md（関係の方向・温度）とは別に、"
+            "この話が何の話で、どう進むかを保持するGM内部資料です。"
+        ),
+        [
+            ("Main Question", main_question),
+            (
+                "Reveal Ladder",
+                "\n".join(
+                    [
+                        f"1. [pending] {visible}",
+                        f"2. [pending] {near_reveal}",
+                        f"3. [pending] {deep_reveal}",
+                    ]
+                ),
+            ),
+            ("Background Truth (GM only)", background_truth),
+            ("Pressure Direction", bullet_lines([f"[standing] {item}" for item in pressure_items])),
+            ("Prize（任意）", prize),
+            (
+                "Heroine Tie",
+                "\n".join(
+                    [
+                        f"- 生活: {life}",
+                        f"- 秘密: {secret}",
+                        f"- 境界: {boundary}",
+                        f"- 感情: {emotion}",
+                    ]
+                ),
+            ),
+            ("if ignored", bullet_lines(ignored_items[:3])),
+            ("Drift Guard", bullet_lines(drift_items[:3])),
+            (
+                "運用メモ",
+                "\n".join(
+                    [
+                        f"- {name}本人の認知として本文に直接出さない。",
+                        "- Reveal Ladderは一気に2段進めない。",
+                        "- Background TruthはReveal Ladder経由でだけ表に出す。",
+                    ]
+                ),
+            ),
+        ],
+    )
+
+
 def render_profile_initialized_documents(profile: str, answers: Optional[dict[int | str, str]] = None) -> dict[str, str]:
     answers = answers or {}
     sections = profile_sections(profile)
@@ -829,6 +896,22 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
                 ("ユーザー側に問うこと", bullet_lines([f"{name}の主体性を奪わず、{entry} にどう関わるか。"])),
                 ("関係が変化する方向", bullet_lines(["名乗る、待つ、確認する、別れる/一緒に歩くのどれを選ぶかで、信頼と警戒の出方が変わる。"])),
             ],
+        ),
+        "current/story_spine.md": render_story_spine_document(
+            name=name,
+            main_question=f"{name}は、{guard}を守ったまま、ユーザーとの距離を選び直せるか。",
+            visible=f"{place_phrase}で、{object_focus}と{entry_focus}が最初の入口として見える。",
+            near_reveal=f"{pressure} が生活の用事や沈黙に少しずつ出始める。",
+            deep_reveal=f"{friction} の奥にある理由が、関係の中で開示候補になる。",
+            background_truth=f"{pressure} と {friction} が現在の言動を歪めている。詳細は未確定: 進行で決める。",
+            pressure_items=[f"{entry_focus}が放置され、{name}が自分だけで判断する", f"{object_focus}が次に会う理由として残る", pressure],
+            prize=guard,
+            life=place,
+            secret=pressure,
+            boundary=avoid,
+            emotion=friction,
+            ignored_items=[f"{name}が{entry_focus}を抱えたまま帰る", f"{object_focus}だけが場に残る", pressure],
+            drift_items=[f"{object_focus} — {pressure}", f"{place_phrase} — {friction}", f"{entry_focus} — {guard}"],
         ),
         "current/hotset.md": render_document(
             "Hotset",
@@ -1639,6 +1722,34 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("次に変わりうる点", "- 声: Q1 / Q6由来\n- 距離感: Q5由来\n- 呼び方: 未確定\n- 信頼 / 警戒: Q5由来\n- 境界線: Q4由来\n- beliefs: 初回scene後に更新\n- 危機後の頼り方 / 頼られ方: 初回では重くしない\n- 能力使用後の信頼 / 警戒: 未発生"),
             ],
         ),
+        "current/story_spine.md": render_story_spine_document(
+            name=lilia_name,
+            main_question=f"{lilia_name}は、{q_line(5)}という生活の足場から、{q_line(3)}の関係へ進めるか。",
+            visible=f"{q_line(5)}から導出される生活圏と、初回sceneで見える具体物。",
+            near_reveal=f"{q_line(4)}に触れすぎず、仕事・生活・距離の輪郭が少し見える。",
+            deep_reveal="過去の傷や本当の動機は未確定: 進行で決める。",
+            background_truth=f"{q_line(4)}が現在の言動を歪めている可能性がある。詳細は未確定: 進行で決める。",
+            pressure_items=[
+                f"{q_line(5)}の用事が進み、次に会う理由だけが残る",
+                f"{lilia_name}が{q_line(4)}を言わないまま自分で判断する",
+                "小さな通知、持ち物、約束のどれかが1-3 scene後に戻る",
+            ],
+            prize="未確定: 進行で見えてきた時だけ設定する",
+            life=q_line(5),
+            secret=q_line(4),
+            boundary=infer_simple_boundary(q_line(1), q_line(2), q_line(3), q_line(4)),
+            emotion=q_line(3),
+            ignored_items=[
+                f"{lilia_name}が用事を抱えたまま場を離れる",
+                "連絡や持ち物が次の入口として残る",
+                f"{q_line(4)}が沈黙や避け方として戻る",
+            ],
+            drift_items=[
+                f"{infer_simple_scene_material(q_line(1), q_line(2), q_line(3), q_line(4)).split('、')[0]} — {q_line(4)}",
+                f"{q_line(5)}の持ち物 — 生活の足場",
+                "未送信の通知 — 言えない理由",
+            ],
+        ),
         "story/story_deck.md": render_document(
             "Story Deck",
             "例文集ではなく、次イベント判断に必要なものだけを置きます。",
@@ -1711,6 +1822,10 @@ def create_session(name: Optional[str]) -> Path:
         die(f"session already exists: {dest.relative_to(ROOT)}")
 
     shutil.copytree(TEMPLATE_DIR, dest)
+    story_spine_template = dest / "story" / "story_spine.md"
+    if story_spine_template.exists():
+        write_session_file(dest, "current/story_spine.md", story_spine_template.read_text(encoding="utf-8"))
+        story_spine_template.unlink()
     data = read_session_json(dest)
     now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     data["session_id"] = name
