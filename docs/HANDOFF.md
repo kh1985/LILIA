@@ -48,6 +48,7 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `./lilia` launcherは外部character YAML生成を自動実行しない。`new` / `apply-newgame` はQ&A fallbackで `profile.md` を作り、必要な時だけ人間または後続自動化が `scripts/lilia_generate_character_yaml.py` を明示実行する。
 - `scripts/lilia_character_to_profile.py` を追加済み。character YAMLから `lilia/main/profile.md` を生成し、必要ならsource/debug用に `lilia/main/profile.yaml` も保存できる。
 - `templates/session/lilia/main/profile.md` を追加済み。`./lilia apply-newgame` は外部character systemを強制せず、Q&A fallbackとして `profile.md` も生成する。
+- `session.json` に `lilia_name` / `lilia_display_name` を追加済み。LILIAは作品名・存在カテゴリであり、作中の名乗りはPersona Profile / character YAML由来の個体名を使う。
 - Persona Profile導線の最小確認として、既存character YAMLから `/tmp/lilia_profile_session/lilia/main/profile.md` を生成し、`./lilia prompt-only new test_persona_profile` のprompt bundleに Persona Profile Generation Pass と first scene前 profile必読指示が入ることを確認済み。
 - `prompt/newgame.md` に `First Scene Quality Gate` を追加済み。初回sceneが助け待ち一本道、明白な正解行動、信頼上昇だけの処理、欠けた台詞や壊れた引用符を含む出力にならないよう軽く確認する。
 - `prompt/save_resume.md` は作成済みで、保存・再開promptとしてレビュー済み。

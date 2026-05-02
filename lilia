@@ -52,6 +52,19 @@ AUTOSAVE_DEFAULTS = {
     "autosave_required": False,
 }
 
+FALLBACK_LILIA_NAMES = [
+    "澪",
+    "紬",
+    "灯里",
+    "小夜",
+    "依織",
+    "七海",
+    "琴葉",
+    "朱音",
+    "沙月",
+    "美月",
+]
+
 TURN_UPDATE_TARGETS = {
     "scene": "current/scene.md",
     "state": "lilia/main/state.md",
@@ -174,6 +187,79 @@ def ensure_autosave(data: dict) -> dict:
     return autosave
 
 
+def is_placeholder_lilia_name(value: object) -> bool:
+    if not isinstance(value, str):
+        return True
+    compact = re.sub(r"\s+", "", value).strip("「」『』'\"")
+    if not compact:
+        return True
+    lowered = compact.lower()
+    return (
+        lowered in {"lilia", "リリア", "未設定", "未定", "なし", "特になし"}
+        or lowered.startswith("lilia（仮")
+        or lowered.startswith("lilia(仮")
+        or lowered.startswith("リリア（仮")
+        or lowered.startswith("リリア(仮")
+    )
+
+
+def clean_lilia_name(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    name = value.strip().strip("「」『』'\"")
+    name = re.split(r"\s+#", name, maxsplit=1)[0].strip()
+    return "" if is_placeholder_lilia_name(name) else name
+
+
+def extract_profile_name(profile: str) -> str:
+    for line in profile.splitlines():
+        match = re.match(r"^name:\s*(.+?)\s*$", line)
+        if match:
+            return clean_lilia_name(match.group(1))
+    return ""
+
+
+def explicit_name_from_answers(answers: dict[int, str]) -> str:
+    patterns = [
+        r"(?:名前|個体名|name)\s*(?:は|:|：|=)\s*[「『]?([A-Za-z一-龥ぁ-んァ-ヶー]{1,12})(?=」|』|で|に|と|、|。|\s|$)",
+        r"[「『]?([A-Za-z一-龥ぁ-んァ-ヶー]{1,12})[」』]?\s*(?:という|っていう)?\s*名前",
+    ]
+    for text in answers.values():
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                name = clean_lilia_name(match.group(1))
+                if name:
+                    return name
+    return ""
+
+
+def generated_lilia_name(answers: dict[int, str], session_name: str = "") -> str:
+    explicit = explicit_name_from_answers(answers)
+    if explicit:
+        return explicit
+    seed = session_name + "\n" + "\n".join(answers.get(number, "") for number in range(1, 8))
+    index = sum(ord(char) for char in seed) % len(FALLBACK_LILIA_NAMES)
+    return FALLBACK_LILIA_NAMES[index]
+
+
+def ensure_lilia_names(data: dict, name: str = "") -> str:
+    resolved = clean_lilia_name(name)
+    if not resolved:
+        resolved = clean_lilia_name(data.get("lilia_name"))
+    if not resolved:
+        resolved = clean_lilia_name(data.get("lilia_display_name"))
+    data["lilia_name"] = resolved
+    data["lilia_display_name"] = resolved
+    return resolved
+
+
+def replace_profile_name(profile: str, name: str) -> str:
+    if re.search(r"^name:\s*.+$", profile, flags=re.MULTILINE):
+        return re.sub(r"^name:\s*.+$", f"name: {name}", profile, count=1, flags=re.MULTILINE)
+    return profile.replace("## 基礎情報\n", f"## 基礎情報\nname: {name}\n", 1)
+
+
 def write_session_file(session_path: Path, rel_path: str, content: str) -> None:
     target = session_path / rel_path
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -282,7 +368,7 @@ def render_hotset_update(timestamp: str, body: str) -> str:
     )
 
 
-def render_persona_profile_document(answers: dict[int, str]) -> str:
+def render_persona_profile_document(answers: dict[int, str], lilia_name: str) -> str:
     q_line = lambda number: answer(answers, number).replace("\n", " / ")
     q = lambda number: bullet_block(answer(answers, number))
     not_intimate = "  stage: 未確認\n  note: 初回から恋愛成立や親密成立を確定しない。"
@@ -298,7 +384,7 @@ def render_persona_profile_document(answers: dict[int, str]) -> str:
             "関係で育った内容は core / voice / relationship / memory / beliefs へ分解して保存する。",
             "",
             "## 基礎情報",
-            "name: LILIA（仮。character YAMLまたはGM/AI fallbackでfirst scene前に固有名へ置換してよい）",
+            f"name: {lilia_name}",
             "age: 成人",
             "role: Q&A由来の生活上の役割をfirst scene前に具体化する",
             f"appearance: {q_line(1)}",
@@ -493,13 +579,14 @@ def render_persona_profile_document(answers: dict[int, str]) -> str:
     ) + "\n"
 
 
-def render_newgame_documents(answers: dict[int, str]) -> dict[str, str]:
+def render_newgame_documents(answers: dict[int, str], session_name: str = "") -> dict[str, str]:
     q = lambda number: bullet_block(answer(answers, number))
     q_line = lambda number: answer(answers, number).replace("\n", " / ")
     not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q4 / Q5由来の境界線を尊重"
+    lilia_name = generated_lilia_name(answers, session_name)
 
     return {
-        "lilia/main/profile.md": render_persona_profile_document(answers),
+        "lilia/main/profile.md": render_persona_profile_document(answers, lilia_name),
         "current/scene.md": render_document(
             "Scene",
             "",
@@ -775,6 +862,7 @@ def create_session(name: Optional[str]) -> Path:
     data["mode"] = "new"
     data["current_phase"] = data.get("current_phase") or "qa_pending"
     data["active_lilia"] = data.get("active_lilia") or "main"
+    ensure_lilia_names(data)
     ensure_autosave(data)
     write_session_json(dest, data)
     return dest
@@ -1175,7 +1263,14 @@ def command_apply_newgame(args: list[str]) -> None:
     session_path = resolve_session(args[0])
     answers_path = Path(args[1]).expanduser()
     answers = parse_newgame_answers(answers_path)
-    documents = render_newgame_documents(answers)
+    documents = render_newgame_documents(answers, session_path.name)
+    profile_name = extract_profile_name(documents["lilia/main/profile.md"])
+    if not profile_name:
+        profile_name = generated_lilia_name(answers, session_path.name)
+        documents["lilia/main/profile.md"] = replace_profile_name(
+            documents["lilia/main/profile.md"],
+            profile_name,
+        )
 
     for rel_path, content in documents.items():
         write_session_file(session_path, rel_path, content)
@@ -1183,6 +1278,8 @@ def command_apply_newgame(args: list[str]) -> None:
     data = read_session_json(session_path)
     data["mode"] = data.get("mode") or "new"
     data["current_phase"] = "first_scene_pending"
+    data["active_lilia"] = data.get("active_lilia") or "main"
+    ensure_lilia_names(data, profile_name)
     initialization = data.setdefault("initialization", {})
     initialization["qa_completed"] = True
     initialization["light_story_reference_pass"] = "minimal_applied"

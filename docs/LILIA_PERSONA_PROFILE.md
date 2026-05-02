@@ -40,7 +40,7 @@ YAMLから `lilia/main/profile.md` を生成し、first scene前に読む。
 
 `profile.md` に置くもの:
 
-- 基礎情報。
+- 基礎情報。`name:` は作中で名乗る個体名であり、作品名・存在カテゴリとしての `LILIA` ではない。
 - toneの基準。
 - 行動で見えるpersonality。
 - values、everyday anchors、memories、contradictions、unspoken。
@@ -93,6 +93,9 @@ profileを全部の正本にしない。
 ## 6. First Scene Use
 
 first scene前には必ず `profile.md` を読む。
+
+名乗りや地の文で名前を出す場合は、`profile.md` の `name:`、または `session.json` の `lilia_display_name` / `lilia_name` を使う。
+`LILIA` は作品名・存在カテゴリ・エンジン名であり、作中名として扱わない。
 
 初回sceneでは、`profile.md` にある以下を使う。
 

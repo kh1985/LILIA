@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -60,6 +61,47 @@ def load_yaml(path: Path) -> dict:
     if not isinstance(data, dict):
         raise ValueError("character YAML must be a mapping")
     return data
+
+
+def clean_lilia_name(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    name = value.strip().strip("「」『』'\"")
+    compact = re.sub(r"\s+", "", name)
+    if not compact:
+        return ""
+    lowered = compact.lower()
+    if (
+        lowered in {"lilia", "リリア", "未設定", "未定", "なし", "特になし"}
+        or lowered.startswith("lilia（仮")
+        or lowered.startswith("lilia(仮")
+        or lowered.startswith("リリア（仮")
+        or lowered.startswith("リリア(仮")
+    ):
+        return ""
+    return name
+
+
+def update_session_name(session_path: Path, name: str) -> None:
+    resolved = clean_lilia_name(name)
+    if not resolved:
+        return
+    json_path = session_path / "session.json"
+    if not json_path.exists():
+        return
+    try:
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+    if not isinstance(data, dict):
+        return
+    data["active_lilia"] = data.get("active_lilia") or "main"
+    data["lilia_name"] = resolved
+    data["lilia_display_name"] = resolved
+    json_path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def parse_answers(path: Path | None) -> dict[int | str, str]:
@@ -639,6 +681,8 @@ def write_outputs(
             ),
             encoding="utf-8",
         )
+    if session_path is not None:
+        update_session_name(session_path, char.name)
     return output_path
 
 

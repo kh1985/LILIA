@@ -11,6 +11,8 @@ Crisis / Combat / Ability Constraint は `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_
 Persona Profile は `docs/LILIA_PERSONA_PROFILE.md` を正本とし、`first_scene_pending`、voice崩れ、人格崩れ、正本不足の時に `lilia/main/profile.md` の必要箇所を読みます。
 `profile.md` は初期人格正本だが、現在の関係・記憶より優先しません。
 実際に起きた変化は `memory.md`、`relationship.md`、`beliefs.md`、`voice.md` を優先します。
+作中で名乗る名前は `session.json` の `lilia_display_name` または `lilia_name`、または `profile.md` の `name:` を使います。
+`LILIA` は作品名・存在カテゴリ・エンジン名であり、作中名として扱いません。
 
 ## 1. 基本方針
 
@@ -198,6 +200,7 @@ voiceは固定台詞集にしない。
 全ファイルを総読みせず、再開1ターン目に必要な箇所へ絞る。
 resume後の通常プレイ応答では、まずplayable scene textを返す。
 ユーザーが保存を求めていない限り、再開1ターン目の後に保存更新やgit確認を割り込ませない。
+resumeで名乗りや地の文に名前を出す場合は、`LILIA` ではなく `lilia_display_name` / `lilia_name` を使う。
 
 1. `docs/CORE_CONCEPT.md`
 2. `prompt/core.md`

@@ -6,6 +6,8 @@
   "mode": "new",
   "current_phase": "qa_pending",
   "active_lilia": "main",
+  "lilia_name": "",
+  "lilia_display_name": "",
   "source_prompt_versions": {
     "core": "prompt/core.md",
     "startup": "prompt/startup.md",

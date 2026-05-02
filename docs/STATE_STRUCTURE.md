@@ -74,6 +74,8 @@ first scene前には必ず読む。
 
 `profile.md` は、完成済み攻略キャラカードではない。
 初回sceneで使える生活、行動、矛盾、反応、禁忌、everyday anchors を1枚にまとめる。
+`profile.md` の `name:` は作中で名乗る個体名であり、作品名・存在カテゴリとしての `LILIA` ではない。
+同じ個体名は `session.json` の `lilia_name` / `lilia_display_name` にも保存する。
 ただし、関係で育った内容は `core`、`voice`、`relationship`、`memory`、`beliefs` へ分解して保存する。
 
 `profile.md` は hotset ではない。

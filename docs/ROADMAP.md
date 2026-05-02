@@ -34,6 +34,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
 - Newgame Q&A v1.1: 初回scene品質改善のため調整済み / 質問文具体化完了
 - LILIA Persona Profile: character YAML素材生成と `lilia/main/profile.md` 変換導線を追加済み
+- LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
 
