@@ -26,7 +26,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / autosave counter導入済み / scene-tick MVP実装済み
-- Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
+- Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / profile由来のcurrent/story/lilia main初期生成コード接続済み / 実プレイ検証待ち
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
@@ -76,13 +76,14 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 2.5 LILIA Persona Profile Generation
    - inner-galge / character の「自然言語指示 -> character YAML -> 登場前キャラmd」の流れを、LILIA向けに「character YAML -> `lilia/main/profile.md`」へ変換して採用する。
-   - `profile.md` は、first scene前に読む人格正本であり、完成済み攻略キャラカードではない。
-   - 関係で育った内容は `core / voice / relationship / memory / beliefs` へ分解して保存する。
-   - Multi-Relationship / Jealousy Profile は latent、Ability / Intimacy Resonance は dormant として持つ。
+- `profile.md` は、first scene前に読む人格正本であり、完成済み攻略キャラカードではない。
+- 関係で育った内容は `core / voice / relationship / memory / beliefs` へ分解して保存する。
+- profileの Initial Scene Anchors / context / unspoken / everyday anchors は、初回scene前に `current/scene.md`、`current/event_card.md`、`story/story_deck.md`、`story/relationship_spine.md`、`current/hotset.md`、`lilia/main/*` へ分解して初期反映する。
+- Multi-Relationship / Jealousy Profile は latent、Ability / Intimacy Resonance は dormant として持つ。
    - AFFINITY、bond、好感度、攻略ルート、ハーレム前提は採用しない。
    - `scripts/lilia_generate_character_yaml.py` はstandalone wrapperとしてClaude CLIを実際に呼び、character YAMLを生成できる。
    - `./lilia` launcherは外部character YAML生成を自動実行しない。Claude CLIがない場合や自動生成を使わない場合は、GM/AIが同schemaのfallbackを作る。
-   - Status: 実装済み / prompt-only smoke完了
+   - Status: 実装済み / profile-to-current初期反映追加済み / prompt-only smoke完了
 
 3. Case / Event Card Playability Gate
    - 旧LIRIAの Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate を、LILIAの `current/event_card.md` 向けに再設計する。

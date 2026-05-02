@@ -116,7 +116,7 @@ first scene前には必ず `profile.md` を読む。
 
 読む場面:
 
-- `first_scene_pending` の時。
+- `first_scene_pending` / `first_scene_ready` の時。
 - voice崩れや人格崩れがある時。
 - `voice / relationship / memory / beliefs` が不足している時。
 - 関係段階の確認が必要な時。

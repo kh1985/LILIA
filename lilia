@@ -368,6 +368,394 @@ def render_hotset_update(timestamp: str, body: str) -> str:
     )
 
 
+def profile_sections(profile: str) -> dict[str, str]:
+    sections: dict[str, list[str]] = {}
+    current: Optional[str] = None
+    for line in profile.splitlines():
+        match = re.match(r"^##\s+(.+?)\s*$", line)
+        if match:
+            current = match.group(1).strip()
+            sections.setdefault(current, [])
+            continue
+        if current is not None:
+            sections[current].append(line)
+    return {key: "\n".join(lines).strip() for key, lines in sections.items()}
+
+
+def profile_clean_line(line: str) -> str:
+    return re.sub(r"^[-*]\s*", "", line.strip()).strip()
+
+
+def profile_unlabeled_value(line: str) -> str:
+    if ":" not in line:
+        return line
+    label, value = line.split(":", 1)
+    if label.strip() in {"まだ言わないこと", "すぐには開示しない理由"}:
+        return value.strip()
+    return line
+
+
+def profile_phrase(text: str) -> str:
+    phrase = re.sub(r"[。.!！?？]+$", "", text.strip())
+    phrase = re.sub(r"(がある|が残っている|が見える)$", "", phrase).strip()
+    return phrase
+
+
+def profile_short_items(text: str, limit: int = 3) -> str:
+    phrase = profile_phrase(text)
+    parts = [part.strip() for part in re.split(r"[、,/]+", phrase) if part.strip()]
+    if not parts:
+        return phrase
+    return "、".join(parts[:limit])
+
+
+def profile_place_focus(text: str) -> str:
+    phrase = profile_phrase(text)
+    if "コンビニ" in phrase:
+        return "雨のコンビニ前" if "雨" in phrase else "コンビニ前"
+    if "店先" in phrase:
+        return "雨宿りしている店先" if "雨" in phrase else "店先"
+    if "駅" in phrase:
+        return "駅前" if "駅前" in phrase else "駅"
+    if "帰り道" in phrase:
+        return "帰り道"
+    return phrase
+
+
+def profile_entry_focus(text: str) -> str:
+    phrase = profile_phrase(text)
+    if "帰るタイミング" in phrase:
+        return "帰るタイミング"
+    if "スマホ" in phrase or "通知" in phrase:
+        return "スマホ通知"
+    if "買い物" in phrase:
+        return "手元の買い物"
+    if len(phrase) > 28:
+        return "次の行動の判断"
+    return phrase
+
+
+def profile_value(
+    sections: dict[str, str],
+    section_names: list[str],
+    labels: list[str],
+    fallback: str = "",
+) -> str:
+    for section_name in section_names:
+        section = sections.get(section_name, "")
+        for raw_line in section.splitlines():
+            line = profile_clean_line(raw_line)
+            for label in labels:
+                if line.startswith(f"{label}:"):
+                    value = line.split(":", 1)[1].strip()
+                    if value and value not in {"未設定", "未確定", "SOURCE_FALLBACK"}:
+                        return value
+    return fallback
+
+
+def profile_bullets(sections: dict[str, str], section_name: str) -> list[str]:
+    result: list[str] = []
+    for raw_line in sections.get(section_name, "").splitlines():
+        line = profile_clean_line(raw_line)
+        if not line or line in {"未設定", "未確定"}:
+            continue
+        if line.endswith(":"):
+            continue
+        result.append(profile_unlabeled_value(line))
+    return result
+
+
+def bullet_lines(items: list[str], fallback: str = "未設定") -> str:
+    clean = [item for item in items if item and item != "未設定"]
+    if not clean:
+        clean = [fallback]
+    return "\n".join(f"- {item}" for item in clean)
+
+
+def infer_scene_time(text: str) -> str:
+    if "夜" in text:
+        return "夜。店の明かりと雨音が残る時間。"
+    if "朝" in text:
+        return "朝。まだ人の流れが落ち着かない時間。"
+    if "夕" in text or "帰" in text:
+        return "夕方から夜にかけて。帰る判断をする時間。"
+    if "雨" in text:
+        return "雨が続く、足を止めるしかない時間。"
+    return "初回scene開始時点。次の行動を決める直前。"
+
+
+def infer_scene_exit_beats(text: str, name: str) -> list[str]:
+    beats: list[str] = []
+    if "雨" in text:
+        beats.append("雨が弱まり、軒下から出る判断ができる")
+    if "通知" in text or "スマホ" in text or "連絡" in text:
+        beats.append("スマホ通知が来て、返事をするか迷う")
+    if "帰" in text or "部屋" in text:
+        beats.append(f"{name}が帰る判断をする")
+    if "紙袋" in text or "荷物" in text or "トート" in text:
+        beats.append("紙袋や荷物の持ち方をどうするかが小さな共同作業になる")
+    beats.extend(
+        [
+            "一緒に途中まで歩く / ここで別れる余地が出る",
+            "連絡先を聞くか、次に会う理由だけを残す余地が出る",
+        ]
+    )
+    deduped: list[str] = []
+    for beat in beats:
+        if beat not in deduped:
+            deduped.append(beat)
+    return deduped[:5]
+
+
+def render_profile_initialized_documents(profile: str, answers: Optional[dict[int, str]] = None) -> dict[str, str]:
+    answers = answers or {}
+    sections = profile_sections(profile)
+    name = extract_profile_name(profile) or "LILIA"
+    q = lambda number: answer(answers, number) if number in answers else ""
+    place = profile_value(
+        sections,
+        ["Initial Scene Anchors", "everyday anchors", "context"],
+        ["場所と状況", "生活の場所", "初回scene開始時点の状況"],
+        q(3) or "日常の用事が残る場所",
+    )
+    objects = profile_value(
+        sections,
+        ["Initial Scene Anchors", "everyday anchors"],
+        ["手元の具体物", "初回sceneで使える具体物", "よく触る物"],
+        q(6) or "手元に残っている小さな持ち物",
+    )
+    distance = profile_value(
+        sections,
+        ["Initial Scene Anchors", "context"],
+        ["最初の距離", "ユーザーとの関係位置"],
+        q(5) or "互いをまだ深く知らない距離",
+    )
+    entry = profile_value(
+        sections,
+        ["Initial Scene Anchors", "context"],
+        ["会話の入口", "初回sceneの生活上の用事"],
+        q(6) or "生活上の小さな用事が会話のきっかけになる",
+    )
+    unspoken = profile_bullets(sections, "unspoken")
+    contradictions = profile_bullets(sections, "contradictions")
+    values = profile_bullets(sections, "values")
+    forbidden = profile_bullets(sections, "forbidden")
+    personality = profile_bullets(sections, "personality")
+    reactions = profile_bullets(sections, "reactions")
+    memories = profile_bullets(sections, "memories")
+    fixed_memory = profile_bullets(sections, "fixed memory")
+    relationship_progression = profile_bullets(sections, "Relationship Progression")
+    voice_progression = profile_bullets(sections, "voice by relationship stage")
+    tone_rule = profile_value(sections, ["tone"], ["rule"], "profile.md の tone に従う")
+    role = profile_value(sections, ["基礎情報"], ["role"], "初回scene前にprofileから読む")
+    combined_text = " / ".join([place, objects, distance, entry, " / ".join(unspoken), " / ".join(contradictions)])
+    scene_time = infer_scene_time(combined_text)
+    exit_beats = infer_scene_exit_beats(combined_text, name)
+    pressure = unspoken[0] if unspoken else (contradictions[0] if contradictions else "まだ言わないことが残っている")
+    friction = contradictions[0] if contradictions else pressure
+    guard = values[0] if values else "自分で決める余地"
+    avoid = forbidden[0] if forbidden else "急に距離を詰められること"
+    theme = "近さと主体性。助けることと奪うことの違い。"
+    place_phrase = profile_place_focus(place)
+    object_phrase = profile_phrase(objects)
+    object_focus = profile_short_items(objects)
+    entry_phrase = profile_phrase(entry)
+    entry_focus = profile_entry_focus(entry)
+    action_handles = [
+        f"{name}に名乗る / 名前を聞く",
+        f"{object_focus}に触れず、扱い方だけを提案する",
+        f"{entry_focus}について、急かさず短く聞く",
+        f"{name}が自分で決めるまで待つ",
+    ]
+
+    return {
+        "current/scene.md": render_document(
+            "Scene",
+            "profile.md の Initial Scene Anchors / context / everyday anchors から初回scene前に初期化した現在場面です。",
+            [
+                ("今いる場所", bullet_lines([place])),
+                ("現在時刻または場面時間", bullet_lines([scene_time])),
+                ("LILIAとユーザーの距離", bullet_lines([distance])),
+                ("今この場で見えているもの", bullet_lines([objects])),
+                ("初回sceneの入口", bullet_lines([entry])),
+                ("次に起きそうなこと", bullet_lines(exit_beats[:3])),
+                ("次にユーザーへ渡す行動余地", bullet_lines(action_handles)),
+            ],
+        ),
+        "current/event_card.md": render_document(
+            "Event Card",
+            "profile.md 由来の具体物、保留、矛盾を、今触れる可視イベントへ変換した初回eventです。",
+            [
+                ("表の出来事", bullet_lines([entry])),
+                (
+                    "Visible Problem",
+                    bullet_lines(
+                        [
+                            f"{name}は{place_phrase}で足を止めている。",
+                            f"手元には{object_phrase}があり、会話や共同作業の入口になる。",
+                            f"内側には {pressure} が残っているが、初回で全部は言わない。",
+                        ]
+                    ),
+                ),
+                (
+                    "First Concrete Action",
+                    bullet_lines([f"{name}に声をかけ、{object_focus}には触れずに、{entry_focus}だけを短く確認する。ただし無断接触せず、確認してから近づく。"]),
+                ),
+                ("Handles 2-4", bullet_lines(action_handles)),
+                (
+                    "Relationship Stake",
+                    bullet_lines([f"距離: {distance}", f"摩擦: {friction}", "境界線を尊重できる相手かを見る。"]),
+                ),
+                ("If Ignored", bullet_lines([f"{name}は自分だけで判断し、{entry_focus}を抱えたまま次の行動へ移る。", pressure])),
+                ("Next Visible Change", bullet_lines(exit_beats[:2])),
+                ("Scene Exit / Next Beat", bullet_lines(exit_beats)),
+            ],
+        ),
+        "story/story_deck.md": render_document(
+            "Story Deck",
+            "profile.md 由来の素材を、初回scene後も戻せる未回収札として整理します。",
+            [
+                ("現在使えるstory素材", bullet_lines([place, objects, entry, pressure])),
+                ("初回sceneで使う小さな出来事", bullet_lines([entry])),
+                ("関係を揺らす圧", bullet_lines([pressure, friction])),
+                ("未回収札", bullet_lines(unspoken[:3] + contradictions[:2])),
+                ("1-3 scene後に戻る圧", bullet_lines(exit_beats)),
+            ],
+        ),
+        "story/relationship_spine.md": render_document(
+            "Relationship Spine",
+            "初回sceneを固定ルートにせず、関係の変化方向だけを保持します。",
+            [
+                ("この関係で育てたいテーマ", bullet_lines([theme])),
+                ("最初の摩擦", bullet_lines([friction])),
+                ("LILIAが守るもの", bullet_lines([guard])),
+                ("LILIAが避けるもの", bullet_lines([avoid])),
+                ("ユーザー側に問うこと", bullet_lines([f"{name}の主体性を奪わず、{entry} にどう関わるか。"])),
+                ("関係が変化する方向", bullet_lines(["名乗る、待つ、確認する、別れる/一緒に歩くのどれを選ぶかで、信頼と警戒の出方が変わる。"])),
+            ],
+        ),
+        "current/hotset.md": render_document(
+            "Hotset",
+            "hotsetは正本ではなく、次の1ターンに効く温度と現在イベント要約だけを置きます。",
+            [
+                ("次の1ターンに効く温度", bullet_lines([f"{name}は {pressure} をまだ全部言わず、{distance} で様子を見る。"])),
+                ("現在イベント要約", bullet_lines([f"{place}。{objects}。入口は {entry}。"])),
+                ("第一反応", bullet_lines([f"{name}は急に近づかれると硬くなるが、確認して待たれると少し言葉が増える。"])),
+                ("次に触れられるもの", bullet_lines([objects, entry])),
+                ("Scene Exit / Next Beat", bullet_lines(exit_beats[:3])),
+            ],
+        ),
+        "current/relationship_overview.md": render_document(
+            "Relationship Overview",
+            "profile.md 由来の距離、保留、境界線を、resume時に掴むための補助要約です。",
+            [
+                ("現在の関係全体の要約", bullet_lines([distance])),
+                ("距離感", bullet_lines([distance])),
+                ("信頼", bullet_lines(["未確認。確認して待てるかで初期の信頼が動く。"])),
+                ("警戒", bullet_lines([avoid])),
+                ("保留", bullet_lines([pressure])),
+                ("境界線", bullet_lines([f"{objects} や身体距離に触れる前に確認が必要。"])),
+                ("次に変化しそうな点", bullet_lines(["名乗り合うか、途中まで歩くか、ここで別れるか。"])),
+            ],
+        ),
+        "lilia/main/core.md": render_document(
+            "LILIA Core",
+            "profile.md から抽出した最小核だけを置きます。profileの丸ごとコピーではありません。",
+            [
+                ("固有人格", bullet_lines([f"作中名: {name}", f"役割: {role}"])),
+                ("価値観", bullet_lines(values[:3] or [guard])),
+                ("守っているもの", bullet_lines([guard])),
+                ("避けているもの", bullet_lines([avoid])),
+                ("弱さ", bullet_lines(contradictions[:2] or [friction])),
+                ("譲れないもの", bullet_lines(forbidden[:3] or [avoid])),
+                ("変わってはいけない核", bullet_lines(fixed_memory[:3] or values[:2] or [guard])),
+                ("まだ決めない余白", bullet_lines(["恋愛感情、親密成立、ユーザーへの好意は初回から確定しない。"])),
+            ],
+        ),
+        "lilia/main/voice.md": render_document(
+            "LILIA Voice",
+            "profile.md の tone と関係段階別voiceを、固定台詞ではなく声の方向として置きます。",
+            [
+                ("Voice Fixed", bullet_lines([tone_rule])),
+                ("変わってよい揺れ", bullet_lines([f"{pressure} が声や沈黙に少し出る。"])),
+                ("口調", bullet_lines([tone_rule])),
+                ("呼び方", bullet_lines(["未確定。初回会話で自然に決める。"])),
+                ("沈黙 / 言い淀み", bullet_lines(unspoken[:2] or [pressure])),
+                ("第一反応", bullet_lines([f"急に近づかれると硬くなるが、確認して待たれると少し言葉が増える。"])),
+                ("言わない言葉", bullet_lines(unspoken[:3] or [pressure])),
+                ("怒り方", bullet_lines([avoid])),
+                ("距離を置く時の出方", bullet_lines(reactions[:3] or [avoid])),
+                ("関係段階別voice", bullet_lines(voice_progression[:5] or ["Stage 1では観察と境界線を声に残す。"])),
+            ],
+        ),
+        "lilia/main/state.md": render_document(
+            "LILIA State",
+            "profile.md 由来の初回scene直前の一時状態です。長期記憶や人格核とは混ぜません。",
+            [
+                ("現在の感情", bullet_lines([pressure])),
+                ("初回scene前の温度", bullet_lines([f"{scene_time} / {distance}"])),
+                ("表の気分", bullet_lines(personality[:1] or [tone_rule])),
+                ("裏の気分", bullet_lines(unspoken[:2] or [pressure])),
+                ("警戒", bullet_lines([avoid])),
+                ("照れ", bullet_lines(["未確認。初回から好意や親密成立にはしない。"])),
+                ("疲労", bullet_lines(["未確認。profileにある場合だけsceneで行動として出す。"])),
+                ("第一反応", bullet_lines([f"{object_focus}や{entry_focus}への関わり方を見る。"])),
+                ("保留していること", bullet_lines(unspoken[:3] or [pressure])),
+            ],
+        ),
+        "lilia/main/relationship.md": render_document(
+            "LILIA Relationship",
+            "profile.md の初期距離と境界線を、好感度数値ではなく現在形として置きます。",
+            [
+                ("ユーザーとの関係", bullet_lines([distance])),
+                ("信頼", bullet_lines(["未確認。確認して待てるかで初期の信頼が動く。"])),
+                ("安心感", bullet_lines(["未確認。初回sceneでの触れ方を見る。"])),
+                ("開示度", bullet_lines(["低い。unspokenは初回で全部説明しない。"])),
+                ("距離感", bullet_lines([distance])),
+                ("距離感の根拠", bullet_lines([place, entry])),
+                ("境界線", bullet_lines(forbidden[:3] or [avoid])),
+                ("親密さの初期扱い", bullet_lines(["未確認 / 明示的親密なし"])),
+                ("intimacy / consent / boundary", bullet_lines(relationship_progression[:6] or ["intimacy: 未確認", "consent: 未確認", f"boundary: {avoid}"])),
+                ("相互性", bullet_lines(["助ける場合も、本人が選べる余地を残す。"])),
+                ("合意 / 止まれる余地", bullet_lines(["身体距離や持ち物に関わる前に確認する。"])),
+                ("摩擦", bullet_lines(contradictions[:3] or [friction])),
+                ("最近の変化", bullet_lines(["profile生成完了。first sceneはこれから。"])),
+            ],
+        ),
+        "lilia/main/memory.md": render_document(
+            "LILIA Memory",
+            "profile.md 由来の初期記憶だけを置きます。実際に起きたturnログではありません。",
+            [
+                ("short_term", bullet_lines([f"{place}。{entry} から初回sceneが始まる。"])),
+                ("profile由来の初期要約", bullet_lines([f"作中名: {name}", f"距離: {distance}", f"手元: {objects}"])),
+                ("mid_term", bullet_lines(["初回scene後に実際に起きたことだけ保存する。"])),
+                ("long_term", bullet_lines(fixed_memory[:3] or memories[:2] or ["未確認"])),
+                ("historical_fixed", bullet_lines(memories[:3] or ["実際に過去として固定してよいものだけ。"])),
+                ("emotional_beats", bullet_lines([pressure, friction])),
+                ("echo", bullet_lines([f"次に響く入口: {entry}", f"次に触れられるもの: {object_focus}"])),
+                ("忘れてはいけない約束", bullet_lines(["未発生"])),
+                ("まだ覚えていないこと", bullet_lines(["初回sceneで実際に起きること。"])),
+                ("保存しないこと", bullet_lines(["ユーザーの内面断定", "profile由来の仮説を実際の出来事として扱うこと"])),
+            ],
+        ),
+        "lilia/main/beliefs.md": render_document(
+            "LILIA Beliefs",
+            "beliefsは正解ではなく、初回scene前のLILIA側仮説として置きます。",
+            [
+                ("LILIAがユーザーをどう見ているか", bullet_lines(["未確定。距離の取り方を見る。"])),
+                ("ユーザーについての仮説", bullet_lines([f"{name}の境界線を尊重できるかは未確認。"])),
+                ("自分自身をどう見ているか", bullet_lines(personality[:3] or [tone_rule])),
+                ("世界や関係について信じていること", bullet_lines(values[:3] or [guard])),
+                ("誤解や思い込み", bullet_lines(["初回scene後に必要なら更新する。"])),
+                ("誤解の根拠", bullet_lines(["未発生"])),
+                ("保留している判断", bullet_lines(unspoken[:3] or [pressure])),
+                ("疑い", bullet_lines([avoid])),
+                ("更新条件", bullet_lines(["待つ、確認する、触れない、急かす、軽く扱うなど、実際の行動で変わる。"])),
+            ],
+        ),
+    }
+
+
 def render_persona_profile_document(answers: dict[int, str], lilia_name: str) -> str:
     q_line = lambda number: answer(answers, number).replace("\n", " / ")
     q = lambda number: bullet_block(answer(answers, number))
@@ -584,9 +972,10 @@ def render_newgame_documents(answers: dict[int, str], session_name: str = "") ->
     q_line = lambda number: answer(answers, number).replace("\n", " / ")
     not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q4 / Q5由来の境界線を尊重"
     lilia_name = generated_lilia_name(answers, session_name)
+    profile = render_persona_profile_document(answers, lilia_name)
 
-    return {
-        "lilia/main/profile.md": render_persona_profile_document(answers, lilia_name),
+    documents = {
+        "lilia/main/profile.md": profile,
         "current/scene.md": render_document(
             "Scene",
             "",
@@ -831,6 +1220,8 @@ def render_newgame_documents(answers: dict[int, str], session_name: str = "") ->
             ],
         ),
     }
+    documents.update(render_profile_initialized_documents(profile, answers))
+    return documents
 
 
 def session_sort_value(path: Path) -> str:
@@ -921,7 +1312,7 @@ def build_new_prompt_bundle(session_path: Path) -> str:
         f"session: {session_path.relative_to(ROOT)}",
         "mode: new",
         "next: answer prompt/newgame.md Q&A, generate/read lilia/main/profile.md, then write the first scene.",
-        "important: do not stop at first_scene_pending unless the user explicitly asks to pause.",
+        "important: do not stop at first_scene_pending/first_scene_ready unless the user explicitly asks to pause.",
         "note: --prompt-only only prints this bundle; if you are reading it inside an AI CLI, follow the mode instructions.",
     ]
     parts.extend(render_file(ROOT / rel) for rel in NEW_PROMPT_FILES)
@@ -937,7 +1328,7 @@ def build_resume_prompt_bundle(session_path: Path) -> str:
         "mode: resume",
         "read order: prompt/save_resume.md lightweight resume order",
         (
-            "profile: included because first_scene_pending"
+            "profile: included because first scene is ready/pending"
             if include_profile
             else "profile: omitted by default; read lilia/main/profile.md only for voice/personality drift or initial-core checks"
         ),
@@ -953,13 +1344,13 @@ def build_resume_prompt_bundle(session_path: Path) -> str:
 
 def resume_requires_profile(session_path: Path) -> bool:
     data = read_session_json(session_path)
-    if data.get("current_phase") == "first_scene_pending":
+    if data.get("current_phase") in {"first_scene_pending", "first_scene_ready"}:
         return True
     initialization = data.get("initialization")
     if isinstance(initialization, dict):
         return (
             initialization.get("qa_completed") is True
-            and initialization.get("first_scene_status") == "not_generated"
+            and initialization.get("first_scene_status") in {"not_generated", "ready"}
         )
     return False
 
@@ -980,7 +1371,7 @@ def build_codex_new_prompt_bundle(session_path: Path) -> str:
         "instruction: This bundle is for playing LILIA inside Codex interactive mode. "
         "Ask Q1-Q7, generate character YAML if available or use the GM/AI fallback schema, "
         "convert it into lilia/main/profile.md, read that profile, update the session scaffold, "
-        "then write the first scene. Do not stop at first_scene_pending unless the user asks to pause. "
+        "then write the first scene. Do not stop at first_scene_pending/first_scene_ready unless the user asks to pause. "
         "After the first scene begins, normal play is Play Mode: do not edit story/state files or run git checks after every user turn. "
         "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
         "or when initialization requires file generation. If needed after a normal play turn, scene-tick may update only the "
@@ -1040,7 +1431,7 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             f"Read {prompt_path} and follow it for LILIA. "
             "Do not start AI Harness or autoplay. "
             "Ask Q1-Q7, generate lilia/main/profile.md, then start the first scene. "
-            "Do not stop at first_scene_pending. "
+            "Do not stop at first_scene_pending/first_scene_ready. "
             "During normal play after the first scene starts, do not edit story/state files or run git checks after every user turn. "
             "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
             "or when initialization requires file generation. If needed after a normal play turn, run ./lilia scene-tick "
@@ -1049,9 +1440,10 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
         )
 
     data = read_session_json(session_path)
-    if data.get("current_phase") == "first_scene_pending":
+    if data.get("current_phase") in {"first_scene_pending", "first_scene_ready"}:
+        phase = data.get("current_phase")
         return (
-            f"Read {prompt_path} and continue LILIA from first_scene_pending. "
+            f"Read {prompt_path} and continue LILIA from {phase}. "
             "Start the first scene now. Do not run checks. "
             "Do not edit files unless the prompt explicitly requires it. "
             "Output the playable scene text first. "
@@ -1277,19 +1669,19 @@ def command_apply_newgame(args: list[str]) -> None:
 
     data = read_session_json(session_path)
     data["mode"] = data.get("mode") or "new"
-    data["current_phase"] = "first_scene_pending"
+    data["current_phase"] = "first_scene_ready"
     data["active_lilia"] = data.get("active_lilia") or "main"
     ensure_lilia_names(data, profile_name)
     initialization = data.setdefault("initialization", {})
     initialization["qa_completed"] = True
     initialization["light_story_reference_pass"] = "minimal_applied"
-    initialization["first_scene_status"] = "not_generated"
+    initialization["first_scene_status"] = "ready"
     ensure_autosave(data)
     write_session_json(session_path, data)
 
     print(f"applied: {answers_path}")
     print(f"session: {session_path.relative_to(ROOT)}")
-    print("phase: first_scene_pending")
+    print("phase: first_scene_ready")
     print("updated:")
     print("  session.json")
     for rel_path in documents:

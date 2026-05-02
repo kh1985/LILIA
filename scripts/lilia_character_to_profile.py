@@ -7,15 +7,136 @@ import argparse
 import json
 import re
 import sys
+from dataclasses import dataclass, field
+from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
 from pathlib import Path
 from typing import Iterable
 
-import yaml
+try:
+    import yaml
+except ModuleNotFoundError:  # pragma: no cover - depends on local environment
+    yaml = None
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.character.core.schema import CharacterSheet  # noqa: E402
+try:
+    from tools.character.core.schema import CharacterSheet  # noqa: E402
+except ModuleNotFoundError as exc:  # pragma: no cover - depends on local environment
+    if exc.name != "pydantic":
+        raise
+
+    @dataclass
+    class ToneExample:
+        user: str = ""
+        char: str = ""
+
+    @dataclass
+    class Tone:
+        rule: str = ""
+        examples: list[ToneExample] = field(default_factory=list)
+
+    @dataclass
+    class Appearance:
+        hair_style: str | None = None
+        hair_color: str | None = None
+        notes: str | None = None
+
+    @dataclass
+    class Context:
+        backstory: str | None = None
+        current_situation: str | None = None
+
+    @dataclass
+    class CharacterSheet:
+        name: str
+        age: int | None = None
+        occupation: str | None = None
+        appearance: Appearance = field(default_factory=Appearance)
+        tone: Tone = field(default_factory=Tone)
+        personality: list[str] = field(default_factory=list)
+        reactions: dict[str, str] = field(default_factory=dict)
+        forbidden: list[str] = field(default_factory=list)
+        context: Context = field(default_factory=Context)
+
+        @classmethod
+        def from_dict(cls, data: dict) -> "CharacterSheet":
+            tone_data = data.get("tone") if isinstance(data.get("tone"), dict) else {}
+            examples = tone_data.get("examples") if isinstance(tone_data, dict) else []
+            if not isinstance(examples, list):
+                examples = [{"char": str(examples)}]
+            appearance_data = data.get("appearance") if isinstance(data.get("appearance"), dict) else {}
+            context_data = data.get("context") if isinstance(data.get("context"), dict) else {}
+            reactions = data.get("reactions") if isinstance(data.get("reactions"), dict) else {}
+            personality = data.get("personality") if isinstance(data.get("personality"), list) else []
+            forbidden = data.get("forbidden") if isinstance(data.get("forbidden"), list) else []
+            age = data.get("age")
+            if age not in {None, ""}:
+                digits = "".join(ch for ch in str(age) if ch.isdigit())
+                age = int(digits) if digits else None
+            name = str(data.get("name") or "").strip()
+            tone_rule = str(tone_data.get("rule") or "").strip()
+            personality = [str(item).strip() for item in personality if str(item).strip()]
+            if not name:
+                raise ValueError("name is required")
+            if not tone_rule:
+                raise ValueError(f"[{name}] tone.rule is required")
+            if not personality:
+                raise ValueError(f"[{name}] personality must not be empty")
+            return cls(
+                name=name,
+                age=age,
+                occupation=str(data.get("occupation") or "").strip() or None,
+                appearance=Appearance(
+                    hair_style=str(appearance_data.get("hair_style") or "").strip() or None,
+                    hair_color=str(appearance_data.get("hair_color") or "").strip() or None,
+                    notes=str(appearance_data.get("notes") or "").strip() or None,
+                ),
+                tone=Tone(
+                    rule=tone_rule,
+                    examples=[
+                        ToneExample(
+                            user=str(item.get("user") or "").strip() if isinstance(item, dict) else "",
+                            char=str(item.get("char") or item).strip() if isinstance(item, dict) else str(item).strip(),
+                        )
+                        for item in examples
+                    ],
+                ),
+                personality=personality,
+                reactions={str(key).strip(): str(value).strip() for key, value in reactions.items()},
+                forbidden=[str(item).strip() for item in forbidden if str(item).strip()],
+                context=Context(
+                    backstory=str(context_data.get("backstory") or "").strip() or None,
+                    current_situation=str(context_data.get("current_situation") or "").strip() or None,
+                ),
+            )
+
+        def model_dump(self, exclude_none: bool = False) -> dict:
+            data = {
+                "name": self.name,
+                "age": self.age,
+                "occupation": self.occupation,
+                "appearance": {
+                    "hair_style": self.appearance.hair_style,
+                    "hair_color": self.appearance.hair_color,
+                    "notes": self.appearance.notes,
+                },
+                "tone": {
+                    "rule": self.tone.rule,
+                    "examples": [example.__dict__ for example in self.tone.examples],
+                },
+                "personality": self.personality,
+                "reactions": self.reactions,
+                "forbidden": self.forbidden,
+                "context": {
+                    "backstory": self.context.backstory,
+                    "current_situation": self.context.current_situation,
+                },
+            }
+            if not exclude_none:
+                return data
+            return json.loads(json.dumps(data, ensure_ascii=False), object_hook=lambda obj: {k: v for k, v in obj.items() if v is not None})
 
 
 DEEPENING_TAGS = [
@@ -48,8 +169,94 @@ META_PATTERNS = [
 SOURCE_FALLBACK = "まだ固定しない"
 
 
+def parse_simple_yaml_scalar(value: str) -> str | int | None:
+    clean = value.strip()
+    if clean in {"", "null", "None", "~"}:
+        return None
+    if re.fullmatch(r"\d+", clean):
+        return int(clean)
+    return clean.strip("'\"")
+
+
+def load_simple_character_yaml(path: Path) -> dict:
+    """Small dependency-free parser for the base character YAML shape."""
+
+    data: dict[str, object] = {}
+    current_top = ""
+    current_example: dict[str, str] | None = None
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        line = raw_line.strip()
+
+        if indent == 0:
+            current_example = None
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            current_top = key.strip()
+            if value.strip():
+                data[current_top] = parse_simple_yaml_scalar(value)
+            elif current_top in {"appearance", "tone", "context", "reactions"}:
+                data[current_top] = {}
+            elif current_top in {"personality", "forbidden", "examples"}:
+                data[current_top] = []
+            else:
+                data[current_top] = {}
+            continue
+
+        if not current_top:
+            continue
+
+        if current_top in {"personality", "forbidden"} and line.startswith("- "):
+            data.setdefault(current_top, [])
+            assert isinstance(data[current_top], list)
+            data[current_top].append(str(parse_simple_yaml_scalar(line[2:]) or ""))
+            continue
+
+        if current_top in {"appearance", "context", "reactions"} and ":" in line:
+            key, value = line.split(":", 1)
+            data.setdefault(current_top, {})
+            assert isinstance(data[current_top], dict)
+            data[current_top][key.strip()] = parse_simple_yaml_scalar(value)
+            continue
+
+        if current_top == "tone":
+            data.setdefault("tone", {})
+            assert isinstance(data["tone"], dict)
+            if indent == 2 and ":" in line and not line.startswith("- "):
+                key, value = line.split(":", 1)
+                key = key.strip()
+                if key == "examples":
+                    data["tone"]["examples"] = []
+                else:
+                    data["tone"][key] = parse_simple_yaml_scalar(value)
+                continue
+            if line.startswith("- "):
+                item = line[2:]
+                current_example = {}
+                data["tone"].setdefault("examples", [])
+                assert isinstance(data["tone"]["examples"], list)
+                data["tone"]["examples"].append(current_example)
+                if ":" in item:
+                    key, value = item.split(":", 1)
+                    current_example[key.strip()] = str(parse_simple_yaml_scalar(value) or "")
+                else:
+                    current_example["char"] = str(parse_simple_yaml_scalar(item) or "")
+                continue
+            if current_example is not None and ":" in line:
+                key, value = line.split(":", 1)
+                current_example[key.strip()] = str(parse_simple_yaml_scalar(value) or "")
+
+    return data
+
+
 def load_yaml(path: Path) -> dict:
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if yaml is None:
+        data = load_simple_character_yaml(path)
+    else:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if isinstance(data, list):
         if not data:
             raise ValueError("YAML list is empty")
@@ -61,6 +268,16 @@ def load_yaml(path: Path) -> dict:
     if not isinstance(data, dict):
         raise ValueError("character YAML must be a mapping")
     return data
+
+
+def dump_profile_yaml(data: dict) -> str:
+    if yaml is not None:
+        return yaml.safe_dump(
+            data,
+            allow_unicode=True,
+            sort_keys=False,
+        )
+    return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
 
 
 def clean_lilia_name(value: object) -> str:
@@ -102,6 +319,39 @@ def update_session_name(session_path: Path, name: str) -> None:
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def load_lilia_launcher():
+    loader = SourceFileLoader("lilia_launcher", str(ROOT / "lilia"))
+    spec = spec_from_loader(loader.name, loader)
+    if spec is None:
+        raise RuntimeError("failed to load lilia launcher")
+    module = module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def sync_profile_to_session_state(
+    profile: str,
+    answers: dict[int | str, str],
+    session_path: Path,
+    name: str,
+) -> None:
+    launcher = load_lilia_launcher()
+    docs = launcher.render_profile_initialized_documents(profile, answers)
+    for rel_path, content in docs.items():
+        launcher.write_session_file(session_path, rel_path, content)
+
+    data = launcher.read_session_json(session_path)
+    data["mode"] = data.get("mode") or "new"
+    data["current_phase"] = "first_scene_ready"
+    data["active_lilia"] = data.get("active_lilia") or "main"
+    launcher.ensure_lilia_names(data, clean_lilia_name(name) or launcher.extract_profile_name(profile))
+    initialization = data.setdefault("initialization", {})
+    initialization["qa_completed"] = True
+    initialization["first_scene_status"] = "ready"
+    launcher.ensure_autosave(data)
+    launcher.write_session_json(session_path, data)
 
 
 def parse_answers(path: Path | None) -> dict[int | str, str]:
@@ -659,6 +909,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
 def write_outputs(
     char: CharacterSheet,
     profile: str,
+    answers: dict[int | str, str],
     session_path: Path | None,
     output_path: Path | None,
     write_profile_yaml: bool,
@@ -673,16 +924,10 @@ def write_outputs(
     if write_profile_yaml and session_path is not None:
         yaml_path = session_path / "lilia" / "main" / "profile.yaml"
         yaml_path.parent.mkdir(parents=True, exist_ok=True)
-        yaml_path.write_text(
-            yaml.safe_dump(
-                char.model_dump(exclude_none=True),
-                allow_unicode=True,
-                sort_keys=False,
-            ),
-            encoding="utf-8",
-        )
+        yaml_path.write_text(dump_profile_yaml(char.model_dump(exclude_none=True)), encoding="utf-8")
     if session_path is not None:
         update_session_name(session_path, char.name)
+        sync_profile_to_session_state(profile, answers, session_path, char.name)
     return output_path
 
 
@@ -709,6 +954,7 @@ def main() -> None:
     written = write_outputs(
         char=char,
         profile=profile,
+        answers=answers,
         session_path=session_path,
         output_path=output_path,
         write_profile_yaml=not args.no_profile_yaml,

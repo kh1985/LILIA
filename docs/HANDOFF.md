@@ -49,6 +49,8 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `scripts/lilia_character_to_profile.py` を追加済み。character YAMLから `lilia/main/profile.md` を生成し、必要ならsource/debug用に `lilia/main/profile.yaml` も保存できる。
 - `templates/session/lilia/main/profile.md` を追加済み。`./lilia apply-newgame` は外部character systemを強制せず、Q&A fallbackとして `profile.md` も生成する。
 - `session.json` に `lilia_name` / `lilia_display_name` を追加済み。LILIAは作品名・存在カテゴリであり、作中の名乗りはPersona Profile / character YAML由来の個体名を使う。
+- `apply-newgame` と `scripts/lilia_character_to_profile.py` は、生成した `profile.md` の Initial Scene Anchors / context / unspoken / everyday anchors を `current/scene.md`、`current/event_card.md`、`story/story_deck.md`、`story/relationship_spine.md`、`current/hotset.md`、`lilia/main/*` へ初期反映する。
+- 初回 `current/event_card.md` には Scene Exit / Next Beat を置き、雨宿りや立ち話だけで停滞せず、3-5ターン以内に次beatへ進める入口を持たせる。
 - Persona Profile導線の最小確認として、既存character YAMLから `/tmp/lilia_profile_session/lilia/main/profile.md` を生成し、`./lilia prompt-only new test_persona_profile` のprompt bundleに Persona Profile Generation Pass と first scene前 profile必読指示が入ることを確認済み。
 - `prompt/newgame.md` に `First Scene Quality Gate` を追加済み。初回sceneが助け待ち一本道、明白な正解行動、信頼上昇だけの処理、欠けた台詞や壊れた引用符を含む出力にならないよう軽く確認する。
 - `prompt/save_resume.md` は作成済みで、保存・再開promptとしてレビュー済み。
