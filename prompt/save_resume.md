@@ -315,6 +315,9 @@ resume 1ターン目、重要scene前、親密scene前後、衝突scene前後、
 
 通常resume 1ターン目では、`style/reference.md` と `style/rules.md` を標準読込に入れない。
 root `style/defaults/*.md` も標準読込に入れない。
+`references/story_media_stock.md` も通常resumeの標準読込には入れない。
+新しいevent_card作成時、ストーリー構造が迷子になった時、ユーザーが作品やジャンル参照を明示した時だけ、Quick Selection Guide から候補を絞って読む。
+50作品全文を毎回読まず、研究棚として扱う。
 
 文体崩れ、scene tone調整、重要な恋愛/ベッドシーン前後/衝突場面、event_cardの余韻調整、出力文章相談がある時だけ、`prompt/style_reference.md` を正本として必要箇所を読む。
 親密sceneでは、必要時だけ `style/defaults/romance.md` を参照し、本文や固有文体ではなく距離、沈黙、体温、呼吸、視線、手元、余韻、aftercareの表現軸だけを使う。

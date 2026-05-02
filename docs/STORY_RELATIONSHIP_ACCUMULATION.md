@@ -99,6 +99,14 @@ Story Reference Engine は、参照作品や過去知見から、本文、固有
 Story Reference Engine は物語と関係の抽象構造を扱う。
 `style/reference.md` は文体、視点距離、描写密度、余韻の置き場であり、story referenceの正本にはしない。
 
+参考カタログ:
+
+`references/story_media_stock.md` に50作品のカタログがある。
+Selection Signals が決まり、Reference Engine を選んだ後、必要なら Quick Selection Guide から候補作品を3-5個に絞る。
+採用は1-3個までにする。
+作品名や固有要素は本文に出さない。
+感情の骨と抽象構造だけを抜く。
+
 ## 6. LILIA版 Selection Signals
 
 Selection Signals は、いまのevent/storyがどの関係温度を動かすかを見るための軽量タグである。
