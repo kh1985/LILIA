@@ -285,6 +285,23 @@ Save Modeに入った時だけ、必要最小限の `state`、`hotset`、`voice`
 - LILIA側の誤解や疑いが変わったなら `beliefs.md` を更新する。
 - 拒否や保留を報酬化しない。
 
+### Deepening Tags 評価
+
+Deepening Tags はSave Modeで保存更新する時だけ評価する。
+Play Mode中にタグ解放判定や軸名、数値を出さない。
+
+1. `relationship.md` の深化ベクトル（安心 / 親密 / 共有 / 生活 / 受容 / 摩耗）を見る。
+2. いずれかの軸が閾値に達していれば、対応する変化を `relationship.md`、`voice.md`、`current/event_card.md` に必要分だけ反映する。
+3. いずれかの軸が5に達し、かつ摩耗が1以下の場合、`profile.md` の Deepening Tags から解放候補を1つ選ぶ。
+4. 候補が実際にscene中に起きた出来事と合致する場合だけ、タグにチェックを入れる。
+5. タグにチェックを入れた場合、`memory.md` に節目として記録し、必要なら `archive/beats/` にも残す。
+
+深化ベクトルは1シーンで最大2軸まで動かす。
+軽い出来事は±1、大きい出来事は±2を目安にし、摩耗は次のsceneでどう削るかを見る。
+タグは攻略チェックリストではない。
+順不同で解放され、全部埋まることをゴールにしない。
+タグが解放された時は、`voice.md`、`relationship.md`、`beliefs.md` のどこかに変化を残す。
+
 ### 親密scene後
 
 - `relationship.md`: 距離感、信頼、境界線、相互性、intimacy stage、consent stage、boundary stateの変化。

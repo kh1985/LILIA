@@ -27,6 +27,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み / scene-tick MVP実装済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / profile由来のcurrent/story/lilia main初期生成コード接続済み / 実プレイ検証待ち
+- Story Reference Engine 強制導線: prompt 接続済み
+- 5層 self-understanding 参照導線: prompt 接続済み
+- Deepening Tags 評価基準: GROWTH_UPDATE_LOOP + relationship template 接続済み
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み

@@ -293,6 +293,11 @@ Simple Q1-Q5の回答後、初回sceneを出す前に `prompt/style_reference.md
 Q&Aから、ヒロイン像、初期関係、体験の味、NGを抽出する。
 場所、今日だけ隠している小さな保留、境界線、初回event、Scene Exit / Next Beat、Next Hook候補はGM / Story側で裏生成し、初回sceneの文体・温度・視点距離を整える。
 
+初回event_card作成時も、`prompt/core.md` §4 の Event Creation Procedure を軽く通す。
+ただし初回は関係が浅いため、Selection Signals は romance / daily / memory / boundary 寄りを優先し、重い organization / ability / institution 寄りにはしない。
+これはfull plotを作る手順ではない。
+signal名、engine名、参考作品名を作中に出さない。
+
 参照作品や既存の表現棚を見る場合でも、候補は0-2個に絞る。
 必要なら root `style/defaults/` から、最初の場面に合うdefaultsを1つ、多くても2つまで参照してよい。
 最初からstyle系を総読みしない。
