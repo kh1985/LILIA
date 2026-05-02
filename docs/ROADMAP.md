@@ -42,6 +42,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 3（50作品参考カタログ）: 実装済み
 - Wave 4（Structure / Pattern Reference Libraries）: 実装済み
 - Wave 5（story_spine導入）: 実装済み
+- Wave 6（Opening Scene & Heroine Appearance）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -61,11 +62,20 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - save / apply-turn連携。
 - responsibility separation: relationship_spine vs story_spine。
 
+### Wave 6: Opening Scene & Heroine Appearance [完了]
+
+- `prompt/opening_scene.md`（初回登場、最大気合い）。
+- `style/defaults/heroine_appearance.md`（毎回登場、状態 + シンボル繰り返し）。
+- `prompt/core.md` に Scene Entry Check。
+- `prompt/newgame.md` に opening_scene参照。
+
 ## 候補（優先度順、未確定）
 
-- 既存セッションへのretrofit。
-- 複数LILIA運用拡張。
-- reference多様化。
+- Wave 7: 能力（内面の発露）。
+- Wave 8: 異界。
+- Wave 9: 組織。
+- Wave 10: 複数ヒロイン。
+- Wave 11: 共同体・生活・ビジネス。
 
 ## 3. Completed Foundation
 

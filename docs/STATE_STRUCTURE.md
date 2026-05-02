@@ -28,6 +28,12 @@ LILIAは、会話・選択・物語・記憶・関係性によって人格の出
 
 prompt内の `current/...`、`lilia/main/...`、`story/...`、`archive/...` は、生成されたセッションルートからの相対パスである。
 
+### `prompt/opening_scene.md`
+
+newgame直後の最初のsceneを出力する時の指針。
+1セッション1回のみ起動する。
+Opening Image 4技法、Ghostの予感、描写の縛りとDrift Guardの織り込みを定義する。
+
 root `style/defaults/*.md` は、全sessionで共有する共通Style Layerの場面別参照棚である。
 session内の `style/reference.md` と `style/rules.md` は、new初期化や必要時の調整で抽出された、そのsession固有の表現軸と出力ルールを保存する。
 root `style/defaults/` はsession stateではない。
@@ -266,6 +272,12 @@ Tier 3以上で再登場し、LILIAの `memory`、`relationship`、`beliefs` に
 root `style/defaults/*.md` は、romance / tension / warmth / loss / quiet / landscape の場面別参照棚である。
 sessionの `style/reference.md` は、その棚から必要時に抽出した表現軸を短く残す場所であり、defaults本文の写しではない。
 romance / intimacy のdefaultsは、官能表現を削るためではなく、成人・合意・関係段階・境界線を守りながら、身体距離、沈黙、体温、呼吸、余韻を扱うために使う。
+
+### `style/defaults/heroine_appearance.md`
+
+ヒロインが場面に登場・再登場する毎回起動する文体技法。
+日常状態（服装 / 疲労 / 機嫌）と、シンボル / 仕草の繰り返しを定義する。
+`lilia/main/profile.md` の「描写の縛り」と Layer 4（CHINK）を織り込む。
 
 ### `style/rules.md`
 
