@@ -438,6 +438,40 @@ def newgame_forbidden_text(answers: dict[int | str, str]) -> str:
     return answer(answers, "simple_q4") or answer(answers, 4)
 
 
+DESCRIPTIVE_FALLBACK_KEYWORDS = [
+    "香水",
+    "香り",
+    "匂い",
+    "髪",
+    "視線",
+    "目",
+    "眼",
+    "声",
+    "手",
+    "指",
+    "爪",
+    "服",
+    "袖",
+    "傘",
+    "バッグ",
+    "鞄",
+    "ヒール",
+    "靴",
+    "姿勢",
+]
+
+
+def infer_fallback_descriptive_constraint(appearance: str) -> str:
+    clean = re.sub(r"\s+", " ", appearance).strip()
+    if not clean or clean == UNCONFIRMED:
+        return UNCONFIRMED
+    parts = [part.strip() for part in re.split(r"[、。/／\n,;；]+", clean) if part.strip()]
+    for part in parts:
+        if any(word in part for word in DESCRIPTIVE_FALLBACK_KEYWORDS):
+            return part[:60]
+    return (parts[0] if parts else clean)[:60]
+
+
 def render_newgame_answer_summary(answers: dict[int | str, str]) -> str:
     return "\n".join(
         [
@@ -816,6 +850,16 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
                 ("保留", bullet_lines([pressure])),
                 ("境界線", bullet_lines([f"{objects} や身体距離に触れる前に確認が必要。"])),
                 ("次に変化しそうな点", bullet_lines(["名乗り合うか、途中まで歩くか、ここで別れるか。"])),
+                (
+                    "最新チェックポイント",
+                    bullet_lines(
+                        [
+                            "イベント名: 初回scene前",
+                            f"LILIAの空気: {name}は {pressure} をまだ全部言わず、{distance} で様子を見る。",
+                            "核（このsceneで何がLILIAに残ったか）: まだ実際のsceneは始まっていない。質感が変わった時だけSave Modeで上書きする。",
+                        ]
+                    ),
+                ),
             ],
         ),
         "lilia/main/core.md": render_document(
@@ -922,6 +966,7 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
     taste = answer(answers, 3).replace("\n", " / ") or UNCONFIRMED
     avoid = newgame_forbidden_text(answers).replace("\n", " / ") or UNCONFIRMED
     occupation = answer(answers, 5).replace("\n", " / ") or UNCONFIRMED
+    descriptive_constraint = infer_fallback_descriptive_constraint(appearance)
     u = UNCONFIRMED
 
     return "\n".join(
@@ -1001,6 +1046,18 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             f"- 体験の味: {taste}",
             f"- 今日なぜそこにいるか: {u}",
             f"- 初回sceneの生活上の用事: {u}",
+            "",
+            "## 描写の縛り",
+            "",
+            "場面ごとにLILIAが出る時、必ず1-2個入れる質感。",
+            "五感のいずれか（視覚/聴覚/嗅覚/触覚/体感）に絞る。",
+            "事件中心の場面でも、これがあると場にキャラが残る。",
+            "",
+            f"- 必ず入れる質感1: {descriptive_constraint}",
+            f"- 必ず入れる質感2 (optional): {u}",
+            "",
+            "注: 抽象語（優しい、強い）ではなく、具体物（持ち物、香り、声の質、視線の癖）で書く。",
+            "fallbackではQ1から取れる場合だけ控えめに入れる。具体化はLLM CLIで再生成推奨。",
             "",
             "## Initial Scene Anchors",
             f"- 場所と状況: {u}",
@@ -1431,6 +1488,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("境界線", q(4)),
                 ("resume時に無かったことにしないもの", "- Q2の出会い方\n- Q3の大事なもの\n- Q4の怖さ、避けるもの、譲れないもの\n- Q5の初期距離\n- Q7の小さな出来事"),
                 ("次に変化しそうな点", "- 初回sceneで、声、沈黙、距離、信頼、警戒のどれが動くかを見る。"),
+                ("最新チェックポイント", "- イベント名: 初回scene前\n- LILIAの空気: Q1 / Q5の距離感を持ったまま、初回sceneでまだ様子を見る。\n- 核（このsceneで何がLILIAに残ったか）: まだ実際のsceneは始まっていない。質感が変わった時だけSave Modeで上書きする。"),
             ],
         ),
         "lilia/main/core.md": render_document(

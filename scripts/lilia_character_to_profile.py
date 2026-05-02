@@ -642,6 +642,83 @@ def infer_unspoken(char: CharacterSheet) -> list[str]:
     return dedupe(items)
 
 
+DESCRIPTIVE_MATERIAL_KEYWORDS = [
+    "香水",
+    "香り",
+    "匂い",
+    "髪",
+    "ヒール",
+    "靴",
+    "眼鏡",
+    "メガネ",
+    "傘",
+    "バッグ",
+    "鞄",
+    "トート",
+    "指",
+    "手",
+    "爪",
+    "服",
+    "袖",
+    "コート",
+    "ワンピース",
+]
+
+DESCRIPTIVE_VOICE_KEYWORDS = [
+    "声",
+    "視線",
+    "目",
+    "眼",
+    "見る",
+    "見上げ",
+    "見下ろ",
+    "沈黙",
+    "間",
+    "息",
+    "笑",
+    "口調",
+    "言葉",
+    "手元",
+    "姿勢",
+    "距離",
+]
+
+
+def split_descriptive_phrases(text: str | None) -> list[str]:
+    clean = source_text(text)
+    if not clean:
+        return []
+    parts = re.split(r"[、。/／\n,;；]+", clean)
+    return [part.strip() for part in parts if source_text(part)]
+
+
+def pick_descriptive_phrase(texts: Iterable[str], keywords: Iterable[str]) -> str:
+    fallback = ""
+    for text in texts:
+        for part in split_descriptive_phrases(text):
+            if not fallback and len(part) <= 48:
+                fallback = part
+            if contains_any(part, keywords):
+                return part[:60]
+    return fallback[:60]
+
+
+def infer_descriptive_constraints(char: CharacterSheet) -> tuple[str, str]:
+    material = pick_descriptive_phrase(
+        [source_text(char.appearance.notes)],
+        DESCRIPTIVE_MATERIAL_KEYWORDS,
+    )
+    example_texts = [
+        source_text(getattr(example, "char", ""))
+        for example in char.tone.examples
+    ]
+    voice = pick_descriptive_phrase(
+        [*example_texts, *source_personality(char)],
+        DESCRIPTIVE_VOICE_KEYWORDS,
+    )
+    return material or "未設定", voice or "未設定"
+
+
 def infer_layer_one(char: CharacterSheet) -> str:
     backstory = source_text(char.context.backstory)
     role = source_text(char.occupation)
@@ -694,6 +771,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     small_event = infer_context_event(char, "")
     contradictions = infer_contradictions(char)
     unspoken = infer_unspoken(char)
+    descriptive_constraint_1, descriptive_constraint_2 = infer_descriptive_constraints(char)
     layer_one = infer_layer_one(char)
     layer_two = infer_layer_two(values)
     flaw = infer_person_design_flaw(char)
@@ -783,6 +861,18 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         f"- ユーザーとの関係位置: {q2}",
         f"- 今日なぜそこにいるか: {infer_presence_reason(char)}",
         f"- 初回sceneの生活上の用事: {small_event}",
+        "",
+        "## 描写の縛り",
+        "",
+        "場面ごとにLILIAが出る時、必ず1-2個入れる質感。",
+        "五感のいずれか（視覚/聴覚/嗅覚/触覚/体感）に絞る。",
+        "事件中心の場面でも、これがあると場にキャラが残る。",
+        "",
+        f"- 必ず入れる質感1: {descriptive_constraint_1}",
+        f"- 必ず入れる質感2 (optional): {descriptive_constraint_2}",
+        "",
+        "注: 抽象語（優しい、強い）ではなく、具体物（持ち物、香り、声の質、視線の癖）で書く。",
+        "profile生成時に character YAML から抽出する。LILIA側で恣意的に増やさない。",
         "",
         "## Initial Scene Anchors",
         f"- 場所と状況: {current}",
