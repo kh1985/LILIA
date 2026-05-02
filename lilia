@@ -34,6 +34,7 @@ RESUME_SESSION_FILES = [
     "current/scene.md",
     "current/event_card.md",
     "current/relationship_overview.md",
+    "current/decision_index.md",
     "lilia/main/core.md",
     "lilia/main/voice.md",
     "lilia/main/state.md",
@@ -71,6 +72,7 @@ TURN_UPDATE_TARGETS = {
     "state": "lilia/main/state.md",
     "voice": "lilia/main/voice.md",
     "relationship_overview": "current/relationship_overview.md",
+    "decision_index": "current/decision_index.md",
     "relationship": "lilia/main/relationship.md",
     "memory": "lilia/main/memory.md",
     "beliefs": "lilia/main/beliefs.md",
@@ -835,6 +837,16 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
                 ("次の1ターンに効く温度", bullet_lines([f"{name}は {pressure} をまだ全部言わず、{distance} で様子を見る。"])),
                 ("現在イベント要約", bullet_lines([f"{place}。{objects}。入口は {entry}。"])),
                 ("第一反応", bullet_lines([f"{name}は急に近づかれると硬くなるが、確認して待たれると少し言葉が増える。"])),
+                (
+                    "最新scene後のecho",
+                    bullet_lines(
+                        [
+                            "次の1ターンに響くこと: 初回scene前のため未発生",
+                            "第一反応の方向: profile由来の距離と保留を、声と沈黙にだけ残す",
+                            "まだ触れない方がいいこと: unspokenを初回で全部説明しない",
+                        ]
+                    ),
+                ),
                 ("次に触れられるもの", bullet_lines([objects, entry])),
                 ("Scene Exit / Next Beat", bullet_lines(exit_beats[:3])),
             ],
@@ -936,7 +948,18 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
                 ("long_term", bullet_lines(fixed_memory[:3] or memories[:2] or ["未確認"])),
                 ("historical_fixed", bullet_lines(memories[:3] or ["実際に過去として固定してよいものだけ。"])),
                 ("emotional_beats", bullet_lines([pressure, friction])),
-                ("echo", bullet_lines([f"次に響く入口: {entry}", f"次に触れられるもの: {object_focus}"])),
+                (
+                    "echo",
+                    bullet_lines(
+                        [
+                            f"直近scene後の余韻: 初回scene前。入口は {entry}",
+                            "気まずさ / 照れ / 距離の揺れ: 未発生",
+                            f"言い残したこと: {pressure}",
+                            f"次に響く小さな傷: {friction}",
+                            f"次に会った時の出方: {object_focus}や距離への触れ方を見る",
+                        ]
+                    ),
+                ),
                 ("忘れてはいけない約束", bullet_lines(["未発生"])),
                 ("まだ覚えていないこと", bullet_lines(["初回sceneで実際に起きること。"])),
                 ("保存しないこと", bullet_lines(["ユーザーの内面断定", "profile由来の仮説を実際の出来事として扱うこと"])),
@@ -1441,6 +1464,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("未消化の感情", q(4)),
                 ("言い残し / まだ言っていないこと", "- Q4由来の怖さ、避けるもの、譲れないものは初回sceneで急に全部説明しない。"),
                 ("親密scene後の余韻", "- 次回1ターンに効くaftercare: 未発生\n- 第一反応: 未発生\n- 呼び方 / 距離の変化: 未発生\n- まだ触れないこと: 初期親密は未確認"),
+                ("最新scene後のecho", "- 次の1ターンに響くこと: 初回scene前のため未発生\n- 第一反応の方向: Q1 / Q5由来の距離感を声と沈黙に残す\n- まだ触れない方がいいこと: Q4由来のNGや境界線を初回で全部説明しない"),
                 ("現在のイベント要約", q(7)),
                 ("次の小さな出来事", q(7)),
                 ("未確定の余白", "- 初回scene後の会話と選択で確定する。"),
@@ -1576,7 +1600,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("historical_fixed", "- 実際に起きた出来事: Q&A完了\n- 約束 / 拒否 / 保留: 未発生\n- 無かったことにしない節目: Q2の出会い方、Q3の大事なもの、Q4の境界線"),
                 ("emotional_beats", "- 初回scene後に更新する。"),
                 ("aftercare_memory", "- 終わった後にLILIAが覚えていること: 未発生\n- 次に会った時の第一声: 未発生\n- 呼び方や距離感の変化: 未発生\n- 安心 / 照れ / 怖さ / 保留 / 言い残し: 未発生\n- 確認 / 拒否 / 保留 / 止まれたこと: 未発生"),
-                ("echo", "- 次に響く言い残し: Q4由来の境界線\n- 次に会った時の出方: Q1 / Q6由来の第一反応"),
+                ("echo", "- 直近scene後の余韻: 初回scene前\n- 気まずさ / 照れ / 距離の揺れ: 未発生\n- 言い残したこと: Q4由来の怖さや境界線を初回で全部説明しない\n- 次に響く小さな傷: 未発生\n- 次に会った時の出方: 初回sceneで確認する"),
                 ("忘れてはいけない約束", "- 未発生"),
                 ("まだ覚えていないこと", "- 初回sceneで実際に起きること"),
                 ("保存しないこと", "- ユーザーの内面の断定: しない\n- 例文由来の固定語彙: しない\n- 解釈や思い込みは `beliefs.md` に回す: はい"),

@@ -38,6 +38,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Newgame Q&A Simple Q1-Q5: ヒロイン像 / 初期関係 / 体験の味 / NG / 職業・生活へ簡略化済み。場所、保留、境界線、初回eventはGM / Story側で裏生成する
 - LILIA Persona Profile: character YAML 素材生成と profile.md 変換導線を追加済み。apply-newgame が LLM CLI(codex / claude)経由を default にし、fallback は最小経路へ簡素化。Q&A は Q1-Q5(Q5 は職業・生活)。First Scene Quality Gate に2項目追加済み。
 - Wave 1（散文層・キャラ会議変換）: 実装済み
+- Wave 2（echo拡張・decision_index）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証

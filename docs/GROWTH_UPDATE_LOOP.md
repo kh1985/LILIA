@@ -116,6 +116,7 @@ Save Modeで保存前に、まず以下を見る。
 - 保留された話題。
 - 親密scene後のaftercare memory。
 - 次回の第一声、距離、沈黙に効く節目。
+- echo: 重要scene後の残り香、気まずさ、距離の揺れ、言い残し。古い echo は上書きしてよい。
 
 保存しないもの:
 
@@ -197,6 +198,22 @@ event_cardが現在sceneから外れた場合は、必要に応じて `story/sto
 
 正本ではない。
 矛盾した場合は `relationship.md`、`memory.md`、`beliefs.md` を優先する。
+
+### `current/decision_index.md`
+
+セッション中の決定（約束・拒否・保留・解決済み）を追記する。
+
+保存するもの:
+
+- 明示された約束、拒否、保留、解決。
+- 各決定の状態（active / fulfilled / broken / withdrawn / pending / resolved）。
+- 撤回や変更があった場合の状態遷移。
+
+保存しないもの:
+
+- 軽い意向や匂わせ。
+- 実際の出来事（`memory.md` へ）。
+- LILIA側仮説（`beliefs.md` へ）。
 
 ### `story/story_deck.md`
 
@@ -303,6 +320,20 @@ Play Mode中にタグ解放判定や軸名、数値を出さない。
 順不同で解放され、全部埋まることをゴールにしない。
 タグが解放された時は、`voice.md`、`relationship.md`、`beliefs.md` のどこかに変化を残す。
 
+### echo 更新タイミング
+
+以下のいずれかが起きた時、`memory.md` の echo を短く更新する。
+
+- 衝突や緊張のあるsceneが起きた。
+- 親密sceneが起きた（aftercare_memoryとは別に、温度の揺れとして）。
+- 境界確認や拒否があった。
+- 関係段階が動いた。
+- LILIAが言いかけて止めた、または言わなかったことがある。
+- 別れ際、見送り、待機など、scene末尾に余韻が残った。
+
+更新後は、`current/hotset.md` の最新scene後echoも短く再生成する。
+通常会話scene後は更新しない。
+
 ### 親密scene後
 
 - `relationship.md`: 距離感、信頼、境界線、相互性、intimacy stage、consent stage、boundary stateの変化。
@@ -337,6 +368,19 @@ Play Mode中にタグ解放判定や軸名、数値を出さない。
 更新は1-3行。データを書かず、散文で書く。
 古いチェックポイントは上書きしてよい。
 通常の会話scene後は更新しない。
+
+### decision_index 更新タイミング
+
+以下のいずれかが起きた時、`current/decision_index.md` を更新する。
+
+- ユーザーまたはLILIAが明示的に「次にこうする」「いつかこうする」と約束した。
+- 「これはしない」「これは触れない」と拒否を表明した。
+- 「今は決めない」「後で話す」と保留にした。
+- 過去の約束・保留が解決した。
+- 過去の決定が撤回された。
+
+更新は追記する（古い決定を削除しない）。
+状態遷移がある場合は新しい行として追記し、古い行の状態を更新する。
 
 ### save前
 

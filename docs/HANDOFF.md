@@ -32,6 +32,9 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `templates/session/lilia/main/profile.md` に描写の縛りセクションを追加済み。
 - `templates/session/current/relationship_overview.md` に最新チェックポイントセクションを追加済み。
 - `prompt/core.md` に Incident to Character Voice Conversion を追加済み。
+- `templates/session/lilia/main/memory.md` の echo セクションを拡張済み。
+- `templates/session/current/decision_index.md` を新規追加済み。
+- `prompt/core.md` に Echo Awareness と Decision Awareness を追加済み。
 - `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を作成済み。イベントがLILIAとの関係の物語として積み重なる仕組み、Story Reference Engine、NPC tier、World Autonomy / Pressureの位置づけを定義する正本。
 - `tests/resume_smoke/manual_checklist.md` と `tests/resume_smoke/sample_session.md` を追加済み。手動smokeの確認項目と、非正史サンプルを置く。
 - `tests/full_loop/manual_checklist.md` を追加済み。new / profile / first scene / Play Mode / scene-tick / apply-turn / resume を1本で確認する手動smoke手順である。
