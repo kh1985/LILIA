@@ -98,6 +98,29 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 
 prompt内の `current/...`、`lilia/main/...`、`story/...`、`archive/...` は、生成されたセッションルートからの相対パスとして扱う。テンプレート上では `templates/session/` 配下に対応する。
 
+## Wave 4 完了 — Structure / Pattern Reference Libraries
+
+### 追加
+
+- `references/story_structure_stock.md` — 5つの普遍的構造論。
+- `references/story_pattern_stock.md` — 50作品から抽出した12パターン。
+
+### 修正
+
+- `prompt/core.md` Event Creation Procedure §4 を3 reference対応に拡張。
+- `prompt/core.md` に Story Diagnosis セクション追加（任意、停滞時のみ起動）。
+- `docs/STATE_STRUCTURE.md` referencesセクションを3ファイル対応に拡張。
+
+### 状態
+
+- AI動的状態管理は変更なし（newgame / save / apply-turn は触っていない）。
+- 既存セッションにも後付けで効果が出る。
+- ロールバック容易（references削除 + prompt revert）。
+
+### 次の Wave
+
+- Wave 5: story_spine の導入（Main Question / Reveal Ladder / Background Truth / Pressure Direction）。
+
 ## 4. 採用元
 
 - MIRA: 人格構造 `core / voice / state / relationship / memory / beliefs`、特に voice / memory / beliefs

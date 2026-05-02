@@ -36,11 +36,33 @@ root `style/defaults/` はsession stateではない。
 
 `references/` はリポ全体で共有する参考資料の置き場である。
 session state ではない。
+AIがevent_card生成や物語診断の際に参照する研究棚であり、毎ターン読まない。
+必要な時だけ参照する。
 
-- `references/story_media_stock.md`: 50作品の参考棚。Event Creation Procedure で必要時だけ参照する。Quick Selection Guide から候補を3-5個に絞り、1-3個だけ採用する。
+### `references/story_media_stock.md`
+
+50作品の感情の骨カタログ。
+雰囲気、出来事、関係温度の参考。
+1皿（1場面・1イベント）の質を上げる用。
+
+### `references/story_structure_stock.md`
+
+5つの普遍的構造論（Story Circle / Save the Cat / シノビガミ秘密構造 / Ghost / 起承転結）。
+コース全体（関係全体・長期進行）の現在地を診断する用。
+
+### `references/story_pattern_stock.md`
+
+50作品から抽出した12の経験則パターン。
+作品をまたいで観察される「形」のカタログ。
+関係の形を理解する用。
+
+### 利用ルール
+
+- 1セッションで参照するreferenceは1-2本まで。
 - 通常 resume の標準読込には入れない。
 - 全文を毎回読まない。研究棚として扱う。
-- 作品名、台詞、人物配置、固有名詞は本文に出さない。抽出するのは感情の骨と抽象構造だけ。
+- 本文、台詞、固有名詞、パターン番号を出さない。
+- 診断は任意。停滞時のみ起動する。
 
 ## 3. 最小ファイル構造
 
