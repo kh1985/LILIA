@@ -4,6 +4,13 @@ newgame の最後、最初の scene を出力する時に従う。
 このファイルは1セッションに1度だけ起動する（最初の1場面のみ）。
 2回目以降の場面では `style/defaults/heroine_appearance.md` が使われる。
 
+## 参照する current/ ファイル
+
+- `lilia/main/profile.md`（描写の縛り、Layer 1〜5）
+- `current/story_spine.md`（Drift Guard、Background Truth）
+- `story/relationship_spine.md`（関係の起点）
+- `current/protagonist.md`（主人公の身体・呼称。存在しない既存セッションではスキップ）
+
 ## 最初の場面の唯一の責務
 
 **プレイヤーに「次を見たい」と思わせること。**
@@ -27,10 +34,22 @@ newgame の最後、最初の scene を出力する時に従う。
 
 - 「彼女は来た」「ドアが開いて〇〇が入ってきた」のような直接描写を避ける
 - 周囲の変化として登場させる（音、匂い、空気の動き、影）
-- `current/profile.md` の「描写の縛り」を**1つ**織り込む（必須）
+- `lilia/main/profile.md` の「描写の縛り」を**1つ**織り込む（必須）
 - `current/story_spine.md` の Drift Guard から物的手がかりを**1つ**織り込む
 - 視覚情報は最後に出す（音や気配の方が先）
 - 台詞は出すなら1〜2文だけ
+
+### 主人公との視点整合（Wave 7）
+
+ヒロインがプレイヤー（主人公）を見る・呼ぶ・触れる描写が入る場合、
+`current/protagonist.md` の身体・呼称情報を参照する。
+
+- 身長差: ヒロインが見上げるか、同目線か、見下ろすか
+- 呼称: ヒロインがプレイヤーを呼ぶ時の一貫した呼び方
+- 服装感: ヒロインがプレイヤーを認識する時の手がかり
+
+これらは本文に直接書く必要はないが、整合性を取る。
+`current/protagonist.md` が無い既存セッションでは、この確認をスキップする。
 
 ### Part 3: 引力（1〜3文）
 
