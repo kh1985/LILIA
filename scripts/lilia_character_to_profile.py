@@ -370,7 +370,15 @@ def parse_answers(path: Path | None) -> dict[int | str, str]:
             sections[current].append(line)
     if not sections and content.strip():
         return {"summary": content.strip()}
-    return {key: "\n".join(lines).strip() for key, lines in sections.items()}
+    answers = {key: "\n".join(lines).strip() for key, lines in sections.items()}
+    try:
+        launcher = load_lilia_launcher()
+        normalizer = getattr(launcher, "normalize_newgame_answers", None)
+        if callable(normalizer) and all(answers.get(number) for number in range(1, 6)):
+            return normalizer(answers)
+    except Exception:
+        pass
+    return answers
 
 
 def answer(answers: dict[int | str, str], key: int | str, fallback: str = "未設定") -> str:
@@ -666,9 +674,8 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     current = source_text(char.context.current_situation, "日常の小さな用事の途中にいる")
     q1 = source_answer(answers, 1, "落ち着いて見えるが、返答の間や持ち物に乱れが出る")
     q2 = source_answer(answers, 2, "互いをまだ深く知らない距離")
-    q5 = source_answer(answers, 5, "踏み込みすぎず、境界線を確認する")
-    q6 = source_answer(answers, 6, "")
-    q7 = source_answer(answers, 7, "恋愛成立や重い事件を急がない")
+    q4 = source_answer(answers, 4, "恋愛成立や重い事件を急がない")
+    q5_life = source_answer(answers, 5, role)
 
     personality = source_personality(char)
     first_personality = personality[0] if personality else "話しかけられれば返すが、自分から急に距離を詰めない"
@@ -684,16 +691,17 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     )
     values = infer_values(char)
     anchors = infer_everyday_anchors(char)
-    small_event = infer_context_event(char, q6)
+    small_event = infer_context_event(char, "")
     contradictions = infer_contradictions(char)
     unspoken = infer_unspoken(char)
     layer_one = infer_layer_one(char)
     layer_two = infer_layer_two(values)
     flaw = infer_person_design_flaw(char)
+    boundary = reaction_value(char, "踏", "急", fallback="踏み込みすぎず、境界線を確認する")
     forbidden = dedupe(
         [
             *char.forbidden,
-            q7,
+            q4,
             "初期から恋愛成立や親密成立を確定しない",
         ]
     )
@@ -710,6 +718,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
             [
                 ("name", char.name),
                 ("age", age),
+                ("occupation", role if role != SOURCE_FALLBACK else q5_life),
                 ("role", role),
                 ("appearance", appearance_text(char)),
             ]
@@ -725,7 +734,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         f"- 困った時の出方: {reaction_value(char, '困', fallback=second_personality)}",
         f"- 褒められた時の反応: {reaction_value(char, '褒', fallback=third_personality)}",
         f"- 怒った時の反応: {reaction_value(char, '怒', fallback='声を荒げるより、言葉数や距離に出る')}",
-        f"- 頼る / 断る / 待つ の傾向: {q5}",
+        f"- 頼る / 断る / 待つ の傾向: {boundary}",
         "",
         "## values",
         bullets(values),
@@ -753,7 +762,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         f"弱っている相手には: {reaction_value(char, '弱', fallback='助けようとするが、相手の主体性を奪わない')}",
         f"急かされたとき: {reaction_value(char, '急', fallback='一歩引き、答えを迫られるほど閉じる')}",
         f"感謝されたとき: {reaction_value(char, '感謝', 'ありがとう', fallback='受け取るが、照れや距離をごまかす')}",
-        f"踏み込まれたとき: {reaction_value(char, '踏', fallback=q5)}",
+        f"踏み込まれたとき: {reaction_value(char, '踏', fallback=boundary)}",
         f"待ってもらえたとき: {reaction_value(char, '待', fallback='少しだけ言葉が増える')}",
         f"助けられすぎたとき: {reaction_value(char, '助', fallback='ありがたさと、自分で決めたい気持ちがぶつかる')}",
         f"軽く扱われたとき: {reaction_value(char, '軽', fallback='表情や声が硬くなり、距離を置く')}",
@@ -794,7 +803,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         f"Layer 2（心の核）: {layer_two}",
         "Layer 3（防壁マップ）:",
         f"  Say/Do Gap: {q1} / 内側では言葉にする前に整理している",
-        f"  逃げ方: {reaction_value(char, '踏', '急', fallback=q5)}",
+        f"  逃げ方: {reaction_value(char, '踏', '急', fallback=boundary)}",
         "  強がり方: 平気な顔で軽く流し、必要な説明を短くする",
         "Layer 4（心の扉マップ）:",
         "  CHINKトリガー:",
@@ -832,7 +841,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "壁:",
         f"  秘密: {unspoken[0] if unspoken else '事情をすぐ整理して話せない'}",
         "  開示条件: 待たれた経験、軽く扱われなかった経験、小さな約束が残った時。",
-        f"  拒否トリガー: {q5}",
+        f"  拒否トリガー: {boundary}",
         "",
         "育つ部分:",
         "  性格の発見: 待たれた時に言葉が増えるか、急かされた時に閉じるか。",
@@ -854,7 +863,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "",
         "boundary:",
         "  state: 確認する / 待つ",
-        f"  note: {q5}",
+        f"  note: {boundary}",
         "",
         "self-understanding:",
         "  stage: 初期",

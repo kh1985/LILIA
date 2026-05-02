@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent
 TEMPLATE_DIR = ROOT / "templates" / "session"
 SAVES_DIR = ROOT / "saves"
 SESSION_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+UNCONFIRMED = "未確定(LLM CLI で再生成推奨)"
 
 
 NEW_PROMPT_FILES = [
@@ -74,6 +75,7 @@ TURN_UPDATE_TARGETS = {
     "memory": "lilia/main/memory.md",
     "beliefs": "lilia/main/beliefs.md",
     "event_card": "current/event_card.md",
+    "next_hook": "current/event_card.md",
     "story_deck": "story/story_deck.md",
     "relationship_spine": "story/relationship_spine.md",
     "hotset": "current/hotset.md",
@@ -86,7 +88,7 @@ def usage() -> None:
 
 Usage:
   ./lilia new [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
-  ./lilia apply-newgame <session_name> <answers.md>
+  ./lilia apply-newgame <session_name> <answers.md> [--engine codex|claude|auto]
   ./lilia apply-turn <session_name> <turn_update.md>
   ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
@@ -195,7 +197,21 @@ def is_placeholder_lilia_name(value: object) -> bool:
         return True
     lowered = compact.lower()
     return (
-        lowered in {"lilia", "リリア", "未設定", "未定", "なし", "特になし"}
+        lowered
+        in {
+            "lilia",
+            "リリア",
+            "未設定",
+            "未定",
+            "なし",
+            "特になし",
+            "おまかせ",
+            "初対面",
+            "顔見知り",
+            "知っている",
+            "知っているけど",
+            "深くは知らない",
+        }
         or lowered.startswith("lilia（仮")
         or lowered.startswith("lilia(仮")
         or lowered.startswith("リリア（仮")
@@ -219,7 +235,7 @@ def extract_profile_name(profile: str) -> str:
     return ""
 
 
-def explicit_name_from_answers(answers: dict[int, str]) -> str:
+def explicit_name_from_answers(answers: dict[int | str, str]) -> str:
     patterns = [
         r"(?:名前|個体名|name)\s*(?:は|:|：|=)\s*[「『]?([A-Za-z一-龥ぁ-んァ-ヶー]{1,12})(?=」|』|で|に|と|、|。|\s|$)",
         r"[「『]?([A-Za-z一-龥ぁ-んァ-ヶー]{1,12})[」』]?\s*(?:という|っていう)?\s*名前",
@@ -234,7 +250,7 @@ def explicit_name_from_answers(answers: dict[int, str]) -> str:
     return ""
 
 
-def generated_lilia_name(answers: dict[int, str], session_name: str = "") -> str:
+def generated_lilia_name(answers: dict[int | str, str], session_name: str = "") -> str:
     explicit = explicit_name_from_answers(answers)
     if explicit:
         return explicit
@@ -281,11 +297,96 @@ def bullet_block(text: str) -> str:
     return "\n".join(f"- {line}" if line.strip() else "" for line in stripped.splitlines())
 
 
-def parse_newgame_answers(path: Path) -> dict[int, str]:
+def text_has_any(text: str, needles: list[str]) -> bool:
+    return any(needle in text for needle in needles)
+
+
+def infer_simple_initial_place(heroine: str, relationship: str, taste: str, avoid: str) -> str:
+    text = f"{heroine}\n{relationship}\n{taste}\n{avoid}"
+    if text_has_any(text, ["便利屋", "依頼", "相談", "仕事"]):
+        return "夕方から夜にかけての駅前か小さな店先。仕事や相談に見える用事があり、会話の入口が自然に生まれる場所。"
+    if text_has_any(text, ["雨", "傘", "雨宿り"]):
+        return "雨の残る店先かコンビニ前。濡れた足元と傘、帰る判断が会話の入口になる場所。"
+    if text_has_any(text, ["日常", "甘酸っぱい", "じれじれ", "恋愛"]):
+        return "帰り道のコンビニ前か駅前。日常の用事が少しだけ重なり、立ち止まって話せる場所。"
+    if text_has_any(text, ["不思議", "能力", "違和感"]):
+        return "人通りが一瞬途切れた夕方の駅前。日常の中に小さな違和感だけが混じる場所。"
+    return "現代日常の帰り道。駅前、店先、コンビニ前のどれかから、ヒロイン像と体験の味に合わせてGMが具体化する。"
+
+
+def infer_simple_unspoken(heroine: str, relationship: str, taste: str, avoid: str) -> str:
+    text = f"{heroine}\n{relationship}\n{taste}\n{avoid}"
+    if text_has_any(text, ["色気", "距離", "きわど", "胸", "身体"]):
+        return "見られることや近い距離には慣れているふりをするが、軽く扱われるのは嫌で、どこまで許すかは自分で選びたい。"
+    if text_has_any(text, ["相談", "依頼", "便利屋", "仕事"]):
+        return "相談したいことがあるが、仕事として頼むのか個人的に聞いてほしいのかをまだ決めきれていない。"
+    if text_has_any(text, ["じれじれ", "本音", "隠す", "寂し"]):
+        return "話したい気持ちはあるが、寂しさや本音を先に見せるのは負けたようで、軽く流している。"
+    return "少し頼りたいことがあるが、初回から重く預けず、平気な顔で様子を見ている。"
+
+
+def infer_simple_boundary(heroine: str, relationship: str, taste: str, avoid: str) -> str:
+    text = f"{heroine}\n{relationship}\n{taste}\n{avoid}"
+    parts = [
+        "勝手に身体や荷物へ触れない。",
+        "答えを迫らず、本人が選ぶ余地を残す。",
+        "助ける場合も、代わりに全部決めない。",
+    ]
+    if text_has_any(text, ["媚び", "即落ち", "都合よく"]):
+        parts.append("ユーザーへの報酬や即落ちとして反応させない。")
+    if text_has_any(text, ["色気", "距離", "きわど", "胸", "身体"]):
+        parts.append("近い距離を書く時ほど、相互性、確認、止まれる余地を残す。")
+    if text_has_any(text, ["暗すぎ", "重すぎ", "事件"]):
+        parts.append("重い事件や説明で押し切らず、日常の小さな圧に留める。")
+    return "\n".join(parts)
+
+
+def infer_simple_scene_material(heroine: str, relationship: str, taste: str, avoid: str) -> str:
+    text = f"{heroine}\n{relationship}\n{taste}\n{avoid}"
+    items = ["スマホ", "レシート", "小さな袋", "傘か上着", "未送信の通知"]
+    if text_has_any(text, ["仕事", "相談", "依頼", "便利屋"]):
+        items = ["スマホの短い連絡", "メモ", "紙袋", "領収書", "まだ依頼と呼べない相談"]
+    elif text_has_any(text, ["雨", "傘", "雨宿り"]):
+        items = ["ビニール傘", "濡れたレシート", "温かい飲み物", "コンビニ袋", "遅延通知"]
+    elif text_has_any(text, ["色気", "距離", "胸", "身体"]):
+        items = ["羽織った上着", "スマホ", "持ち直したバッグ", "視線を逸らす手元", "近すぎない立ち位置"]
+    return "、".join(items)
+
+
+def infer_simple_initial_event(heroine: str, relationship: str, taste: str, avoid: str, place: str, unspoken: str) -> str:
+    if text_has_any(taste, ["便利屋", "依頼", "相談", "仕事"]):
+        entry = "ヒロインが短い相談を切り出しかけるが、仕事として頼むか個人的に話すかを迷っている。"
+    elif text_has_any(taste, ["日常", "甘酸っぱい", "じれじれ", "恋愛"]):
+        entry = "帰る方向や小さな用事が重なり、名乗るか、少し一緒に歩くか、ここで別れるかを選べる。"
+    elif text_has_any(taste, ["不思議", "能力", "違和感"]):
+        entry = "日常の具体物に小さな違和感が混じるが、能力や大事件にはまだ広げず、本人の反応を見る。"
+    else:
+        entry = "手元の具体物か短い通知が会話の入口になり、声をかける、待つ、手伝う、理由を聞く余地が残る。"
+    return entry
+
+
+def normalize_newgame_answers(raw_answers: dict[int | str, str]) -> dict[int | str, str]:
+    answers: dict[int | str, str] = dict(raw_answers)
+    required_missing = [f"Q{number}" for number in range(1, 6) if not str(answers.get(number, "")).strip()]
+    if required_missing:
+        die(f"answers.md is missing non-empty sections: {', '.join(required_missing)}")
+
+    answers["format"] = "simple5"
+    answers["simple_q1"] = str(answers[1]).strip()
+    answers["simple_q2"] = str(answers[2]).strip()
+    answers["simple_q3"] = str(answers[3]).strip()
+    answers["simple_q4"] = str(answers[4]).strip()
+    answers["simple_q5"] = str(answers[5]).strip()
+    if any(str(answers.get(number, "")).strip() for number in range(6, 8)):
+        answers["legacy_extra_ignored"] = "true"
+    return answers
+
+
+def parse_newgame_answers(path: Path) -> dict[int | str, str]:
     if not path.exists():
         die(f"answers file not found: {path}")
     content = path.read_text(encoding="utf-8")
-    sections: dict[int, list[str]] = {}
+    sections: dict[int | str, list[str]] = {}
     current: Optional[int] = None
     for line in content.splitlines():
         match = re.match(r"^##\s*Q([1-7])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
@@ -297,10 +398,7 @@ def parse_newgame_answers(path: Path) -> dict[int, str]:
             sections[current].append(line)
 
     answers = {number: "\n".join(lines).strip() for number, lines in sections.items()}
-    missing = [f"Q{number}" for number in range(1, 8) if not answers.get(number)]
-    if missing:
-        die(f"answers.md is missing non-empty sections: {', '.join(missing)}")
-    return answers
+    return normalize_newgame_answers(answers)
 
 
 def normalize_turn_update_heading(heading: str) -> str:
@@ -331,12 +429,58 @@ def parse_turn_update(path: Path) -> dict[str, str]:
     }
 
 
-def answer(answers: dict[int, str], number: int) -> str:
-    return answers[number].strip()
+def answer(answers: dict[int | str, str], number: int | str) -> str:
+    value = answers.get(number, "")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def newgame_forbidden_text(answers: dict[int | str, str]) -> str:
+    return answer(answers, "simple_q4") or answer(answers, 4)
+
+
+def render_newgame_answer_summary(answers: dict[int | str, str]) -> str:
+    return "\n".join(
+        [
+            f"- Q1 ヒロイン像: {answer(answers, 1).replace(chr(10), ' / ')}",
+            f"- Q2 初期関係: {answer(answers, 2).replace(chr(10), ' / ')}",
+            f"- Q3 体験の味: {answer(answers, 3).replace(chr(10), ' / ')}",
+            f"- Q4 NG / 避けたいノリ: {answer(answers, 4).replace(chr(10), ' / ')}",
+            f"- Q5 職業・生活: {answer(answers, 5).replace(chr(10), ' / ')}",
+        ]
+    )
+
+
+def build_character_instruction_from_answers(answers: dict[int | str, str]) -> str:
+    def one(number: int) -> str:
+        return answer(answers, number).strip() or "未回答"
+
+    return f"""LILIA用の初回人格profile素材として、現代日常に接地した女性1人を生成する。
+完成済み攻略キャラではなく、初回sceneで演じられる人物にする。
+
+Q&A:
+- 最初に見える側面: {one(1)}
+- 現在の関係位置: {one(2)}
+- 味: {one(3)}
+- 避けたいこと: {one(4)}
+- 職業・生活: {one(5)}
+
+条件:
+- 名前を生成する
+- 年齢は成人
+- Q5 の職業・生活から、今日の用事、よく触る物、初回sceneで使える具体物を導出する
+- tone examples を3つ出す
+- personality は形容詞ではなく行動で書く
+- reactions と forbidden を出す
+- 重い過去や恋愛成立は確定しない
+- 現代の日常の具体物を入れる
+- 色気や身体距離は、姿勢、視線、手元、服や持ち物、言葉の間で扱う
+- 初回から身体的接触や恋愛成立に直行しない
+- LILIA に主体性、拒否、選ぶ権利を持たせる
+"""
 
 
 def render_applied_header() -> str:
-    return "このファイルは `./lilia apply-newgame` により、Q1-Q7回答から最小反映した初期状態です。"
+    return "このファイルは `./lilia apply-newgame` により、Simple Q1-Q5回答から初期反映した状態です。"
 
 
 def render_document(title: str, intro: str, sections: list[tuple[str, str]]) -> str:
@@ -350,6 +494,10 @@ def render_document(title: str, intro: str, sections: list[tuple[str, str]]) -> 
 
 def render_turn_update_block(timestamp: str, body: str) -> str:
     return f"## Turn Update - {timestamp}\n\n{body.strip()}\n"
+
+
+def render_next_hook_block(timestamp: str, body: str, heading: str) -> str:
+    return f"## {heading} - {timestamp}\n\n{body.strip()}\n"
 
 
 def render_hotset_update(timestamp: str, body: str) -> str:
@@ -448,7 +596,7 @@ def profile_value(
             for label in labels:
                 if line.startswith(f"{label}:"):
                     value = line.split(":", 1)[1].strip()
-                    if value and value not in {"未設定", "未確定", "SOURCE_FALLBACK"}:
+                    if not is_unconfirmed_value(value):
                         return value
     return fallback
 
@@ -457,7 +605,7 @@ def profile_bullets(sections: dict[str, str], section_name: str) -> list[str]:
     result: list[str] = []
     for raw_line in sections.get(section_name, "").splitlines():
         line = profile_clean_line(raw_line)
-        if not line or line in {"未設定", "未確定"}:
+        if is_unconfirmed_value(line):
             continue
         if line.endswith(":"):
             continue
@@ -466,10 +614,15 @@ def profile_bullets(sections: dict[str, str], section_name: str) -> list[str]:
 
 
 def bullet_lines(items: list[str], fallback: str = "未設定") -> str:
-    clean = [item for item in items if item and item != "未設定"]
+    clean = [item for item in items if item and not is_unconfirmed_value(item)]
     if not clean:
         clean = [fallback]
     return "\n".join(f"- {item}" for item in clean)
+
+
+def is_unconfirmed_value(value: str) -> bool:
+    text = value.strip()
+    return not text or text in {"未設定", "未確定", "SOURCE_FALLBACK", UNCONFIRMED} or "LLM CLI で再生成推奨" in text
 
 
 def infer_scene_time(text: str) -> str:
@@ -507,7 +660,7 @@ def infer_scene_exit_beats(text: str, name: str) -> list[str]:
     return deduped[:5]
 
 
-def render_profile_initialized_documents(profile: str, answers: Optional[dict[int, str]] = None) -> dict[str, str]:
+def render_profile_initialized_documents(profile: str, answers: Optional[dict[int | str, str]] = None) -> dict[str, str]:
     answers = answers or {}
     sections = profile_sections(profile)
     name = extract_profile_name(profile) or "LILIA"
@@ -516,25 +669,25 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
         sections,
         ["Initial Scene Anchors", "everyday anchors", "context"],
         ["場所と状況", "生活の場所", "初回scene開始時点の状況"],
-        q(3) or "日常の用事が残る場所",
+        (f"{q(5)}の生活圏。具体的な出会いの場所は {UNCONFIRMED}" if q(5) else UNCONFIRMED),
     )
     objects = profile_value(
         sections,
         ["Initial Scene Anchors", "everyday anchors"],
         ["手元の具体物", "初回sceneで使える具体物", "よく触る物"],
-        q(6) or "手元に残っている小さな持ち物",
+        UNCONFIRMED,
     )
     distance = profile_value(
         sections,
         ["Initial Scene Anchors", "context"],
         ["最初の距離", "ユーザーとの関係位置"],
-        q(5) or "互いをまだ深く知らない距離",
+        q(2) or "互いをまだ深く知らない距離",
     )
     entry = profile_value(
         sections,
         ["Initial Scene Anchors", "context"],
         ["会話の入口", "初回sceneの生活上の用事"],
-        q(6) or "生活上の小さな用事が会話のきっかけになる",
+        (f"{q(5)}の生活上の用事から導出する初回event。具体化は {UNCONFIRMED}" if q(5) else UNCONFIRMED),
     )
     unspoken = profile_bullets(sections, "unspoken")
     contradictions = profile_bullets(sections, "contradictions")
@@ -566,6 +719,11 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
         f"{object_focus}に触れず、扱い方だけを提案する",
         f"{entry_focus}について、急かさず短く聞く",
         f"{name}が自分で決めるまで待つ",
+    ]
+    next_hooks = [
+        f"{name}から、{entry_focus}について短い連絡や相談が来る。",
+        f"{object_focus}が次に会う理由として残る。",
+        "一緒に途中まで歩くか、ここで別れるかの判断が次の距離感に残る。",
     ]
 
     return {
@@ -609,6 +767,7 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
                 ("If Ignored", bullet_lines([f"{name}は自分だけで判断し、{entry_focus}を抱えたまま次の行動へ移る。", pressure])),
                 ("Next Visible Change", bullet_lines(exit_beats[:2])),
                 ("Scene Exit / Next Beat", bullet_lines(exit_beats)),
+                ("Next Hook候補", bullet_lines(next_hooks)),
             ],
         ),
         "story/story_deck.md": render_document(
@@ -620,6 +779,7 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
                 ("関係を揺らす圧", bullet_lines([pressure, friction])),
                 ("未回収札", bullet_lines(unspoken[:3] + contradictions[:2])),
                 ("1-3 scene後に戻る圧", bullet_lines(exit_beats)),
+                ("Next Hook候補", bullet_lines(next_hooks)),
             ],
         ),
         "story/relationship_spine.md": render_document(
@@ -756,9 +916,232 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     }
 
 
-def render_persona_profile_document(answers: dict[int, str], lilia_name: str) -> str:
+def render_persona_profile_document(answers: dict[int | str, str], lilia_name: str) -> str:
+    appearance = answer(answers, 1).replace("\n", " / ") or UNCONFIRMED
+    relationship = answer(answers, 2).replace("\n", " / ") or UNCONFIRMED
+    taste = answer(answers, 3).replace("\n", " / ") or UNCONFIRMED
+    avoid = newgame_forbidden_text(answers).replace("\n", " / ") or UNCONFIRMED
+    occupation = answer(answers, 5).replace("\n", " / ") or UNCONFIRMED
+    u = UNCONFIRMED
+
+    return "\n".join(
+        [
+            "# LILIA Persona Profile",
+            "",
+            "> 注意: この profile は LLM CLI を経由せずに生成された fallback です。",
+            "> 多くの欄が「未確定」になっています。",
+            "> codex または claude CLI が利用可能な環境で `./lilia apply-newgame <session> <answers.md>` を再実行すると、より具体的な profile が生成されます。",
+            "",
+            render_applied_header(),
+            "",
+            "このファイルは、初回からLILIAを安定して演じるための人格正本である。",
+            "ただし、完成済み攻略キャラカードではない。",
+            "関係で育った内容は core / voice / relationship / memory / beliefs へ分解して保存する。",
+            "",
+            "## 基礎情報",
+            f"name: {lilia_name}",
+            "age: 成人",
+            f"occupation: {occupation}",
+            f"role: {u}",
+            f"appearance: {appearance}",
+            "",
+            "## tone",
+            f"rule: {u}",
+            "examples:",
+            f"  - {u}",
+            "",
+            "## personality",
+            f"- 行動で見える性格: {u}",
+            f"- 困った時の出方: {u}",
+            f"- 褒められた時の反応: {u}",
+            f"- 怒った時の反応: {u}",
+            f"- 頼る / 断る / 待つ の傾向: {u}",
+            "",
+            "## values",
+            f"- 何を大事にしているか: {u}",
+            f"- 何は雑に扱わないか: {u}",
+            "",
+            "## everyday anchors",
+            f"- 生活の場所: {u}",
+            f"- 仕事 / 用事 / 習慣: {occupation}",
+            f"- よく触る物: {u}",
+            f"- 初回sceneで使える具体物: {u}",
+            "",
+            "## memories",
+            f"- 初期時点で既にある生活上の記憶: {u}",
+            "- 実際に過去として固定してよいものだけ",
+            "",
+            "## contradictions",
+            f"- 表の態度と内側の矛盾: {u}",
+            f"- 頼りたい / 頼れない: {u}",
+            f"- 近づきたい / 距離を守りたい: {u}",
+            "",
+            "## unspoken",
+            f"- まだ言わないこと: {u}",
+            f"- すぐには開示しない理由: {u}",
+            "",
+            "## reactions",
+            f"能力や異常性に触れた相手には: {u}",
+            f"弱っている相手には: {u}",
+            f"急かされたとき: {u}",
+            f"感謝されたとき: {u}",
+            f"踏み込まれたとき: {u}",
+            f"待ってもらえたとき: {u}",
+            f"助けられすぎたとき: {u}",
+            f"軽く扱われたとき: {u}",
+            "",
+            "## forbidden",
+            f"- {avoid}",
+            "- 初回から恋愛成立、親密成立、攻略トリガーを確定しない",
+            "- 例文由来の語彙を固定人格にしない",
+            "",
+            "## context",
+            f"- 初回scene開始時点の状況: {u}",
+            f"- ユーザーとの関係位置: {relationship}",
+            f"- 体験の味: {taste}",
+            f"- 今日なぜそこにいるか: {u}",
+            f"- 初回sceneの生活上の用事: {u}",
+            "",
+            "## Initial Scene Anchors",
+            f"- 場所と状況: {u}",
+            f"- 手元の具体物: {u}",
+            f"- 最初の距離: {relationship}",
+            f"- 会話の入口: {u}",
+            "",
+            "## fixed memory",
+            "core fixed:",
+            f"  - {u}",
+            "historical fixed:",
+            f"  - {u}",
+            "",
+            "## 5層構造 / Self-Understanding",
+            f"Layer 1（自己物語）: {u}",
+            f"Layer 2（心の核）: {u}",
+            "Layer 3（防壁マップ）:",
+            f"  Say/Do Gap: {u}",
+            f"  逃げ方: {u}",
+            f"  強がり方: {u}",
+            "Layer 4（心の扉マップ）:",
+            "  CHINKトリガー:",
+            f"    - {u}",
+            "  BARRIER強化:",
+            f"    - {u}",
+            "Layer 5（段階的な開き方）:",
+            "  Stage 1: 初回scene。観察と境界線。",
+            "  Stage 2: 小さな約束や待つことが記憶に残る。",
+            "  Stage 3: 摩擦や誤解を処理しても関係が消えない。",
+            "  Stage 4: 明示的な合意と相互性がある時だけ親密さが進む。",
+            "  Stage 5: 深化。呼び方、沈黙、aftercareが記憶に残る。",
+            "",
+            "## voice by relationship stage",
+            "Stage 1:",
+            f"  - {u}",
+            "Stage 2:",
+            f"  - {u}",
+            "Stage 3:",
+            f"  - {u}",
+            "Stage 4:",
+            f"  - {u}",
+            "Stage 5:",
+            f"  - {u}",
+            "",
+            "## 人格設計",
+            "骨:",
+            f"  境遇: {u}",
+            f"  価値観: {u}",
+            f"  欠点: {u}",
+            f"  口調: {u}",
+            "",
+            "壁:",
+            f"  秘密: {u}",
+            f"  開示条件: {u}",
+            f"  拒否トリガー: {u}",
+            "",
+            "育つ部分:",
+            "  性格の発見: 初回sceneと実際の選択で確認する。",
+            "  ユーザーとの関係変化: relationship / memory / beliefsへ保存する。",
+            "  個人ストーリーの種: LLM CLIで再生成するまで固定しない。",
+            "",
+            "## Relationship Progression",
+            "rapport:",
+            "  stage: 初期 / 未確認",
+            f"  note: {relationship}",
+            "",
+            "intimacy:",
+            "  stage: 未確認",
+            "  note: 初回から恋愛成立や親密成立を確定しない。",
+            "",
+            "consent:",
+            "  stage: 未確認",
+            "  note: 初回から合意済みにしない。",
+            "",
+            "boundary:",
+            "  state: 確認する / 待つ",
+            f"  note: {u}",
+            "",
+            "self-understanding:",
+            "  stage: 初期",
+            "  note: 本人もまだ言語化しきっていない部分を残す。",
+            "",
+            "## Multi-Relationship / Jealousy Profile",
+            "status: latent",
+            "",
+            "揺れやすい条件:",
+            f"- {u}",
+            "",
+            "揺れにくい条件:",
+            f"- {u}",
+            "",
+            "表に出る反応:",
+            f"- {u}",
+            "",
+            "禁止:",
+            "- 初期から嫉妬イベントを強制しない",
+            "- 嫉妬を好感度ペナルティとして扱わない",
+            "- 他者との関係をLILIAへの否定として自動処理しない",
+            "",
+            "## Ability / Intimacy Resonance",
+            "status: dormant",
+            "",
+            "能力が導入された場合に見ること:",
+            "- LILIAの体質や感覚がどう反応するか",
+            "- その反応が本人の境界線とどう衝突するか",
+            "- 合意なしに能力で親密さを進めないための制約",
+            "- 能力使用後に memory / relationship / beliefs へ何を残すか",
+            "",
+            "初期sceneでは使わない。",
+            "能力が導入された時だけ有効化する。",
+            "",
+            "## Deepening Tags",
+            "- [ ] 境界線を尊重された",
+            "- [ ] 自分から頼った",
+            "- [ ] 自分から断った",
+            "- [ ] 呼び方が変わった",
+            "- [ ] 沈黙を共有した",
+            "- [ ] 小さな約束が残った",
+            "- [ ] 誤解を修正した",
+            "- [ ] 摩擦を処理した",
+            "- [ ] 秘密の一部を共有した",
+            "- [ ] 親密後のaftercareが残った",
+            "- [ ] 他者との関係について確認した",
+            "- [ ] 離れる自由を確認した",
+            "- [ ] 能力との相互作用を確認した",
+            "",
+            "## Do Not Predefine",
+            "- 完成された恋愛感情",
+            "- ユーザーへの好意",
+            "- 攻略トリガー",
+            "- 親密成立",
+            "- 重い過去を説明で全部出すこと",
+            "- 固定台詞集",
+            "- ハーレム展開の強制",
+            "- 能力反応の即時発火",
+        ]
+    ) + "\n"
+
     q_line = lambda number: answer(answers, number).replace("\n", " / ")
     q = lambda number: bullet_block(answer(answers, number))
+    forbidden_line = newgame_forbidden_text(answers).replace("\n", " / ")
     not_intimate = "  stage: 未確認\n  note: 初回から恋愛成立や親密成立を確定しない。"
 
     return "\n".join(
@@ -791,7 +1174,7 @@ def render_persona_profile_document(answers: dict[int, str], lilia_name: str) ->
             "",
             "## values",
             "- 何を大事にしているか: 未確定。character YAML / GM fallbackで生活や反応から補いすぎず抽出する。",
-            f"- 何は雑に扱わないか: {q_line(7)}",
+            f"- 何は雑に扱わないか: {forbidden_line}",
             "",
             "## everyday anchors",
             f"- 生活の場所: {q_line(3)}",
@@ -824,7 +1207,7 @@ def render_persona_profile_document(answers: dict[int, str], lilia_name: str) ->
             "軽く扱われたとき: 声か距離が硬くなる",
             "",
             "## forbidden",
-            f"- {q_line(7)}",
+            f"- {forbidden_line}",
             "- 初回から恋愛成立、親密成立、攻略トリガーを確定しない",
             "- 例文由来の語彙を固定人格にしない",
             "",
@@ -832,7 +1215,7 @@ def render_persona_profile_document(answers: dict[int, str], lilia_name: str) ->
             f"- 初回scene開始時点の状況: {q_line(3)}",
             f"- ユーザーとの関係位置: {q_line(2)}",
             f"- 今日なぜそこにいるか: {q_line(3)}",
-            f"- 初回sceneの生活上の用事: {q_line(6)}",
+            f"- 初回sceneの生活上の用事: {q_line(7)}",
             "",
             "## fixed memory",
             "core fixed:",
@@ -967,7 +1350,7 @@ def render_persona_profile_document(answers: dict[int, str], lilia_name: str) ->
     ) + "\n"
 
 
-def render_newgame_documents(answers: dict[int, str], session_name: str = "") -> dict[str, str]:
+def render_newgame_documents(answers: dict[int | str, str], session_name: str = "") -> dict[str, str]:
     q = lambda number: bullet_block(answer(answers, number))
     q_line = lambda number: answer(answers, number).replace("\n", " / ")
     not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q4 / Q5由来の境界線を尊重"
@@ -1129,7 +1512,7 @@ def render_newgame_documents(answers: dict[int, str], session_name: str = "") ->
             "すべてのログではなく、次の第一声、距離、沈黙に効く記憶だけを残します。",
             [
                 ("short_term", "- Q&Aが完了し、初回sceneがこれから始まる。"),
-                ("Q&A由来の初期要約", f"- Q1: {q_line(1)}\n- Q2: {q_line(2)}\n- Q3: {q_line(3)}\n- Q4: {q_line(4)}\n- Q5: {q_line(5)}\n- Q6: {q_line(6)}\n- Q7: {q_line(7)}"),
+                ("Q&A由来の初期要約", render_newgame_answer_summary(answers)),
                 ("mid_term", "- 初回scene後に更新する。"),
                 ("long_term", "- 初回scene後、関係に残る節目だけ保存する。"),
                 ("historical_fixed", "- 実際に起きた出来事: Q&A完了\n- 約束 / 拒否 / 保留: 未発生\n- 無かったことにしない節目: Q2の出会い方、Q3の大事なもの、Q4の境界線"),
@@ -1221,6 +1604,7 @@ def render_newgame_documents(answers: dict[int, str], session_name: str = "") ->
         ),
     }
     documents.update(render_profile_initialized_documents(profile, answers))
+    documents.update(render_style_documents(answers))
     return documents
 
 
@@ -1369,7 +1753,7 @@ def build_codex_new_prompt_bundle(session_path: Path) -> str:
         f"session: {session_path.relative_to(ROOT)}\n"
         "mode: codex interactive new\n"
         "instruction: This bundle is for playing LILIA inside Codex interactive mode. "
-        "Ask Q1-Q7, generate character YAML if available or use the GM/AI fallback schema, "
+        "Ask Simple Q1-Q5, then run ./lilia apply-newgame so the launcher generates character YAML when an LLM CLI is available, "
         "convert it into lilia/main/profile.md, read that profile, update the session scaffold, "
         "then write the first scene. Do not stop at first_scene_pending/first_scene_ready unless the user asks to pause. "
         "After the first scene begins, normal play is Play Mode: do not edit story/state files or run git checks after every user turn. "
@@ -1430,7 +1814,7 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
         return (
             f"Read {prompt_path} and follow it for LILIA. "
             "Do not start AI Harness or autoplay. "
-            "Ask Q1-Q7, generate lilia/main/profile.md, then start the first scene. "
+            "Ask Simple Q1-Q5, run ./lilia apply-newgame to generate lilia/main/profile.md, then start the first scene. "
             "Do not stop at first_scene_pending/first_scene_ready. "
             "During normal play after the first scene starts, do not edit story/state files or run git checks after every user turn. "
             "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
@@ -1568,7 +1952,7 @@ def command_new(args: list[str]) -> None:
     elif prompt_only:
         print_new_prompt_bundle(session_path)
     else:
-        print(f"apply answers: ./lilia apply-newgame {session_path.name} answers.md")
+        print(f"apply answers: ./lilia apply-newgame {session_path.name} answers.md --engine auto")
         print(f"next: ./lilia resume {session_path.name} --prompt-only")
         print(f"run:  ./lilia resume {session_path.name} --run --engine auto")
 
@@ -1648,14 +2032,170 @@ def command_prompt_only(args: list[str]) -> None:
         die("prompt-only accepts 'new' or 'resume'")
 
 
+def parse_apply_newgame_options(args: list[str]) -> tuple[list[str], str]:
+    engine = "auto"
+    remaining: list[str] = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--engine":
+            index += 1
+            if index >= len(args):
+                die("--engine requires codex, claude, or auto")
+            engine = args[index]
+            if engine not in {"codex", "claude", "auto"}:
+                die("--engine must be codex, claude, or auto")
+        elif arg.startswith("--engine="):
+            engine = arg.split("=", 1)[1]
+            if engine not in {"codex", "claude", "auto"}:
+                die("--engine must be codex, claude, or auto")
+        else:
+            remaining.append(arg)
+        index += 1
+    return remaining, engine
+
+
+def render_style_documents(answers: dict[int | str, str]) -> dict[str, str]:
+    heroine = answer(answers, 1).replace("\n", " / ") or UNCONFIRMED
+    taste = answer(answers, 3).replace("\n", " / ") or UNCONFIRMED
+    avoid = newgame_forbidden_text(answers).replace("\n", " / ") or UNCONFIRMED
+    occupation = answer(answers, 5).replace("\n", " / ") or UNCONFIRMED
+    return {
+        "style/reference.md": render_document(
+            "Style Reference",
+            "本文コピーではなく、視点距離、描写密度、沈黙、余韻、温度、テンポなどに分解して保存します。",
+            [
+                ("Source Hints", "- 未設定。参照作品名は本文に出さない。"),
+                ("Selected Defaults", "- Q1 / Q3の温度に合わせて必要時だけ選ぶ。"),
+                ("Light Story Reference Pass Output", f"- ヒロイン像: {heroine}\n- 体験の味: {taste}\n- 職業・生活: {occupation}"),
+                ("抽出した表現軸", "- Q1の雰囲気を、固定台詞ではなく視線、沈黙、距離、第一反応へ変換する。"),
+                ("場面温度", bullet_lines([taste])),
+                ("視点距離", "- 近すぎず、LILIAの反応とユーザーの行動余地が見える距離。"),
+                ("描写密度", "- 初回sceneでは短く、触れられるものを具体的に置く。"),
+                ("台詞と沈黙", "- LLM CLI生成profileのtoneを優先する。fallback時は未確定。"),
+                ("余韻", "- Q4は制約として扱い、本文で重い説明に変換しない。"),
+                ("LILIAへの変換", "- Q&Aの語彙を固定設定にせず、LILIAの声、距離、沈黙へ変換する。"),
+                ("Avoid Direct Imitation", "- 参照本文、台詞、人物配置、固有文体は使わない"),
+            ],
+        ),
+        "style/rules.md": render_document(
+            "Style Rules",
+            "通常resume 1ターン目の必読ではなく、文体調整が必要な時だけ参照します。",
+            [
+                ("基本ルール", "- LILIAの内面は、説明ではなく声、沈黙、手元、視線、距離に出す\n- ユーザーの内面を断定しない\n- 場所、距離、触れられるものを短く置く\n- 同じ感情表現を繰り返さない\n- 例文や参照作品の語彙を本文へ流用しない\n- 官能・親密場面では、成人・合意・相互性・境界線を守りつつ、清潔すぎて無害なだけの文体に逃げない"),
+                ("感覚チャンネル", "- 視覚: profile.md の appearance / everyday anchors を使う\n- 聴覚: profile.md の tone を使う\n- 触覚: 初回では必要時だけ\n- 嗅覚: 必要時だけ\n- 体感: 初期関係と境界線に合わせる\n- 時間感覚: 初回scene前"),
+                ("LILIA固有の反応の出方", "- LLM CLI生成profileのpersonality / reactionsを優先する。fallback時は未確定。"),
+                ("Intimacy / Boundary", "- 成人: 成人\n- 合意: 未確認\n- 相互性: 未確認\n- 関係段階: 初回scene前\n- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: 確認する / 待つ\n- 止まれる余地: 維持する\n- aftercare: 未発生\n- 官能を薄めすぎないための表現軸: 条件が揃った時だけ扱う"),
+                ("禁止表現・避けたい癖", f"- {avoid}\n- Q&Aの語彙をそのまま固定台詞化しない\n- 初回から恋愛成立済みにしない"),
+                ("次に調整する点", "- 初回scene後、声、距離、沈黙、第一反応がprofileから自然につながっているか確認する。"),
+            ],
+        ),
+    }
+
+
+def dump_character_yaml(data: dict) -> str:
+    try:
+        import yaml
+
+        return yaml.safe_dump(data, allow_unicode=True, sort_keys=False)
+    except ModuleNotFoundError:
+        def scalar(value: object) -> str:
+            if value is None:
+                return ""
+            text = str(value).replace('"', '\\"')
+            return f'"{text}"'
+
+        lines: list[str] = []
+        for key in ["name", "age", "occupation"]:
+            if key in data and data[key] is not None:
+                lines.append(f"{key}: {scalar(data[key])}")
+        appearance = data.get("appearance")
+        if isinstance(appearance, dict):
+            lines.append("appearance:")
+            for key in ["hair_style", "hair_color", "notes"]:
+                lines.append(f"  {key}: {scalar(appearance.get(key))}")
+        tone = data.get("tone")
+        if isinstance(tone, dict):
+            lines.append("tone:")
+            lines.append(f"  rule: {scalar(tone.get('rule'))}")
+            lines.append("  examples:")
+            examples = tone.get("examples") if isinstance(tone.get("examples"), list) else []
+            for example in examples:
+                if isinstance(example, dict):
+                    lines.append(f"    - user: {scalar(example.get('user'))}")
+                    lines.append(f"      char: {scalar(example.get('char'))}")
+        personality = data.get("personality")
+        if isinstance(personality, list):
+            lines.append("personality:")
+            for item in personality:
+                lines.append(f"  - {scalar(item)}")
+        reactions = data.get("reactions")
+        if isinstance(reactions, dict):
+            lines.append("reactions:")
+            for key, value in reactions.items():
+                lines.append(f"  {key}: {scalar(value)}")
+        forbidden = data.get("forbidden")
+        if isinstance(forbidden, list):
+            lines.append("forbidden:")
+            for item in forbidden:
+                lines.append(f"  - {scalar(item)}")
+        context = data.get("context")
+        if isinstance(context, dict):
+            lines.append("context:")
+            for key in ["backstory", "current_situation"]:
+                lines.append(f"  {key}: {scalar(context.get(key))}")
+        return "\n".join(lines) + "\n"
+
+
+def render_documents_from_character_yaml(character: object, answers: dict[int | str, str]) -> dict[str, str]:
+    try:
+        from scripts.lilia_character_to_profile import render_profile
+    except Exception as exc:  # pragma: no cover - depends on local environment
+        raise RuntimeError(f"failed to import character profile converter: {exc}") from exc
+
+    if not hasattr(character, "model_dump"):
+        raise TypeError("character object must provide model_dump()")
+    character_data = character.model_dump(exclude_none=True)
+    profile = render_profile(character, answers)
+    profile_name = clean_lilia_name(str(character_data.get("name") or "")) or extract_profile_name(profile)
+    if profile_name:
+        profile = replace_profile_name(profile, profile_name)
+    documents = {
+        "lilia/main/character.yaml": dump_character_yaml(character_data),
+        "lilia/main/profile.md": profile,
+    }
+    documents.update(render_profile_initialized_documents(profile, answers))
+    documents.update(render_style_documents(answers))
+    return documents
+
+
+def generate_character_documents(
+    answers: dict[int | str, str],
+    requested_engine: str,
+) -> tuple[dict[str, str], Optional[str], str]:
+    engine = choose_engine(requested_engine)
+    if engine is None:
+        return render_newgame_documents(answers), None, f"{requested_engine} engine unavailable"
+
+    instruction = build_character_instruction_from_answers(answers)
+    try:
+        from tools.character.core.master import generate_character
+
+        character = generate_character(instruction, engine=engine)
+        return render_documents_from_character_yaml(character, answers), engine, f"generated via {engine}"
+    except Exception as exc:
+        return render_newgame_documents(answers), None, f"{engine} CLI failed: {exc}"
+
+
 def command_apply_newgame(args: list[str]) -> None:
+    args, requested_engine = parse_apply_newgame_options(args)
     if len(args) != 2:
-        die("apply-newgame requires <session_name> <answers.md>")
+        die("apply-newgame requires <session_name> <answers.md> [--engine codex|claude|auto]")
 
     session_path = resolve_session(args[0])
     answers_path = Path(args[1]).expanduser()
     answers = parse_newgame_answers(answers_path)
-    documents = render_newgame_documents(answers, session_path.name)
+    documents, selected_engine, generation_status = generate_character_documents(answers, requested_engine)
     profile_name = extract_profile_name(documents["lilia/main/profile.md"])
     if not profile_name:
         profile_name = generated_lilia_name(answers, session_path.name)
@@ -1679,8 +2219,18 @@ def command_apply_newgame(args: list[str]) -> None:
     ensure_autosave(data)
     write_session_json(session_path, data)
 
-    print(f"applied: {answers_path}")
     print(f"session: {session_path.relative_to(ROOT)}")
+    if selected_engine:
+        engine_note = "auto-selected" if requested_engine == "auto" else "requested"
+        print(f"engine: {selected_engine} ({engine_note})")
+        print(f"character.yaml: {generation_status}")
+        print("profile.md: generated from character.yaml")
+    else:
+        print(f"engine: {requested_engine} (fallback)")
+        print(f"character.yaml: {generation_status}, using fallback")
+        print("profile.md: generated by fallback (many unconfirmed fields)")
+        print("warning: profile.md has many unconfirmed fields. Re-run with a working LLM CLI for higher quality.")
+    print(f"applied: {answers_path}")
     print("phase: first_scene_ready")
     print("updated:")
     print("  session.json")
@@ -1700,20 +2250,34 @@ def command_apply_turn(args: list[str]) -> None:
 
     timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     updated: list[str] = []
+
+    def mark_updated(rel_path: str) -> None:
+        if rel_path not in updated:
+            updated.append(rel_path)
+
     for key, body in sections.items():
+        if key == "next_hook":
+            event_card_path = "current/event_card.md"
+            story_deck_path = "story/story_deck.md"
+            append_session_file(session_path, event_card_path, render_next_hook_block(timestamp, body, "Next Hook"))
+            append_session_file(session_path, story_deck_path, render_next_hook_block(timestamp, body, "Candidate Next Hook"))
+            mark_updated(event_card_path)
+            mark_updated(story_deck_path)
+            continue
+
         rel_path = TURN_UPDATE_TARGETS[key]
         if key == "hotset":
             write_session_file(session_path, rel_path, render_hotset_update(timestamp, body))
         else:
             append_session_file(session_path, rel_path, render_turn_update_block(timestamp, body))
-        updated.append(rel_path)
+        mark_updated(rel_path)
 
     data = read_session_json(session_path)
     autosave = ensure_autosave(data)
     autosave["turns_since_save"] = 0
     autosave["autosave_required"] = False
     write_session_json(session_path, data)
-    updated.append("session.json")
+    mark_updated("session.json")
 
     print(f"applied: {update_path}")
     print(f"session: {session_path.relative_to(ROOT)}")

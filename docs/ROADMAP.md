@@ -25,15 +25,15 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Relationship / Character Voice Continuity Gate: 設計仕様完了 / 実生成コード未実装
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
-- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / autosave counter導入済み / scene-tick MVP実装済み
+- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み / scene-tick MVP実装済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / profile由来のcurrent/story/lilia main初期生成コード接続済み / 実プレイ検証待ち
 - Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 - Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
 - Full Loop Manual Smoke: checklist追加済み
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
-- Newgame Q&A v1.1: 初回scene品質改善のため調整済み / 質問文具体化完了
-- LILIA Persona Profile: character YAML素材生成と `lilia/main/profile.md` 変換導線を追加済み
+- Newgame Q&A Simple Q1-Q5: ヒロイン像 / 初期関係 / 体験の味 / NG / 職業・生活へ簡略化済み。場所、保留、境界線、初回eventはGM / Story側で裏生成する
+- LILIA Persona Profile: character YAML 素材生成と profile.md 変換導線を追加済み。apply-newgame が LLM CLI(codex / claude)経由を default にし、fallback は最小経路へ簡素化。Q&A は Q1-Q5(Q5 は職業・生活)。First Scene Quality Gate に2項目追加済み。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -81,9 +81,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - profileの Initial Scene Anchors / context / unspoken / everyday anchors は、初回scene前に `current/scene.md`、`current/event_card.md`、`story/story_deck.md`、`story/relationship_spine.md`、`current/hotset.md`、`lilia/main/*` へ分解して初期反映する。
 - Multi-Relationship / Jealousy Profile は latent、Ability / Intimacy Resonance は dormant として持つ。
    - AFFINITY、bond、好感度、攻略ルート、ハーレム前提は採用しない。
-   - `scripts/lilia_generate_character_yaml.py` はstandalone wrapperとしてClaude CLIを実際に呼び、character YAMLを生成できる。
-   - `./lilia` launcherは外部character YAML生成を自動実行しない。Claude CLIがない場合や自動生成を使わない場合は、GM/AIが同schemaのfallbackを作る。
-   - Status: 実装済み / profile-to-current初期反映追加済み / prompt-only smoke完了
+   - 2026-05-02: `./lilia apply-newgame` を改造し、LLM CLI(codex / claude)経由の character YAML 生成を default 経路にした。
+   - `--engine codex|claude|auto` フラグで engine を選択可能(default auto)。`tools/character/core/master.py` の `generate_characters` も engine 引数対応。
+   - `scripts/lilia_generate_character_yaml.py` も `--engine` 対応。
+   - fallback は LLM CLI 不在時のみ実行される最小経路に簡素化。Q&A は Q1-Q5 に拡張(Q5 は職業・生活)。
+   - First Scene Quality Gate に「LILIA側からの重い開示禁止」「ユーザー側の存在理由」を追加。
+   - Status: 実装済み / profile-to-current初期反映追加済み / LLM CLI default経路追加済み / prompt-only smoke完了
 
 3. Case / Event Card Playability Gate
    - 旧LIRIAの Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate を、LILIAの `current/event_card.md` 向けに再設計する。
@@ -127,12 +130,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 関係が変わった出来事は `archive/beats/` に節目として保存する。
    - `docs/GROWTH_UPDATE_LOOP.md` を正本として、更新タイミング、各ファイルの保存責務、親密scene後/event_card後/archive/beatsの扱い、failure条件を固定した。
    - `templates/session/current/event_card.md` と `templates/session/story/story_deck.md` を、event_cardの進行状態と背景化した未回収札を扱える最小形へ補強した。
-   - `./lilia apply-turn <session> <turn_update.md>` をSave Mode用MVPとして追加済み。`scene` / `relationship_overview` もturn_update経由で反映できる。
+   - `./lilia apply-turn <session> <turn_update.md>` をSave Mode用MVPとして追加済み。`scene` / `relationship_overview` / `next_hook` もturn_update経由で反映できる。
    - 通常プレイ中は自動保存せず、ユーザーの明示saveやscene区切りでSave Modeに入った時だけ使う。
    - autosave counterは `session.json` に持ち、`./lilia scene-tick <session>` で通常プレイ1ターンごとに進める。
    - `scene-tick` は10ターン到達時に `autosave_required: true` にするが、自動保存や `apply-turn` 実行はしない。
    - 次タスクは、実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証。
-   - Status: apply-turn MVP実装済み / scene-tick MVP実装済み / 自動保存は未実装
+   - Status: apply-turn MVP実装済み / next_hook導線追加済み / scene-tick MVP実装済み / 自動保存は未実装
 
 8. Story / Relationship Accumulation Loop
    - イベントを点、ストーリーを線として扱い、出来事がLILIAの記憶、関係、beliefs、voiceへ残ることで物語が進む形にする。
@@ -207,7 +210,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は、実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証。
+次の実作業は、実プレイで10ターン到達時の保存提案UXを確認すること、`apply-turn` の実プレイ検証、または改造した `./lilia apply-newgame` で新しいセッションを作って実プレイ検証すること。
 
 MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を1周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
 minor follow-upとして `templates/session/session.json` の `source_prompt_versions` 補正も完了している。
@@ -215,9 +218,10 @@ minor follow-upとして `templates/session/session.json` の `source_prompt_ver
 `./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線を実装済みである。
 最小運用確認では、最新session表示とprompt-only案内を小修正済みである。
 `--run` と `--engine codex|claude|auto` によりAI CLI接続も追加済みである。
-Newgame Q&A v1.1では、初回sceneが「困っているLILIAを優しく助ける」だけの一本道にならないよう、表へ出る側面、関係位置、生活の足場、今日の保留、許されている距離、小さな出来事、避けたいことを聞く形へ調整済みである。各Qは「この質問で決めること」「選択肢風の例」「答え方例」を持つ具体文へ調整済みで、例は固定選択肢ではなく抽象軸として扱う。
+Newgame Q&A は Simple Q1-Q5 で、ヒロイン像、初期関係、体験の味、NG、職業・生活だけを聞く。場所、今日の保留、境界線、初回eventはGM / Story側で裏生成する。
 Persona Profile導線では、first scene前に `lilia/main/profile.md` を作り、profileの具体物、職能、生活、反応、矛盾、禁忌を使って初回sceneを書く。
-次は、scene中のテンポを壊さずに `scene-tick` が10ターン到達を知らせられるか、実プレイで確認する。
+次は、scene中のテンポを壊さずに `scene-tick` が10ターン到達を知らせられるか、改造した `./lilia apply-newgame` で profile.md が LLM CLI 経由で具体化されているか、first scene の蓋然性が play_003 より上がっているかを実プレイで確認する。
+engine ごとの生成品質の差(codex vs claude)も確認する。
 AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
 
 ## 6. Update Rules

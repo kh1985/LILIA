@@ -32,9 +32,24 @@ LILIAでは、inner-galge の `cast/heroine/*.md` を復活させない。
 
 character YAMLは素材であり、LILIAの最終正本ではない。
 YAMLから `lilia/main/profile.md` を生成し、first scene前に読む。
-`scripts/lilia_generate_character_yaml.py` はstandalone wrapperとしてClaude CLIを実際に呼べる。
-ただし `./lilia` launcherは外部character YAML生成を自動実行しない。
-自動生成を使わない場合は、GM/AIが同じschemaでYAML相当を作る。
+`./lilia apply-newgame` は LLM CLI(codex または claude)が利用可能な場合、内部で character YAML を生成して `profile.md` へ変換する default 経路を持つ。
+`--engine codex|claude|auto` フラグで engine を選べる(default は auto: codex 優先、claude fallback)。
+LLM CLI が無い、または生成失敗時は、未確定欄を明示する最小fallbackで `profile.md` を作る。
+`scripts/lilia_generate_character_yaml.py` は同じ engine フラグに対応した standalone wrapper として手動実行もできる。
+
+## Character YAML 生成の経路
+
+`./lilia apply-newgame` が character YAML 生成と profile.md 変換を一括で行う。
+内部経路:
+
+1. `tools/character/core/master.py` の `generate_characters(instruction, engine)` を呼ぶ。
+2. engine は `--engine codex|claude|auto` で指定。default は auto(codex 優先、claude fallback)。
+3. 返ってきた YAML を `CharacterSheet` schema でバリデーションする。
+4. `scripts/lilia_character_to_profile.py` の変換ロジックで profile.md を作る。
+5. profile.md の Initial Scene Anchors から current/* と story/* を初期化する。
+
+LLM CLI が無い・失敗した時は fallback に落ち、profile.md は未確定欄が多くなる。
+fallback は LLM CLI 不在環境での最小動作保証であり、本番運用では LLM CLI 経由を前提とする。
 
 ## 4. File Responsibility
 

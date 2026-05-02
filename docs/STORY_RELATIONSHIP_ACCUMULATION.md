@@ -63,6 +63,10 @@ LILIAの人格が自然に反応する状況を置く。
 5. 何が残ったかを保存する。
 6. 次の第一声、距離、event_cardが変わる。
 
+scene終了や章区切りでSave Modeに入る時は、必要に応じて `next_hook` を残す。
+next_hookはfull plotではなく、未回収札、約束、通知、相談、持ち物、仕事相談や便利屋依頼などから、次にユーザーが自然に返せる入口を1つ作るための短い橋である。
+`apply-turn` では `current/event_card.md` に `Next Hook`、`story/story_deck.md` に `Candidate Next Hook` として保存する。
+
 イベントの都合でLILIAを急に別人格にしない。
 LILIAの反応が何も変わらないなら、その出来事はLILIAのストーリーでは弱い。
 

@@ -124,6 +124,13 @@ eventが現在sceneから下がる場合は、必要に応じて `story/story_de
 変化は、LILIAの第一反応、呼び方、返信速度、沈黙、距離、話題の避け方、保存されなかった言葉などに出す。
 呼び方や声の変化を置く場合は、`docs/VOICE_CONTINUITY.md` に従い、前回までの `voice`、`relationship`、`memory`、`beliefs` と矛盾させない。
 
+### Next Hook
+
+scene終了や章区切りのSave Modeでは、必要に応じて `Next Hook` を残す。
+これは次のevent_card候補を立て直すための入口であり、選択肢UIではない。
+`apply-turn` の `## next_hook` は `current/event_card.md` に `Next Hook` として追記され、同じ内容が `story/story_deck.md` に `Candidate Next Hook` として残る。
+Scene Exit / Next Beat、次に会う口実、LILIAからの相談、未回収札、仕事相談や便利屋依頼、通知、約束、言い残し、持ち物など、現在sceneから自然に戻る小さな圧に接続する。
+
 ## 6. Truth Hiding Boundary
 
 真相、裏事情、LILIAの本音のすべてをevent_cardで明かさない。
