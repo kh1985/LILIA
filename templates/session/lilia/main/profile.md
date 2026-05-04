@@ -6,6 +6,23 @@
 
 ## 基礎情報
 
+name:
+age:
+occupation:
+role:
+appearance:
+body:
+outfit:
+
+## appearance
+
+hair_style:
+hair_color:
+eye_color:
+body:
+outfit:
+notes:
+
 ## tone
 
 ## personality

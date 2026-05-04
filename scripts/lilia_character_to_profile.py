@@ -396,7 +396,10 @@ def parse_answers(path: Path | None) -> dict[int | str, str]:
     try:
         launcher = load_lilia_launcher()
         normalizer = getattr(launcher, "normalize_newgame_answers", None)
-        if callable(normalizer) and all(answers.get(number) for number in range(1, 9)):
+        if callable(normalizer) and (
+            all(answers.get(number) for number in range(1, 7))
+            or all(answers.get(number) for number in range(1, 9))
+        ):
             return normalizer(answers)
     except Exception:
         pass
@@ -443,6 +446,65 @@ def source_text(text: str | None, fallback: str = "") -> str:
 
 def source_answer(answers: dict[int | str, str], key: int | str, fallback: str = "") -> str:
     return source_text(answers.get(key, ""), fallback)
+
+
+def is_wave10_answers(answers: dict[int | str, str]) -> bool:
+    return str(answers.get("format") or "") == "wave10_q1_q6" or not any(
+        str(answers.get(number, "")).strip() for number in (7, 8)
+    )
+
+
+def qa_basic(answers: dict[int | str, str]) -> str:
+    return source_answer(answers, 1)
+
+
+def qa_visual(answers: dict[int | str, str]) -> str:
+    return source_answer(answers, 2 if is_wave10_answers(answers) else 3)
+
+
+def qa_freeform(answers: dict[int | str, str]) -> str:
+    return source_answer(answers, 3 if is_wave10_answers(answers) else 5)
+
+
+def qa_encounter(answers: dict[int | str, str]) -> str:
+    return source_answer(answers, 4 if is_wave10_answers(answers) else 2)
+
+
+def qa_constraints(answers: dict[int | str, str]) -> str:
+    if not is_wave10_answers(answers):
+        return source_answer(answers, 8)
+    freeform = qa_freeform(answers)
+    if not freeform:
+        return ""
+    parts = []
+    for part in re.split(r"[。/／\n;；]+", freeform):
+        clean = source_text(part)
+        if clean and any(word in clean for word in ["避け", "苦手", "NG", "禁止", "出さない", "控え"]):
+            parts.append(clean)
+    return " / ".join(parts)
+
+
+def visual_answer_components(value: str) -> dict[str, str]:
+    parts = [part.strip() for part in re.split(r"[、,/／。]+", (value or "").replace("\n", " / ")) if part.strip()]
+    result = {"hair_style": "", "hair_color": "", "eye_color": "", "body": "", "outfit": "", "notes": ""}
+    notes: list[str] = []
+    for part in parts:
+        if is_non_specific_literal(part):
+            continue
+        if any(word in part for word in ["髪", "ボブ", "ロング", "ショート", "ウェーブ"]):
+            if any(color in part for color in ["黒", "茶", "栗", "金", "銀", "白", "赤", "青", "緑", "灰"]):
+                result["hair_color"] = result["hair_color"] or part
+            result["hair_style"] = result["hair_style"] or part
+        elif any(word in part for word in ["目", "眼", "瞳"]):
+            result["eye_color"] = result["eye_color"] or part
+        elif any(word in part for word in ["細身", "小柄", "長身", "巨乳", "体型", "中肉", "がっしり", "曲線"]):
+            result["body"] = result["body"] or part
+        elif any(word in part for word in ["服", "シャツ", "スカート", "ニット", "パーカー", "ジャケット", "コート", "靴", "外套"]):
+            result["outfit"] = result["outfit"] or part
+        else:
+            notes.append(part)
+    result["notes"] = " / ".join(notes) or source_text(value)
+    return result
 
 
 def first_sentence(text: str | None) -> str:
@@ -763,11 +825,13 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     role = source_text(char.occupation, SOURCE_FALLBACK)
     backstory = source_text(char.context.backstory, "深い過去はまだ固定しない")
     current = source_text(char.context.current_situation, "日常の小さな用事の途中にいる")
-    q1 = source_answer(answers, 1, "落ち着いて見えるが、返答の間や持ち物に乱れが出る")
-    q2 = source_answer(answers, 2, "互いをまだ深く知らない距離")
-    q4 = source_answer(answers, 4, "恋愛成立や重い事件を急がない")
-    q5_life = source_answer(answers, 5, role)
-    q8 = source_answer(answers, 8, "")
+    q1 = qa_basic(answers) or "落ち着いて見えるが、返答の間や持ち物に乱れが出る"
+    q2_visual = qa_visual(answers)
+    visual_fields = visual_answer_components(q2_visual)
+    q4_encounter = qa_encounter(answers) or "互いをまだ深く知らない距離"
+    q3_freeform = qa_freeform(answers) or "恋愛成立や重い事件を急がない"
+    q5_life = role
+    q8 = qa_constraints(answers)
 
     personality = source_personality(char)
     first_personality = personality[0] if personality else "話しかけられれば返すが、自分から急に距離を詰めない"
@@ -787,6 +851,8 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     contradictions = infer_contradictions(char)
     unspoken = infer_unspoken(char)
     descriptive_constraint_1, descriptive_constraint_2 = infer_descriptive_constraints(char)
+    if q2_visual and not is_non_specific_literal(q2_visual):
+        descriptive_constraint_1 = visual_fields.get("notes") or q2_visual
     layer_one = infer_layer_one(char)
     layer_two = infer_layer_two(values)
     flaw = infer_person_design_flaw(char)
@@ -798,7 +864,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
             "初期から恋愛成立や親密成立を確定しない",
         ]
     )
-    gap_back = contradictions[0] if contradictions else (unspoken[0] if unspoken else q4)
+    gap_back = contradictions[0] if contradictions else (unspoken[0] if unspoken else q3_freeform)
     say_do_gap = f"{first_personality} / {gap_back}"
 
     sections = [
@@ -815,7 +881,21 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
                 ("age", age),
                 ("occupation", role if role != SOURCE_FALLBACK else q5_life),
                 ("role", role),
-                ("appearance", appearance_text(char)),
+                ("appearance", q2_visual or appearance_text(char)),
+                ("body", visual_fields.get("body") or SOURCE_FALLBACK),
+                ("outfit", visual_fields.get("outfit") or SOURCE_FALLBACK),
+            ]
+        ),
+        "",
+        "## appearance",
+        kv_block(
+            [
+                ("hair_style", visual_fields.get("hair_style") or source_text(char.appearance.hair_style, SOURCE_FALLBACK)),
+                ("hair_color", visual_fields.get("hair_color") or source_text(char.appearance.hair_color, SOURCE_FALLBACK)),
+                ("eye_color", visual_fields.get("eye_color") or SOURCE_FALLBACK),
+                ("body", visual_fields.get("body") or SOURCE_FALLBACK),
+                ("outfit", visual_fields.get("outfit") or SOURCE_FALLBACK),
+                ("notes", visual_fields.get("notes") or source_text(char.appearance.notes, SOURCE_FALLBACK)),
             ]
         ),
         "",
@@ -882,7 +962,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "- 実プレイで成立した事実は scene.md / hotset / knowledge_state へ書く",
         "",
         f"- 初回scene開始時点の状況: {current}",
-        f"- ユーザーとの関係位置: {q2}",
+        f"- ユーザーとの関係位置: {q4_encounter}",
         f"- 今日なぜそこにいるか: {infer_presence_reason(char)}",
         f"- 初回sceneの生活上の用事: {small_event}",
         "",
@@ -901,7 +981,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "## Initial Scene Anchors",
         f"- 場所と状況: {current}",
         f"- 手元の具体物: {anchors['scene_objects']}",
-        f"- 最初の距離: {q2}",
+        f"- 最初の距離: {q4_encounter}",
         f"- 会話の入口: {small_event}",
         "- 正本: この欄は初回scene用の一時アンカーであり、current/scene.md と current/hotset.md が現在形の正本になる。",
         "",
@@ -965,7 +1045,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "## Relationship Progression",
         "rapport:",
         "  stage: 初期 / 未確認",
-        f"  note: {q2}",
+        f"  note: {q4_encounter}",
         "",
         "intimacy:",
         "  stage: 未確認",
