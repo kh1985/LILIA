@@ -24,7 +24,13 @@
 
 ## forbidden
 
-## context
+## context [GM-internal pre-play assumption]
+
+⚠️ このセクションは **GM の事前想定**である。
+- プレイ中はプレイヤーの入力で塗り替わる
+- 主人公側の事実（持ち物、状況、行動）を**確定として扱わない**
+- knowledge_state.md の fictional_status を優先して判断する
+- 実プレイで成立した事実は scene.md / hotset / knowledge_state へ書く
 
 ## 描写の縛り
 

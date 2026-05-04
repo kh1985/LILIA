@@ -56,6 +56,25 @@ opening_scene.md（初対面）ほど気合いを入れない。
 `current/story_spine.md` の Drift Guard が増えていれば、それも徐々に織り込む。
 新規追加された手がかりは、初出の場面で印象的に出す。
 
+### Knowledge Boundary（Wave 8 追加）
+
+毎回の登場描写でも knowledge_state.md を参照する。
+knowledge_state.md がない既存セッションでは、この確認をスキップする。
+
+#### 観察可能な情報の使用
+
+- ヒロインの observable 状態の項目（服装、髪型など）は自由に使える
+- ただし、**主人公**が直接観察できない情報を主人公視点で書かない
+
+#### 共有された情報の使用
+
+- shared 状態の項目は自由に参照できる
+- 「直前 scene で共有された」という事実を踏まえる（echo と連動）
+
+#### 状態昇格の意識
+
+scene 進行中に新しい情報が開示されたら、Save Mode で knowledge_state を昇格させる。
+
 ## 3. 文体ルール
 
 ### 構造目安（3〜7文）

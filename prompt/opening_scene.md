@@ -10,6 +10,7 @@ newgame の最後、最初の scene を出力する時に従う。
 - `current/story_spine.md`（Drift Guard、Background Truth）
 - `story/relationship_spine.md`（関係の起点）
 - `current/protagonist.md`（主人公の身体・呼称。存在しない既存セッションではスキップ）
+- `current/knowledge_state.md`（情報の使用可否。存在しない既存セッションではスキップ）
 
 ## 最初の場面の唯一の責務
 
@@ -50,6 +51,32 @@ newgame の最後、最初の scene を出力する時に従う。
 
 これらは本文に直接書く必要はないが、整合性を取る。
 `current/protagonist.md` が無い既存セッションでは、この確認をスキップする。
+
+### Knowledge Boundary（Wave 8 追加）
+
+opening_scene では knowledge_state.md を必ず参照する。
+knowledge_state.md がない既存セッションでは、この確認をスキップする。
+
+#### 初対面の使用可否
+
+- meta 状態の項目（呼ばれ方、職業など）は **使わない**
+- observable 状態の項目（身体、服装など）は **使ってよい**
+- gm_only は本文に出さない（Ghost の予感としてのみ）
+
+#### 開示装置の選択
+
+meta 状態の情報を初対面で開示する場合、自然な装置を経由させる:
+- 自己紹介（最も基本）
+- 伝票、名札、予約名簿
+- 共通の知人経由
+- ただし、**プレイヤーが事前に確定していない情報**を装置で勝手に開示しない（authorship 境界）
+
+#### 例
+
+- ❌ NG: ヒロインが初対面で「かねこさん」と呼ぶ（meta 状態の呼称を使った）
+- ✅ OK: ヒロインが「天野澪です」と先に名乗る（自己紹介で heroine_name が shared に昇格）
+- ✅ OK: 主人公が「かねこと申します」と名乗ったあと、ヒロインが「かねこさん」と呼ぶ
+- ⚠️ 慎重: 伝票で名前を知る装置 — 伝票の存在自体を GM が確定すべきか、プレイヤー入力を待つか判断
 
 ### Part 3: 引力（1〜3文）
 

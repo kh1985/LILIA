@@ -40,6 +40,7 @@ RESUME_SESSION_FILES = [
     "current/decision_index.md",
     "current/protagonist.md",
     "current/story_spine.md",
+    "current/knowledge_state.md",
     "lilia/main/core.md",
     "lilia/main/voice.md",
     "lilia/main/state.md",
@@ -86,6 +87,7 @@ TURN_UPDATE_TARGETS = {
     "story_deck": "story/story_deck.md",
     "relationship_spine": "story/relationship_spine.md",
     "story_spine": "current/story_spine.md",
+    "knowledge_state": "current/knowledge_state.md",
     "hotset": "current/hotset.md",
 }
 
@@ -97,7 +99,7 @@ def usage() -> None:
 Usage:
   ./lilia new [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia apply-newgame <session_name> <answers.md> [--engine codex|claude|auto]
-  ./lilia apply-turn <session_name> <turn_update.md>
+  ./lilia apply-turn [--dry-run] <session_name> <turn_update.md>
   ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia codex-new [session_name]
@@ -440,6 +442,207 @@ def parse_turn_update(path: Path) -> dict[str, str]:
     }
 
 
+def parse_bracket_list(value: str) -> list[str]:
+    clean = value.strip()
+    if clean.startswith("[") and clean.endswith("]"):
+        clean = clean[1:-1]
+    clean = clean.replace("、", ",").replace("，", ",")
+    return [item.strip().strip("'\"") for item in clean.split(",") if item.strip()]
+
+
+def normalize_knowledge_field(label: str) -> str:
+    key = label.strip().lower().replace(" ", "_").replace("-", "_")
+    mapping = {
+        "開示経路": "notes",
+        "知った主体": "known_to",
+        "知っている主体": "known_to",
+        "主体": "known_to",
+        "source": "source",
+        "value": "value",
+        "fictional_status": "fictional_status",
+        "status": "fictional_status",
+        "known_to": "known_to",
+        "known": "known_to",
+        "acquired_at": "acquired_at",
+        "weight": "weight",
+        "notes": "notes",
+        "note": "notes",
+    }
+    return mapping.get(label.strip(), mapping.get(key, key))
+
+
+def parse_knowledge_update(body: str) -> list[dict[str, object]]:
+    updates: list[dict[str, object]] = []
+    current_mode = ""
+    current: Optional[dict[str, object]] = None
+    for raw_line in body.splitlines():
+        line = raw_line.rstrip()
+        heading = re.match(r"^###\s+(.+?)\s*$", line)
+        if heading:
+            current_mode = heading.group(1).strip()
+            current = None
+            continue
+
+        bullet = re.match(r"^-\s+([A-Za-z0-9_.-]+)(?::\s*(.+))?\s*$", line)
+        if bullet:
+            key = bullet.group(1).strip()
+            rest = (bullet.group(2) or "").strip()
+            mode = "promotion" if "→" in rest or "->" in rest else "new"
+            if "昇格" in current_mode:
+                mode = "promotion"
+            elif "新規" in current_mode:
+                mode = "new"
+            current = {"mode": mode, "key": key, "fields": {}}
+            if rest:
+                match = re.search(r"(?:→|->)\s*([A-Za-z_-]+)", rest)
+                if match:
+                    current["new_status"] = match.group(1)
+            updates.append(current)
+            continue
+
+        field_match = re.match(r"^\s+-\s*([^:：]+)[:：]\s*(.+?)\s*$", line)
+        if field_match and current is not None:
+            field = normalize_knowledge_field(field_match.group(1))
+            value = field_match.group(2).strip()
+            fields = current.setdefault("fields", {})
+            if isinstance(fields, dict):
+                fields[field] = value
+
+    return updates
+
+
+def find_knowledge_item_span(lines: list[str], key: str) -> tuple[int, int] | None:
+    key_re = re.compile(rf"^(\s*)-\s+key:\s*{re.escape(key)}\s*$")
+    for index, line in enumerate(lines):
+        match = key_re.match(line)
+        if not match:
+            continue
+        indent = match.group(1)
+        end = len(lines)
+        next_item_re = re.compile(rf"^{re.escape(indent)}-\s+key:\s+")
+        for cursor in range(index + 1, len(lines)):
+            if next_item_re.match(lines[cursor]):
+                end = cursor
+                break
+            if lines[cursor].strip() == "```":
+                end = cursor
+                break
+        return index, end
+    return None
+
+
+def set_knowledge_item_field(lines: list[str], start: int, end: int, field: str, value: str) -> tuple[int, int]:
+    field_re = re.compile(rf"^(\s*){re.escape(field)}:\s*")
+    formatted = value
+    if field in {"value", "notes"}:
+        formatted = yaml_scalar(value)
+    elif field == "known_to":
+        formatted = yaml_list(parse_bracket_list(value))
+    for index in range(start + 1, end):
+        if field_re.match(lines[index]):
+            indent = field_re.match(lines[index]).group(1)  # type: ignore[union-attr]
+            lines[index] = f"{indent}{field}: {formatted}"
+            return start, end
+    insert_at = end
+    lines.insert(insert_at, f"    {field}: {formatted}")
+    return start, end + 1
+
+
+def merge_knowledge_known_to(lines: list[str], start: int, end: int, additions: list[str]) -> tuple[int, int]:
+    known_re = re.compile(r"^(\s*)known_to:\s*\[(.*?)\]\s*$")
+    for index in range(start + 1, end):
+        match = known_re.match(lines[index])
+        if not match:
+            continue
+        existing = parse_bracket_list(match.group(2))
+        merged = existing[:]
+        for value in additions:
+            if value and value not in merged:
+                merged.append(value)
+        lines[index] = f"{match.group(1)}known_to: {yaml_list(merged)}"
+        return start, end
+    return set_knowledge_item_field(lines, start, end, "known_to", yaml_list(additions))
+
+
+def knowledge_insert_index(lines: list[str]) -> int:
+    for index, line in enumerate(lines):
+        if line.strip() == "```" and any(prev.strip() == "items:" for prev in lines[:index]):
+            return index
+    return len(lines)
+
+
+def merge_knowledge_state_content(content: str, update_body: str) -> str:
+    lines = content.rstrip().splitlines()
+    updates = parse_knowledge_update(update_body)
+    for update in updates:
+        key = str(update.get("key") or "").strip()
+        if not key:
+            continue
+        fields = update.get("fields")
+        field_map = fields if isinstance(fields, dict) else {}
+        span = find_knowledge_item_span(lines, key)
+        if update.get("mode") == "promotion" and span is not None:
+            start, end = span
+            new_status = str(update.get("new_status") or field_map.get("fictional_status") or "").strip()
+            if new_status:
+                start, end = set_knowledge_item_field(lines, start, end, "fictional_status", new_status)
+            acquired_at = str(field_map.get("acquired_at") or "").strip()
+            if acquired_at:
+                start, end = set_knowledge_item_field(lines, start, end, "acquired_at", acquired_at)
+            weight = str(field_map.get("weight") or "").strip()
+            if weight:
+                start, end = set_knowledge_item_field(lines, start, end, "weight", weight)
+            notes = str(field_map.get("notes") or "").strip()
+            if notes:
+                start, end = set_knowledge_item_field(lines, start, end, "notes", notes)
+            known_to = str(field_map.get("known_to") or "").strip()
+            if known_to:
+                start, end = merge_knowledge_known_to(lines, start, end, parse_bracket_list(known_to))
+            continue
+
+        if update.get("mode") == "promotion" and span is None:
+            status = str(update.get("new_status") or field_map.get("fictional_status") or "shared")
+            item = knowledge_item_yaml(
+                key=key,
+                value=str(field_map.get("value") or "未確定"),
+                fictional_status=status,
+                source=str(field_map.get("source") or "inferred"),
+                known_to=parse_bracket_list(str(field_map.get("known_to") or "GM")),
+                acquired_at=str(field_map.get("acquired_at") or "未確定"),
+                weight=str(field_map.get("weight") or "medium"),
+                notes=str(field_map.get("notes") or "turn_update.md から追加"),
+            )
+            insert_at = knowledge_insert_index(lines)
+            lines[insert_at:insert_at] = item + [""]
+            continue
+
+        if update.get("mode") == "new":
+            if span is not None:
+                start, end = span
+                for field in ["value", "fictional_status", "source", "acquired_at", "weight", "notes"]:
+                    value = str(field_map.get(field) or "").strip()
+                    if value:
+                        start, end = set_knowledge_item_field(lines, start, end, field, value)
+                known_to = str(field_map.get("known_to") or "").strip()
+                if known_to:
+                    start, end = merge_knowledge_known_to(lines, start, end, parse_bracket_list(known_to))
+                continue
+            item = knowledge_item_yaml(
+                key=key,
+                value=str(field_map.get("value") or "未確定"),
+                fictional_status=str(field_map.get("fictional_status") or "shared"),
+                source=str(field_map.get("source") or "inferred"),
+                known_to=parse_bracket_list(str(field_map.get("known_to") or "GM")),
+                acquired_at=str(field_map.get("acquired_at") or "未確定"),
+                weight=str(field_map.get("weight") or "medium"),
+                notes=str(field_map.get("notes") or ""),
+            )
+            insert_at = knowledge_insert_index(lines)
+            lines[insert_at:insert_at] = item + [""]
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def answer(answers: dict[int | str, str], number: int | str) -> str:
     value = answers.get(number, "")
     return value.strip() if isinstance(value, str) else ""
@@ -576,7 +779,8 @@ def profile_sections(profile: str) -> dict[str, str]:
     for line in profile.splitlines():
         match = re.match(r"^##\s+(.+?)\s*$", line)
         if match:
-            current = match.group(1).strip()
+            heading = match.group(1).strip()
+            current = "context" if heading.startswith("context ") else heading
             sections.setdefault(current, [])
             continue
         if current is not None:
@@ -872,6 +1076,237 @@ def render_protagonist_document(answers: dict[int | str, str]) -> str:
     )
 
 
+def yaml_scalar(value: str) -> str:
+    clean = (value or "未確定").replace("\n", " / ").strip() or "未確定"
+    escaped = clean.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def yaml_list(values: list[str]) -> str:
+    clean: list[str] = []
+    for value in values:
+        item = re.sub(r"^[\[\]\s]+|[\]\s]+$", "", value.strip())
+        if item and item not in clean:
+            clean.append(item)
+    return "[" + ", ".join(clean or ["GM"]) + "]"
+
+
+def knowledge_item_yaml(
+    *,
+    key: str,
+    value: str,
+    fictional_status: str,
+    source: str,
+    known_to: list[str],
+    acquired_at: str,
+    weight: str,
+    notes: str = "",
+) -> list[str]:
+    lines = [
+        f"  - key: {key}",
+        f"    value: {yaml_scalar(value)}",
+        f"    fictional_status: {fictional_status}",
+        f"    source: {source}",
+        f"    known_to: {yaml_list(known_to)}",
+        f"    acquired_at: {acquired_at}",
+        f"    weight: {weight}",
+    ]
+    if notes:
+        lines.append(f"    notes: {yaml_scalar(notes)}")
+    return lines
+
+
+def render_knowledge_state_document(
+    profile: str,
+    answers: dict[int | str, str],
+    lilia_name: str,
+) -> str:
+    sections = profile_sections(profile)
+    q1 = answer_or_default(answers, 1, "未確定")
+    q2 = answer_or_default(answers, 2, "未確定")
+    q3 = answer_or_default(answers, 3, "未確定")
+    q4 = answer_or_default(answers, 4, "未確定")
+    q5 = answer_or_default(answers, 5, "未確定")
+    q8 = answer_or_default(answers, 8, "特になし")
+    calling = answer_or_default(answers, 6, "ヒロインの立場と関係から自然に決める")
+    body_style = answer_or_default(answers, 7, "性別: 未確定 / 身長感: 中くらい / 体格: 普通 / 服装: 場面に自然な格好")
+    gender, height, build, clothes = infer_protagonist_body_fields(body_style)
+    role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q1)
+    visual_anchor = q3
+    if is_unconfirmed_value(visual_anchor):
+        visual_anchor = profile_value(sections, ["描写の縛り"], ["必ず入れる質感1"], "未確定")
+    background_truth = q5
+    if is_unconfirmed_value(background_truth):
+        background_truth = profile_value(sections, ["unspoken"], ["まだ言わないこと"], "未確定")
+
+    item_lines: list[str] = []
+    item_specs = [
+        dict(
+            key="protagonist_call_name",
+            value=calling,
+            fictional_status="meta",
+            source="protagonist",
+            known_to=["protagonist"],
+            acquired_at="pre_play",
+            weight="medium",
+            notes="ヒロインが知る経路がない時点では使わない。自己紹介、伝票、名札、紹介などの装置を経由する",
+        ),
+        dict(
+            key="protagonist_gender",
+            value=gender,
+            fictional_status="observable",
+            source="protagonist",
+            known_to=["protagonist"],
+            acquired_at="pre_play",
+            weight="low",
+            notes="視覚的に観察可能。ヒロインが観察するまで台詞で断定しすぎない",
+        ),
+        dict(
+            key="protagonist_height",
+            value=height,
+            fictional_status="observable",
+            source="protagonist",
+            known_to=["protagonist"],
+            acquired_at="pre_play",
+            weight="low",
+            notes="視覚的に観察可能",
+        ),
+        dict(
+            key="protagonist_build",
+            value=build,
+            fictional_status="observable",
+            source="protagonist",
+            known_to=["protagonist"],
+            acquired_at="pre_play",
+            weight="low",
+            notes="視覚的に観察可能",
+        ),
+        dict(
+            key="protagonist_style",
+            value=clothes,
+            fictional_status="observable",
+            source="protagonist",
+            known_to=["protagonist"],
+            acquired_at="pre_play",
+            weight="low",
+            notes="視覚的に観察可能",
+        ),
+        dict(
+            key="heroine_name",
+            value=lilia_name,
+            fictional_status="meta",
+            source="heroine_self_disclosure",
+            known_to=["heroine"],
+            acquired_at="pre_play",
+            weight="high",
+            notes="初対面で自己紹介すると shared に昇格",
+        ),
+        dict(
+            key="heroine_occupation",
+            value=role,
+            fictional_status="meta",
+            source="heroine_self_disclosure",
+            known_to=["heroine"],
+            acquired_at="pre_play",
+            weight="medium",
+            notes="自己紹介または場面内の自然な開示で shared に昇格",
+        ),
+        dict(
+            key="heroine_visual_anchor",
+            value=visual_anchor,
+            fictional_status="observable",
+            source="observation",
+            known_to=["heroine", "protagonist"],
+            acquired_at="scene_1",
+            weight="medium",
+            notes="Wave 1 の描写の縛り、Wave 6 で毎回繰り返される",
+        ),
+        dict(
+            key="heroine_background_truth",
+            value=background_truth,
+            fictional_status="gm_only",
+            source="story_spine",
+            known_to=["GM"],
+            acquired_at="pre_play",
+            weight="high",
+            notes="Reveal Ladder で段階的に開示される。本文に直接出さない",
+        ),
+        dict(
+            key="reveal_ladder_stage_1",
+            value=f"初回で見える入口: {q2}",
+            fictional_status="gm_only",
+            source="story_spine",
+            known_to=["GM"],
+            acquired_at="pre_play",
+            weight="medium",
+            notes="開示時に shared へ昇格",
+        ),
+        dict(
+            key="reveal_ladder_stage_2",
+            value=f"声や距離に出始める差: {q4}",
+            fictional_status="gm_only",
+            source="story_spine",
+            known_to=["GM"],
+            acquired_at="pre_play",
+            weight="medium",
+            notes="開示時に shared へ昇格",
+        ),
+        dict(
+            key="reveal_ladder_stage_3",
+            value=f"深部の傷の候補: {q5}",
+            fictional_status="gm_only",
+            source="story_spine",
+            known_to=["GM"],
+            acquired_at="pre_play",
+            weight="high",
+            notes="開示時に shared へ昇格",
+        ),
+        dict(
+            key="session_constraints",
+            value=q8,
+            fictional_status="meta-system",
+            source="protagonist",
+            known_to=["GM"],
+            acquired_at="pre_play",
+            weight="low",
+            notes="GM 内部参照のみ。フィクション内に出さない",
+        ),
+    ]
+    for spec in item_specs:
+        item_lines.extend(knowledge_item_yaml(**spec))
+        item_lines.append("")
+
+    return "\n".join(
+        [
+            "# Knowledge State",
+            "",
+            "このファイルは「事実とその経路」を保持する。",
+            "「感情の跡」は memory.md、「真相」は story_spine.md の Background Truth、",
+            "「約束・拒否・保留」は decision_index.md にある。役割を混ぜない。",
+            "",
+            "## 運用",
+            "",
+            "- fictional_status は meta / observable / shared / gm_only を基本とする。",
+            "- session_constraints のみ meta-system として扱い、フィクション内に出さない。",
+            "- knowledge_state.md がない既存セッションでは Wave 8 機能をスキップする。",
+            "- profile.md context は GM-internal pre-play assumption であり、確定事実として扱わない。",
+            "",
+            "## items",
+            "",
+            "```yaml",
+            "items:",
+            *item_lines,
+            "```",
+            "",
+            "## 更新メモ",
+            "",
+            "Save Mode で turn_update.md の `## knowledge_state` に昇格、新規、known_to 追加、重み変化を書く。",
+            "apply-turn は既存項目の fictional_status / acquired_at / known_to / weight を更新し、新規項目を items に追加する。",
+            "",
+        ]
+    )
+
+
 def render_profile_initialized_documents(profile: str, answers: Optional[dict[int | str, str]] = None) -> dict[str, str]:
     answers = answers or {}
     sections = profile_sections(profile)
@@ -1067,6 +1502,7 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
             ],
         ),
         "current/protagonist.md": render_protagonist_document(answers),
+        "current/knowledge_state.md": render_knowledge_state_document(profile, answers, name),
         "lilia/main/core.md": render_document(
             "LILIA Core",
             "profile.md から抽出した最小核だけを置きます。profileの丸ごとコピーではありません。",
@@ -1257,7 +1693,14 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             "- 初回から恋愛成立、親密成立、攻略トリガーを確定しない",
             "- 例文由来の語彙を固定人格にしない",
             "",
-            "## context",
+            "## context [GM-internal pre-play assumption]",
+            "",
+            "⚠️ このセクションは **GM の事前想定**である。",
+            "- プレイ中はプレイヤーの入力で塗り替わる",
+            "- 主人公側の事実（持ち物、状況、行動）を**確定として扱わない**",
+            "- knowledge_state.md の fictional_status を優先して判断する",
+            "- 実プレイで成立した事実は scene.md / hotset / knowledge_state へ書く",
+            "",
             f"- 初回scene開始時点の状況: {u}",
             f"- ユーザーとの関係位置: {relationship}",
             f"- 表と内の差: {inner_gap}",
@@ -1486,7 +1929,14 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             "- 初回から恋愛成立、親密成立、攻略トリガーを確定しない",
             "- 例文由来の語彙を固定人格にしない",
             "",
-            "## context",
+            "## context [GM-internal pre-play assumption]",
+            "",
+            "⚠️ このセクションは **GM の事前想定**である。",
+            "- プレイ中はプレイヤーの入力で塗り替わる",
+            "- 主人公側の事実（持ち物、状況、行動）を**確定として扱わない**",
+            "- knowledge_state.md の fictional_status を優先して判断する",
+            "- 実プレイで成立した事実は scene.md / hotset / knowledge_state へ書く",
+            "",
             f"- 初回scene開始時点の状況: {q_line(2)}",
             f"- ユーザーとの関係位置: {q_line(2)}",
             f"- 今日なぜそこにいるか: {q_line(1)}",
@@ -1942,6 +2392,10 @@ def create_session(name: Optional[str]) -> Path:
     if protagonist_template.exists():
         write_session_file(dest, "current/protagonist.md", protagonist_template.read_text(encoding="utf-8"))
         protagonist_template.unlink()
+    knowledge_state_template = dest / "knowledge_state.md"
+    if knowledge_state_template.exists():
+        write_session_file(dest, "current/knowledge_state.md", knowledge_state_template.read_text(encoding="utf-8"))
+        knowledge_state_template.unlink()
     data = read_session_json(dest)
     now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     data["session_id"] = name
@@ -2127,7 +2581,7 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
         return (
             f"Read {prompt_path} and follow it for LILIA. "
             "Do not start AI Harness or autoplay. "
-            "Ask Newgame Q1-Q8, run ./lilia apply-newgame to generate lilia/main/profile.md and current/protagonist.md, then start the first scene. "
+            "Ask Newgame Q1-Q8, run ./lilia apply-newgame to generate lilia/main/profile.md, current/protagonist.md, and current/knowledge_state.md, then start the first scene. "
             "Do not stop at first_scene_pending/first_scene_ready. "
             "During normal play after the first scene starts, do not edit story/state files or run git checks after every user turn. "
             "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
@@ -2554,8 +3008,12 @@ def command_apply_newgame(args: list[str]) -> None:
 
 
 def command_apply_turn(args: list[str]) -> None:
+    dry_run = False
+    if "--dry-run" in args:
+        dry_run = True
+        args = [arg for arg in args if arg != "--dry-run"]
     if len(args) != 2:
-        die("apply-turn requires <session_name> <turn_update.md>")
+        die("apply-turn requires [--dry-run] <session_name> <turn_update.md>")
 
     session_path = resolve_session(args[0])
     update_path = Path(args[1]).expanduser()
@@ -2565,41 +3023,62 @@ def command_apply_turn(args: list[str]) -> None:
 
     timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     updated: list[str] = []
+    skipped: list[str] = []
 
     def mark_updated(rel_path: str) -> None:
         if rel_path not in updated:
             updated.append(rel_path)
 
+    def mark_skipped(message: str) -> None:
+        if message not in skipped:
+            skipped.append(message)
+
     for key, body in sections.items():
         if key == "next_hook":
             event_card_path = "current/event_card.md"
             story_deck_path = "story/story_deck.md"
-            append_session_file(session_path, event_card_path, render_next_hook_block(timestamp, body, "Next Hook"))
-            append_session_file(session_path, story_deck_path, render_next_hook_block(timestamp, body, "Candidate Next Hook"))
+            if not dry_run:
+                append_session_file(session_path, event_card_path, render_next_hook_block(timestamp, body, "Next Hook"))
+                append_session_file(session_path, story_deck_path, render_next_hook_block(timestamp, body, "Candidate Next Hook"))
             mark_updated(event_card_path)
             mark_updated(story_deck_path)
             continue
 
         rel_path = TURN_UPDATE_TARGETS[key]
-        if key == "hotset":
-            write_session_file(session_path, rel_path, render_hotset_update(timestamp, body))
+        if key == "knowledge_state":
+            target = session_path / rel_path
+            if not target.exists():
+                mark_skipped(f"{rel_path} missing; skipped knowledge_state merge for legacy session")
+                continue
+            merged = merge_knowledge_state_content(target.read_text(encoding="utf-8"), body)
+            if not dry_run:
+                write_session_file(session_path, rel_path, merged)
+        elif key == "hotset":
+            if not dry_run:
+                write_session_file(session_path, rel_path, render_hotset_update(timestamp, body))
         else:
-            append_session_file(session_path, rel_path, render_turn_update_block(timestamp, body))
+            if not dry_run:
+                append_session_file(session_path, rel_path, render_turn_update_block(timestamp, body))
         mark_updated(rel_path)
 
-    data = read_session_json(session_path)
-    autosave = ensure_autosave(data)
-    autosave["turns_since_save"] = 0
-    autosave["autosave_required"] = False
-    write_session_json(session_path, data)
-    mark_updated("session.json")
+    if not dry_run:
+        data = read_session_json(session_path)
+        autosave = ensure_autosave(data)
+        autosave["turns_since_save"] = 0
+        autosave["autosave_required"] = False
+        write_session_json(session_path, data)
+        mark_updated("session.json")
 
-    print(f"applied: {update_path}")
+    print(f"{'dry-run: ' if dry_run else ''}applied: {update_path}")
     print(f"session: {session_path.relative_to(ROOT)}")
     print(f"timestamp: {timestamp}")
-    print("updated:")
+    print("would update:" if dry_run else "updated:")
     for rel_path in updated:
         print(f"  {rel_path}")
+    if skipped:
+        print("skipped:")
+        for message in skipped:
+            print(f"  {message}")
 
 
 def command_scene_tick(args: list[str]) -> None:
