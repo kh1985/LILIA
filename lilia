@@ -593,13 +593,15 @@ NEWGAME_QUESTIONS = [
     },
     {
         "number": 5,
-        "title": "過去の傷の種",
-        "prompt": "今でも引きずっている何か。重くなくてOK。",
-        "required": ["過去の出来事"],
+        "title": "内面に持っているもの",
+        "prompt": "過去の出来事、癖、習慣、こだわり、抱えていること、何でもOK。傷でも、特徴でも、職業的なものでも、好きなものでも構いません。",
+        "required": ["内面に持っているもの"],
         "examples": [
-            "「[大切な人から何かを継いだ]。最後に言えなかった一言がある」",
-            "「[前の居場所]で踏み込まれすぎて離れた。詳細は本人も整理中」",
-            "「[昔の共同作業]が壊れた。それ以来、[特定の感覚]を避けている」",
+            "「[大切な人から何かを継いだ]。最後に言えなかった一言がある」（過去の傷）",
+            "「[特定の条件]の日に必ず[古い習慣]を繰り返す。理由は本人もまだ知らない」（癖・発見の余地）",
+            "「[前の所属]を離れたが、まだ完全には切れていない」（葛藤）",
+            "「[特定の感覚/情報]を覚えるのが得意。仕事柄、忘れたいものまで残ってしまう」（特徴・職業的）",
+            "「[昔の共同作業]が壊れた。それ以来、[特定の感覚]を避けている」（過去の傷）",
         ],
     },
     {
@@ -729,9 +731,9 @@ def supplementary_question(number: int, text: str) -> str:
             return "差が小さい場合でも、外から見える態度と一人の時の出方を1つずつ教えてください。"
     elif number == 5:
         if not clean:
-            return "今でも少し引きずっている出来事を1つ教えてください。または『おまかせ』でも OK です。"
+            return "内面に持っているものを1つ教えてください。傷、癖、こだわり、職業的な特徴でも OK です。または『おまかせ』でも OK です。"
         if compact_text(clean) in {"いろいろあった", "過去がある", "事情がある"}:
-            return "その過去をもう少しだけ具体化できますか？ 何が残っているかを一言で足してください。"
+            return "それが何として残っているかを、もう少しだけ具体化できますか？ 出来事、癖、こだわり、特徴のどれでも OK です。"
     elif number == 6:
         if not clean:
             return "関係性と最初の場面を教えてください。または『おまかせ』でも OK です。"
@@ -1235,7 +1237,7 @@ def render_newgame_answer_summary(answers: dict[int | str, str]) -> str:
                 f"- Q2 ヒロインの見た目: {qa_visual(answers).replace(chr(10), ' / ')}",
                 f"- Q3 描写の縛り: {qa_anchor(answers).replace(chr(10), ' / ')}",
                 f"- Q4 表と内の差: {qa_gap(answers).replace(chr(10), ' / ')}",
-                f"- Q5 過去の傷の種: {qa_wound(answers).replace(chr(10), ' / ')}",
+                f"- Q5 内面に持っているもの: {qa_wound(answers).replace(chr(10), ' / ')}",
                 f"- Q6 最初の出会い + 関係性の起点: {qa_encounter(answers).replace(chr(10), ' / ')}",
                 f"- Q7 ヒロインからの呼ばれ方: {qa_calling(answers).replace(chr(10), ' / ')}",
                 f"- Q8 主人公の身体・格好・仕事: {qa_protagonist(answers).replace(chr(10), ' / ')}",
@@ -1259,7 +1261,7 @@ def render_newgame_answer_summary(answers: dict[int | str, str]) -> str:
             f"- Q2 最初の出会い: {answer(answers, 2).replace(chr(10), ' / ')}",
             f"- Q3 描写の縛り: {answer(answers, 3).replace(chr(10), ' / ')}",
             f"- Q4 表と内の差: {answer(answers, 4).replace(chr(10), ' / ')}",
-            f"- Q5 過去の傷の種: {answer(answers, 5).replace(chr(10), ' / ')}",
+            f"- Q5 内面に持っているもの: {answer(answers, 5).replace(chr(10), ' / ')}",
             f"- Q6 ヒロインからの呼ばれ方: {answer(answers, 6).replace(chr(10), ' / ')}",
             f"- Q7 主人公の身体・スタイル: {answer(answers, 7).replace(chr(10), ' / ')}",
             f"- Q8 避けたいもの: {answer(answers, 8).replace(chr(10), ' / ')}",
@@ -1279,7 +1281,7 @@ Q&A:
 - ヒロインの見た目: {value(qa_visual(answers))}
 - 描写の縛り: {value(qa_anchor(answers))}
 - 表と内の差: {value(qa_gap(answers))}
-- 過去の傷の種: {value(qa_wound(answers))}
+- 内面に持っているもの: {value(qa_wound(answers))}
 - 最初の出会い + 関係性の起点: {value(qa_encounter(answers))}
 - 主人公の身体・格好・仕事: {value(qa_protagonist(answers))}
 - ヒロインからの呼ばれ方: {value(qa_calling(answers))}
@@ -1292,7 +1294,7 @@ Q&A:
 - Q2の見た目を appearance.hair_style / hair_color / notes に必ず反映し、体型と服装は profile.md の appearance/body/outfit へ反映できる素材にする
 - Q3の描写の縛りは、profile.描写の縛り と everyday anchors の物的アンカーへ直接反映する
 - Q4の表と内の差は、profile.contradictions の表 / 裏 / 矛盾へ直接反映する
-- Q5の過去の傷は、profile.memories / unspoken と story_spine.Background Truth の骨格へ直接反映する
+- Q5の内面に持っているものは、傷・癖・特徴・葛藤のいずれかとして読み分け、profile.memories / unspoken と story_spine.Background Truth の骨格へ直接反映する
 - Q6の出会いと関係性を context.current_situation と初回sceneの入口に反映する
 - Q8の主人公情報はヒロインprofileに混ぜず、scene整合性のための外部条件としてのみ扱う
 - tone examples を3つ出す
@@ -1618,7 +1620,84 @@ def story_role_phrase(name: str, q1: str, profile_role: str = "") -> str:
 def story_inferred_wound(name: str, q1: str, q4: str) -> str:
     context = story_short_clause(q1, 48) or name
     gap = story_short_clause(q4, 58) or "表の顔と内側の温度差"
-    return f"{context}として過ごす中で、{gap}を生んだ出来事がある。詳細は未確定: 進行で決める。"
+    return f"{context}として過ごす中で、{gap}につながる内面の核がある。詳細は未確定: 進行で決める。"
+
+
+HEALING_KEYWORDS = [
+    "亡く",
+    "死",
+    "喪失",
+    "後悔",
+    "裏切",
+    "挫折",
+    "諦め",
+    "解散",
+    "失った",
+    "言いそびれ",
+    "最後の会話",
+]
+
+CHOICE_ROLE_KEYWORDS = [
+    "殺し屋",
+    "暗殺",
+    "スパイ",
+    "諜報",
+    "組織",
+    "傭兵",
+    "工作員",
+    "特殊職",
+]
+
+DISCOVERY_KEYWORDS = [
+    "理由",
+    "意味",
+    "わから",
+    "分から",
+    "知らない",
+    "なぜ",
+    "癖",
+    "必ず",
+    "残る",
+    "覚え",
+]
+
+CONFLICT_KEYWORDS = [
+    "やめたい",
+    "やめられ",
+    "抜けた",
+    "足を洗",
+    "連絡",
+    "依存",
+    "月一",
+    "続けたい",
+    "負担",
+    "切れていない",
+    "戻れ",
+    "降りられ",
+]
+
+
+def choose_main_question_pattern(q1: str, q5: str) -> str:
+    text = f"{q1} {q5}"
+    if any(keyword in q5 for keyword in HEALING_KEYWORDS):
+        return "healing"
+    if any(keyword in q5 for keyword in CONFLICT_KEYWORDS):
+        return "conflict"
+    if any(keyword in q1 for keyword in CHOICE_ROLE_KEYWORDS) or any(keyword in text for keyword in ["続けるか", "降りるか", "選ぶ"]):
+        return "choice"
+    if any(keyword in q5 for keyword in DISCOVERY_KEYWORDS):
+        return "discovery"
+    return "change"
+
+
+def story_pattern_label(pattern: str) -> str:
+    return {
+        "healing": "パターン1（傷の治癒）",
+        "choice": "パターン2（選択）",
+        "discovery": "パターン3（発見）",
+        "change": "パターン4（変化）",
+        "conflict": "パターン5（葛藤）",
+    }.get(pattern, "パターン4（変化）")
 
 
 def story_anchor_from_context(q3: str, objects: str, q1: str, q2: str, place: str) -> str:
@@ -1664,61 +1743,116 @@ def build_story_generation_fields(
     basic = story_clean_answer(q1, name)
     encounter = story_clean_answer(q2, "初回sceneの出会い")
     gap = story_clean_answer(q4, "表に出している顔と内側の差")
-    wound_direct = story_clean_answer(q5)
-    wound = wound_direct or story_inferred_wound(name, basic, gap)
+    inner_direct = story_clean_answer(q5)
+    inner_matter = inner_direct or story_inferred_wound(name, basic, gap)
     boundary = story_clean_answer(q8) or f"{gap}を急に言い当てられること"
     role = story_role_phrase(name, basic, profile_role)
     anchor = story_fragment(story_anchor_from_context(q3, objects, basic, encounter, place), 90)
     env_object = story_environment_object(basic, encounter, place)
     role_object = story_role_object(basic, encounter, place)
-    wound_focus = story_fragment(wound, 72) or "まだ言葉にしていない傷"
+    inner_focus = story_fragment(inner_matter, 72) or "まだ言葉にしていない内面の核"
+    inner_topic = f"「{inner_focus}」"
     gap_focus = story_fragment(gap, 72) or "表と内の差"
-    wound_matter = f"{wound_focus}という事実"
+    inner_fact = f"{inner_focus}という内面の核"
     gap_matter = f"{gap_focus}という表と内の差"
+    pattern = choose_main_question_pattern(basic, inner_direct or inner_matter)
+    pattern_label = story_pattern_label(pattern)
+    relationship_entry = story_fragment(encounter, 48) or "最初の出会い"
 
-    if wound_direct:
-        background_truth = "\n".join(
-            [
-                wound_direct,
-                f"{name}はこの事実をまだ整理しきれておらず、{gap_matter}として現在の声や距離に影を落としている。",
-                "詳細は未確定: 進行で決める。",
-            ]
-        )
+    if pattern == "healing":
+        main_question = f"{pattern_label}: {role}は、{inner_topic}を自分の言葉で扱い直せるか。"
+        visible = f"{anchor}が、まだ語られていない傷の存在を小さく滲ませる。"
+        near_reveal = f"{gap_focus}の奥に、{inner_focus}の輪郭が見え始める。"
+        deep_reveal = f"{inner_focus}の核心に、関係の中で触れる。"
+        background_note = "これは傷の真相として扱う。何が起き、なぜ今も残っているかはReveal Ladderで段階的に出す。"
+        pressure_items = [
+            f"{inner_focus}に触れる場面が、{name}の生活へ小さく戻ってくる",
+            f"{name}が{gap_matter}の表側だけでやり過ごそうとする",
+            f"{env_object}が、避けた記憶をもう一度場へ戻す",
+        ]
+        prize = f"{name}が{inner_focus}を自分のタイミングで語れること"
+    elif pattern == "choice":
+        main_question = f"{pattern_label}: {role}は、今の生き方を続けるか、降りるかを自分の意思で選べるか。"
+        visible = f"{anchor}が、今の道と別の道の存在を最初に匂わせる。"
+        near_reveal = f"{gap_focus}を保つために払っているコストが見え始める。"
+        deep_reveal = f"{inner_focus}が、選択の瞬間を近づける。"
+        background_note = "これは選択の本質として扱う。なぜ続けるのか、なぜ変えたいのかを固定しすぎず段階的に出す。"
+        pressure_items = [
+            f"{role}としての用事が進み、選ばないままではいられない場面が近づく",
+            f"{name}が{inner_fact}を職業的なものとして処理しようとする",
+            f"{env_object}が、続ける道と降りる道の両方を場へ持ち込む",
+        ]
+        prize = f"{name}が今の生き方を自分の意思で選び直せること"
+    elif pattern == "discovery":
+        main_question = f"{pattern_label}: {role}は、{inner_topic}の意味を見つけられるか。"
+        visible = f"{anchor}が、意味のわからない印として提示される。"
+        near_reveal = f"{gap_focus}の中に、意味へ向かう手がかりが集まり始める。"
+        deep_reveal = f"{inner_focus}の意味が言語化される、または保留として確定する。"
+        background_note = "これは意味の手がかりとして扱う。傷と断定せず、なぜそれが残るのかを探る。"
+        pressure_items = [
+            f"{inner_focus}を説明できないまま、似た反応が別の場面でも起きる",
+            f"{name}が{gap_matter}をいつもの態度で隠そうとする",
+            f"{env_object}が、意味を探るための手がかりを増やす",
+        ]
+        prize = f"{name}が{inner_focus}を自分の言葉で意味づけられること"
+    elif pattern == "conflict":
+        main_question = f"{pattern_label}: {role}は、{inner_topic}を抱えながら、なお今の生活を続けられるか。"
+        visible = f"{anchor}が、続けたいものと降りたいものの摩擦を見せる。"
+        near_reveal = f"{gap_focus}の奥に、葛藤の深さが見え始める。"
+        deep_reveal = f"{inner_focus}を続ける覚悟、または降りる選択が問われる。"
+        background_note = "これは葛藤の構造として扱う。なぜ抱えながら続けるのか、降りられない理由を段階的に出す。"
+        pressure_items = [
+            f"{inner_focus}が、やめる/続けるの判断を先送りできない形で戻ってくる",
+            f"{name}が{gap_matter}の片側だけで葛藤を保とうとする",
+            f"{env_object}が、今の生活を続けるための代償を見せる",
+        ]
+        prize = f"{name}が葛藤を他人に奪われず、自分の続け方を選べること"
     else:
-        background_truth = wound
+        main_question = f"{pattern_label}: {role}とユーザーが{relationship_entry}で出会って、二人の距離と日常はどう変わるか。"
+        visible = f"{anchor}が、関係の最初の温度を決める。"
+        near_reveal = f"{gap_focus}が、関係が変化する瞬間に少しだけ動く。"
+        deep_reveal = f"{inner_focus}を含めて、関係の変化の方向が見え始める。"
+        background_note = "これは関係の核として扱う。明確な傷より、出会いによって何が変わるかを段階的に見る。"
+        pressure_items = [
+            f"{relationship_entry}から生まれた小さな接点が、次の距離を要求する",
+            f"{name}が{gap_matter}を保ったまま、関係の温度だけが少し動く",
+            f"{env_object}が、二人の日常を少しだけ変える入口になる",
+        ]
+        prize = f"{name}とユーザーが、関係の変化を急がず自分たちの速度で選べること"
+
+    if inner_direct:
+        background_truth = "\n".join([inner_direct, background_note, "詳細は未確定: 進行で決める。"])
+    else:
+        background_truth = "\n".join([inner_matter, background_note])
 
     return {
         "role": role,
         "anchor": anchor,
-        "main_question": f"{role}は、{wound_matter}を抱えたまま、{gap_matter}を誰かとの関係の中で扱い直せるか。",
-        "visible": f"{anchor}が、初回の観察可能な違和感として残る。",
-        "near_reveal": f"{gap_focus}が、言葉の遅れや距離の取り方に少しずつ出始める。",
-        "deep_reveal": f"{wound_focus}の核心に、関係の中で近づく。",
+        "main_question": main_question,
+        "visible": visible,
+        "near_reveal": near_reveal,
+        "deep_reveal": deep_reveal,
         "background_truth": background_truth,
-        "pressure_items": [
-            f"{role}としての場や用事が進み、手元の印だけが次の入口として残る",
-            f"{name}が{wound_matter}を言わないまま、{gap_focus}の表側だけで対応する",
-            f"{env_object}が、避けた話題をもう一度場へ戻す",
-        ],
-        "prize": f"{name}が{wound_matter}を自分のタイミングで扱えること",
+        "pressure_items": pressure_items,
+        "prize": prize,
         "life": f"{basic} / {encounter}",
-        "secret": wound,
+        "secret": inner_matter,
         "boundary": boundary,
         "emotion": gap,
         "ignored_items": [
             f"{name}は{role}の場に戻り、物的アンカーへの触れ方だけが記憶に残る",
-            f"{wound_matter}が言葉にならないまま、次の沈黙や反応の遅れとして戻る",
+            f"{inner_fact}が言葉にならないまま、次の沈黙や反応の遅れとして戻る",
             f"{gap_focus}の表側だけが強まり、関係の入口が狭くなる",
         ],
         "drift_items": [
-            f"{anchor} — {wound_focus}",
+            f"{anchor} — {inner_focus}",
             f"{env_object} — {gap_focus}",
-            f"{role_object} — {role}としての時間と、{wound_focus}",
+            f"{role_object} — {role}としての時間と、{inner_focus}",
         ],
-        "relationship_theme": f"{gap_focus}。{wound_matter}を急いで説明させず、{name}が話すことと黙ることを自分で選べる関係。",
+        "relationship_theme": f"{gap_focus}。{inner_fact}を急いで説明させず、{name}が話すことと黙ることを自分で選べる関係。",
         "relationship_question": f"物的アンカーや{encounter}に触れる時、{name}の沈黙を奪わずにどう関わるか。",
         "first_friction": gap,
-        "guard": f"{name}が{wound_matter}を自分のタイミングで扱えること",
+        "guard": f"{name}が{inner_fact}を自分のタイミングで扱えること",
         "avoid": boundary,
     }
 
@@ -2624,7 +2758,7 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             f"- 初回scene開始時点の状況: {u}",
             f"- ユーザーとの関係位置: {relationship}",
             f"- 表と内の差: {inner_gap}",
-            f"- 過去の傷の種: {wound}",
+            f"- 内面に持っているもの: {wound}",
             f"- 今日なぜそこにいるか: {u}",
             f"- 初回sceneの生活上の用事: {u}",
             "",
@@ -3050,7 +3184,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("呼び方 / 距離のアンカー", q(7) + "\n- 注: ここはechoであり、正本は `lilia/main/voice.md` と `lilia/main/relationship.md`。"),
                 ("次に会った時の第一反応", q(4)),
                 ("未消化の感情", q(5)),
-                ("言い残し / まだ言っていないこと", "- Q5由来の過去の傷は初回sceneで急に全部説明しない。"),
+                ("言い残し / まだ言っていないこと", "- Q5由来の内面の核は初回sceneで急に全部説明しない。"),
                 ("親密scene後の余韻", "- 次回1ターンに効くaftercare: 未発生\n- 第一反応: 未発生\n- 呼び方 / 距離の変化: 未発生\n- まだ触れないこと: 初期親密は未確認"),
                 ("最新scene後のecho", "- 次の1ターンに響くこと: 初回scene前のため未発生\n- 第一反応の方向: Q1/Q3由来の表と内の差を声と沈黙に残す\n- まだ触れない方がいいこと: Q3由来の傷や制約を初回で全部説明しない"),
                 ("現在のイベント要約", q(6)),
@@ -3072,8 +3206,8 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("If Ignored", "- Q6の出会いで見えた入口が、沈黙、遠慮、または言い残しとして残る。"),
                 ("Next Visible Change", "- Q6に触れた後、声 / 沈黙 / 呼び方 / 距離のどれかに小さく出る。"),
                 ("進行状態", "- status: 継続\n- 触れられたhandle: 未着手\n- relationship stakeの変化: 未着手\n- if ignoredの発火: 未発火\n- 次に更新するvisible change: 初回scene後に確認\n- story_deckへ落とす未回収札: Q3由来の余白"),
-                ("Story Residue", "- memoryに残るもの: Q6から実際に起きたことだけ\n- relationshipに残るもの: Q4の表と内の差がどう動いたか\n- beliefsに残るもの: LILIA側の仮説として残ったこと\n- voiceに残るもの: Q1 / Q7由来の第一反応\n- story_deckへ戻す未回収札: Q5の傷や言えないこと\n- NPC / Contact note optional: 初回では必要時だけ"),
-                ("Truth Hiding Boundary", "- 隠してよい真相: Q5由来の傷や理由\n- 見せる入口: Q6の出会いとQ3の具体物"),
+                ("Story Residue", "- memoryに残るもの: Q6から実際に起きたことだけ\n- relationshipに残るもの: Q4の表と内の差がどう動いたか\n- beliefsに残るもの: LILIA側の仮説として残ったこと\n- voiceに残るもの: Q1 / Q7由来の第一反応\n- story_deckへ戻す未回収札: Q5の内面の核や言えないこと\n- NPC / Contact note optional: 初回では必要時だけ"),
+                ("Truth Hiding Boundary", "- 隠してよい真相: Q5由来の内面の核や理由\n- 見せる入口: Q6の出会いとQ3の具体物"),
                 ("Intimacy / Boundary Check", f"- 親密sceneの場合だけ確認: 初回では原則未発生\n{not_intimate}\n- 成人 / 合意 / 相互性 / 境界線 / 止まれる余地: 未確認、止まれる余地を維持\n- aftercareまたは翌朝の第一声: 未発生\n- 雑な乱入になっていないか: 初回eventは小さく扱う"),
                 ("揺れるLILIA", q(4)),
                 ("その出来事がLILIAに刺さる理由", q(3)),
@@ -3098,7 +3232,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("誤解や思い込み", "- 初回scene後に `beliefs.md` へLILIA側仮説として保存する。"),
                 ("保留", q(5)),
                 ("境界線", q(9)),
-                ("resume時に無かったことにしないもの", "- Q6の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の過去の傷の種\n- Q7の呼ばれ方"),
+                ("resume時に無かったことにしないもの", "- Q6の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の内面に持っているもの\n- Q7の呼ばれ方"),
                 ("次に変化しそうな点", "- 初回sceneで、声、沈黙、距離、信頼、警戒のどれが動くかを見る。"),
                 ("最新チェックポイント", "- イベント名: 初回scene前\n- LILIAの空気: Q3の質感とQ4の表裏を持ったまま、初回sceneでまだ様子を見る。\n- 核（このsceneで何がLILIAに残ったか）: まだ実際のsceneは始まっていない。質感が変わった時だけSave Modeで上書きする。"),
             ],
@@ -3133,7 +3267,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("怒り方", "- 未確定。Q3の譲れないものを踏まえる。"),
                 ("甘え方", "- 未確定。初回では確定しない。"),
                 ("距離を置く時の出方", q(9)),
-                ("重要場面前のVoice Check", "- 今ユーザーをどう呼ぶか: Q7由来\n- 前回から変えてはいけない声: Q1の基本とQ3の質感\n- 今だけ変わってよい温度: Q4の表裏\n- 言うと壊れること: Q5の傷を説明しすぎること"),
+                ("重要場面前のVoice Check", "- 今ユーザーをどう呼ぶか: Q7由来\n- 前回から変えてはいけない声: Q1の基本とQ3の質感\n- 今だけ変わってよい温度: Q4の表裏\n- 言うと壊れること: Q5の内面の核を説明しすぎること"),
             ],
         ),
         "lilia/main/state.md": render_document(
@@ -3147,7 +3281,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("裏の気分", q(4)),
                 ("警戒", q(9)),
                 ("照れ", "- 未確定"),
-                ("Crisis / Ability Condition", "- fatigue: 未発生\n- injury or pain: 未発生\n- fear / agitation: Q5由来の傷が必要時だけ出る\n- concentration: 初回scene前\n- recovery: 未発生\n- visible trace: 未発生\n- note: 初回では重い危機にしない"),
+                ("Crisis / Ability Condition", "- fatigue: 未発生\n- injury or pain: 未発生\n- fear / agitation: Q5由来の内面の核が必要時だけ出る\n- concentration: 初回scene前\n- recovery: 未発生\n- visible trace: 未発生\n- note: 初回では重い危機にしない"),
                 ("親密scene後の一時状態", "- 安心: 未発生\n- 照れ: 未発生\n- 怖さ: 未発生\n- 保留: 未発生\n- 疲労: 未発生"),
                 ("疲労", "- 未設定"),
                 ("第一反応", q(1)),
@@ -3188,7 +3322,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("historical_fixed", "- 実際に起きた出来事: Q&A完了\n- 約束 / 拒否 / 保留: 未発生\n- 無かったことにしない節目: Q6の出会い方、Q3の描写の縛り、Q4の表と内の差"),
                 ("emotional_beats", "- 初回scene後に更新する。"),
                 ("aftercare_memory", "- 終わった後にLILIAが覚えていること: 未発生\n- 次に会った時の第一声: 未発生\n- 呼び方や距離感の変化: 未発生\n- 安心 / 照れ / 怖さ / 保留 / 言い残し: 未発生\n- 確認 / 拒否 / 保留 / 止まれたこと: 未発生"),
-                ("echo", "- 直近scene後の余韻: 初回scene前\n- 気まずさ / 照れ / 距離の揺れ: 未発生\n- 言い残したこと: Q5由来の傷を初回で全部説明しない\n- 次に響く小さな傷: 未発生\n- 次に会った時の出方: 初回sceneで確認する"),
+                ("echo", "- 直近scene後の余韻: 初回scene前\n- 気まずさ / 照れ / 距離の揺れ: 未発生\n- 言い残したこと: Q5由来の内面の核を初回で全部説明しない\n- 次に響く小さな保留: 未発生\n- 次に会った時の出方: 初回sceneで確認する"),
                 ("忘れてはいけない約束", "- 未発生"),
                 ("まだ覚えていないこと", "- 初回sceneで実際に起きること"),
                 ("保存しないこと", "- ユーザーの内面の断定: しない\n- 例文由来の固定語彙: しない\n- 解釈や思い込みは `beliefs.md` に回す: はい"),
@@ -3247,7 +3381,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "Story Deck",
             "例文集ではなく、次イベント判断に必要なものだけを置きます。",
             [
-                ("現在使えるstory素材", "- Q6の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の過去の傷の種"),
+                ("現在使えるstory素材", "- Q6の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の内面に持っているもの"),
                 ("初回sceneで使う小さな出来事", f"- 素材名 / 未回収札: {q_line(6)}\n- 現在sceneで触る内容は `current/event_card.md` に置く"),
                 ("関係を揺らす圧", q(4)),
                 ("未回収札", "- Q5由来のまだ言えない理由\n- Q3由来の物的な印が試される場面"),
@@ -3798,13 +3932,13 @@ def render_style_documents(answers: dict[int | str, str]) -> dict[str, str]:
             [
                 ("Source Hints", "- 未設定。参照作品名は本文に出さない。"),
                 ("Selected Defaults", "- Q1 / Q2 / Q4の温度に合わせて必要時だけ選ぶ。"),
-                ("Light Story Reference Pass Output", f"- ヒロインの基本: {heroine}\n- ヒロインの見た目/描写: {descriptive}\n- 表と内の差: {gap}\n- 過去の傷の種: {wound}\n- 最初の出会い: {meeting}"),
+                ("Light Story Reference Pass Output", f"- ヒロインの基本: {heroine}\n- ヒロインの見た目/描写: {descriptive}\n- 表と内の差: {gap}\n- 内面に持っているもの: {wound}\n- 最初の出会い: {meeting}"),
                 ("抽出した表現軸", "- Q2/Q3の描写素材を、固定台詞ではなく視線、沈黙、距離、第一反応へ変換する。"),
                 ("場面温度", bullet_lines([gap, meeting])),
                 ("視点距離", "- 近すぎず、LILIAの反応とユーザーの行動余地が見える距離。"),
                 ("描写密度", "- 初回sceneでは短く、触れられるものを具体的に置く。"),
                 ("台詞と沈黙", "- LLM CLI生成profileのtoneを優先する。fallback時は未確定。"),
-                ("余韻", "- Q5は傷の種として扱い、本文で重い説明に変換しない。"),
+                ("余韻", "- Q5は傷と断定せず、本文で重い説明に変換しない。"),
                 ("LILIAへの変換", "- Q&Aの語彙を固定設定にせず、LILIAの声、距離、沈黙へ変換する。"),
                 ("Avoid Direct Imitation", "- 参照本文、台詞、人物配置、固有文体は使わない"),
             ],

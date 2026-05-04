@@ -35,7 +35,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
 - Full Loop Manual Smoke: checklist追加済み
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
-- Newgame Q&A Q1-Q9: ヒロイン基本（性格含む）/ 見た目 / 描写の縛り / 表と内の差 / 過去の傷 / 出会い + 関係起点 / 呼ばれ方 / 主人公の身体・格好・仕事 / 避けたい展開へ更新済み。interactive 1問ずつ表示と補足質問 flow は維持。
+- Newgame Q&A Q1-Q9: ヒロイン基本（性格含む）/ 見た目 / 描写の縛り / 表と内の差 / 内面に持っているもの / 出会い + 関係起点 / 呼ばれ方 / 主人公の身体・格好・仕事 / 避けたい展開へ更新済み。interactive 1問ずつ表示と補足質問 flow は維持。
 - LILIA Persona Profile: character YAML 素材生成と profile.md 変換導線を追加済み。apply-newgame が LLM CLI(codex / claude)経由を default にし、fallback は最小経路へ簡素化。Q&A は Q1-Q9。First Scene Quality Gate に2項目追加済み。
 - Wave 1（散文層・キャラ会議変換）: 実装済み
 - Wave 2（echo拡張・decision_index）: 実装済み
@@ -48,6 +48,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 9（Root Cure: Examples / Fallback / Keyword / References / Validator / Logging）: 実装済み
 - Wave 10（Q&A Redesign with GM Supplementary Question Flow）: 実装済み
 - Wave 10.1（Q3-Q5 Independence Restoration）: 実装済み
+- Wave 10.2（Main Question Template Flexibility）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -114,6 +115,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Q2 appearance parsing を補強し、hair_style / hair_color、body / outfit の混同を避ける。
 - 旧8問 answers.md と Wave10の6問 answers.md は互換形式として引き続き受ける。
 - Q5 の主人公仕事を protagonist.md / knowledge_state.md へ接続。
+
+## Wave 10.2: Main Question Template Flexibility [完了]
+- Q5 を「内面に持っているもの」へ改名し、傷・癖・特徴・職業的なもの・葛藤を受けられるようにした。
+- story_spine の Main Question を5パターン（傷の治癒 / 選択 / 発見 / 変化 / 葛藤）へ拡張した。
+- Reveal Ladder / Background Truth / Pressure Direction も選択パターンに合わせて生成する。
+- 殺し屋・組織人・特殊職などを、必ず「傷を抱えて扱い直す」構文へ押し込まない。
 
 ## 候補（優先度順、未確定）
 
@@ -304,7 +311,7 @@ minor follow-upとして `templates/session/session.json` の `source_prompt_ver
 `./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線を実装済みである。
 最小運用確認では、最新session表示とprompt-only案内を小修正済みである。
 `--run` と `--engine codex|claude|auto` によりAI CLI接続も追加済みである。
-Newgame Q&A は Q1-Q9 で、ヒロインの基本、見た目、描写の縛り、表と内の差、過去の傷、最初の出会い、呼ばれ方、主人公の身体・格好・仕事、避けたい展開を聞く。Q3/Q4/Q5はそれぞれ profile / story_spine の特定フィールドへ直接写像する。
+Newgame Q&A は Q1-Q9 で、ヒロインの基本、見た目、描写の縛り、表と内の差、内面に持っているもの、最初の出会い、呼ばれ方、主人公の身体・格好・仕事、避けたい展開を聞く。Q3/Q4/Q5はそれぞれ profile / story_spine の特定フィールドへ直接写像する。
 Persona Profile導線では、first scene前に `lilia/main/profile.md` を作り、profileの具体物、職能、生活、反応、矛盾、禁忌を使って初回sceneを書く。
 次は、scene中のテンポを壊さずに `scene-tick` が10ターン到達を知らせられるか、改造した `./lilia apply-newgame` で profile.md が LLM CLI 経由で具体化されているか、first scene の蓋然性が play_003 より上がっているかを実プレイで確認する。
 engine ごとの生成品質の差(codex vs claude)も確認する。
