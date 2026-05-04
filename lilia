@@ -92,6 +92,10 @@ HARDCODED_LITERALS = [
     "雨音",
 ]
 FORBIDDEN_GENERATED_LITERALS = HARDCODED_LITERALS
+KNOWLEDGE_HIDDEN_VALUE = "[HIDDEN until shared in scene]"
+KNOWLEDGE_HIDDEN_NOTE = (
+    "この情報はヒロインが知らない。scene 内で自己紹介・名札・伝票等の装置を経由するまで使わない。推測する描写も禁止。"
+)
 
 
 def usage() -> None:
@@ -1216,6 +1220,146 @@ DESCRIPTIVE_FALLBACK_KEYWORDS = [
     "靴",
     "姿勢",
 ]
+
+
+TOUCHABLE_OBJECT_PLACEHOLDER = "[未確定: Q3 で指定されなかったため、scene 内で profile から導出]"
+
+TOUCHABLE_OBJECT_KEYWORDS = [
+    "ピアス",
+    "指輪",
+    "リング",
+    "ペン",
+    "万年筆",
+    "スマホ",
+    "携帯",
+    "鍵",
+    "財布",
+    "名刺",
+    "手帳",
+    "ノート",
+    "イヤホン",
+    "ヘッドホン",
+    "ネックレス",
+    "ブレスレット",
+    "ヘアピン",
+    "髪留め",
+    "眼鏡",
+    "メガネ",
+    "バッグ",
+    "鞄",
+    "トート",
+    "傘",
+    "カップ",
+]
+
+NON_TOUCHABLE_OBJECT_KEYWORDS = [
+    "目",
+    "瞳",
+    "体型",
+    "細身",
+    "巨乳",
+    "胸",
+    "肩",
+    "腰",
+    "背",
+    "身長",
+    "肌",
+    "顔",
+    "鍛え",
+    "体格",
+    "スタイル",
+    "服",
+    "服装",
+    "タートルネック",
+    "スラックス",
+    "コート",
+    "シャツ",
+    "袖",
+    "スカート",
+    "ワンピース",
+    "ニット",
+    "パーカー",
+    "ジャケット",
+    "靴",
+    "ヒール",
+]
+
+
+def split_profile_phrases(text: str) -> list[str]:
+    clean = re.sub(r"\s+", " ", text or "").strip()
+    if not clean or clean == UNCONFIRMED:
+        return []
+    return [part.strip() for part in re.split(r"[、。/／\n,;；]+", clean) if part.strip()]
+
+
+def is_touchable_object_phrase(text: str) -> bool:
+    return bool(text) and not any(word in text for word in NON_TOUCHABLE_OBJECT_KEYWORDS) and any(
+        word in text for word in TOUCHABLE_OBJECT_KEYWORDS
+    )
+
+
+def infer_fallback_touchable_object(*texts: str) -> str:
+    for text in texts:
+        for part in split_profile_phrases(text):
+            if is_touchable_object_phrase(part):
+                return part[:60]
+    return TOUCHABLE_OBJECT_PLACEHOLDER
+
+
+INNER_STATE_PLACEHOLDER = "[未確定: Q4 で指定されなかったため、scene 内で profile から導出]"
+
+INNER_STATE_KEYWORDS = [
+    "一人",
+    "内側",
+    "寂しい",
+    "疲れ",
+    "固まる",
+    "考え",
+    "見返す",
+    "飲み込む",
+    "隠",
+    "怖",
+    "不安",
+    "怒り",
+    "迷",
+    "躊躇",
+    "忘れ",
+    "残る",
+    "眠れ",
+    "黙",
+    "沈黙",
+    "笑え",
+    "言え",
+    "反応",
+]
+
+LIFE_LOGISTICS_KEYWORDS = [
+    "現場",
+    "職場",
+    "会社",
+    "清掃",
+    "コインランドリー",
+    "コンビニ",
+    "紙コップ",
+    "通勤",
+    "住所",
+    "勤務",
+    "店",
+    "駅",
+    "持ち物",
+    "バッグ",
+    "傘",
+]
+
+
+def infer_fallback_inner_state(*texts: str) -> str:
+    for text in texts:
+        for part in split_profile_phrases(text):
+            if any(word in part for word in LIFE_LOGISTICS_KEYWORDS):
+                continue
+            if any(word in part for word in INNER_STATE_KEYWORDS):
+                return part[:70]
+    return INNER_STATE_PLACEHOLDER
 
 
 def infer_fallback_descriptive_constraint(appearance: str) -> str:
@@ -2657,11 +2801,16 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
     gap = qa_gap(answers)
     wound_answer = qa_wound(answers)
     outward, inward, gap_text = split_gap_answer(gap)
-    inner_gap = gap_text if gap_text else q1.get("personality") or UNCONFIRMED
+    inner_gap = gap_text if gap_text else infer_fallback_inner_state(q1.get("personality", ""), wound_answer)
     avoid = newgame_forbidden_text(answers).replace("\n", " / ") or "初回から恋愛成立や親密成立を確定しない"
     occupation = q1.get("role") or "日常の場にいる人"
-    wound = wound_answer if wound_answer and not is_non_specific_literal(wound_answer) else "まだ言葉にしていない傷がある。詳細は未確定: 進行で決める"
-    descriptive_constraint = anchor if anchor and not is_non_specific_literal(anchor) else infer_fallback_descriptive_constraint(appearance)
+    wound = wound_answer if wound_answer and not is_non_specific_literal(wound_answer) else "まだ言葉にしていない内面の核がある。詳細は未確定: 進行で決める"
+    touchable_object = (
+        anchor
+        if anchor and not is_non_specific_literal(anchor)
+        else infer_fallback_touchable_object(visual_fields.get("notes", ""), appearance)
+    )
+    descriptive_constraint = anchor if anchor and not is_non_specific_literal(anchor) else touchable_object
     u = UNCONFIRMED
 
     return "\n".join(
@@ -2714,8 +2863,8 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             "## everyday anchors",
             f"- 生活の場所: {u}",
             f"- 仕事 / 用事 / 習慣: {occupation}",
-            f"- よく触る物: {descriptive_constraint}",
-            f"- 初回sceneで使える具体物: {descriptive_constraint}",
+            f"- よく触る物: {touchable_object}",
+            f"- 初回sceneで使える具体物: {touchable_object}",
             "",
             "## memories",
             f"- 初期時点で既にある生活上の記憶: {wound}",
@@ -3507,10 +3656,92 @@ def print_file(path: Path) -> None:
     print(render_file(path))
 
 
+def knowledge_block_known_to_has(block: list[str], actor: str) -> bool:
+    in_known_to = False
+    actor_pattern = re.compile(rf"\b{re.escape(actor)}\b")
+    for line in block:
+        stripped = line.strip()
+        if stripped.startswith("known_to:"):
+            in_known_to = True
+            if actor_pattern.search(stripped):
+                return True
+            if "[" in stripped and "]" in stripped:
+                in_known_to = False
+            continue
+        if in_known_to:
+            if actor_pattern.search(stripped):
+                return True
+            if stripped and not stripped.startswith("-"):
+                in_known_to = False
+    return False
+
+
+def sanitize_knowledge_item_for_context(block: list[str]) -> list[str]:
+    is_meta = any(
+        re.match(r"\s*fictional_status:\s*meta\s*(?:#.*)?$", line)
+        for line in block
+    )
+    heroine_knows = knowledge_block_known_to_has(block, "heroine")
+    if not is_meta or heroine_knows:
+        return block
+
+    result: list[str] = []
+    value_replaced = False
+    notes_replaced = False
+    for line in block:
+        if re.match(r"\s*value:\s*", line):
+            indent = re.match(r"^(\s*)", line).group(1)
+            result.append(f'{indent}value: "{KNOWLEDGE_HIDDEN_VALUE}"')
+            value_replaced = True
+            continue
+        if re.match(r"\s*notes:\s*", line):
+            indent = re.match(r"^(\s*)", line).group(1)
+            result.append(f'{indent}notes: "{KNOWLEDGE_HIDDEN_NOTE}"')
+            notes_replaced = True
+            continue
+        result.append(line)
+
+    if not value_replaced:
+        for index, line in enumerate(result):
+            if re.match(r"\s*-\s+key:\s*", line):
+                indent = re.match(r"^(\s*)", line).group(1)
+                result.insert(index + 1, f'{indent}  value: "{KNOWLEDGE_HIDDEN_VALUE}"')
+                break
+    if not notes_replaced:
+        result.append(f'    notes: "{KNOWLEDGE_HIDDEN_NOTE}"')
+    return result
+
+
+def sanitize_knowledge_state_for_context(content: str) -> str:
+    lines = content.splitlines()
+    output: list[str] = []
+    current_item: list[str] = []
+
+    for line in lines:
+        if re.match(r"\s*-\s+key:\s*", line):
+            if current_item:
+                output.extend(sanitize_knowledge_item_for_context(current_item))
+            current_item = [line]
+            continue
+        if current_item:
+            current_item.append(line)
+        else:
+            output.append(line)
+
+    if current_item:
+        output.extend(sanitize_knowledge_item_for_context(current_item))
+
+    return "\n".join(output)
+
+
 def render_file(path: Path) -> str:
     if not path.exists():
         return f"\n--- {path.relative_to(ROOT)} (missing) ---"
-    return f"\n--- {path.relative_to(ROOT)} ---\n{path.read_text(encoding='utf-8').rstrip()}"
+    content = path.read_text(encoding="utf-8").rstrip()
+    if path.name == "knowledge_state.md":
+        content = sanitize_knowledge_state_for_context(content)
+    return f"\n--- {path.relative_to(ROOT)} ---\n{content}"
+
 
 
 def codex_prompt_path(session_path: Path, mode: str) -> Path:

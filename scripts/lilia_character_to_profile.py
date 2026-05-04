@@ -731,17 +731,9 @@ def infer_everyday_anchors(char: CharacterSheet) -> dict[str, str]:
     if not tasks:
         tasks.append("[未確定: profile.occupation から導出予定]")
 
-    objects: list[str] = []
-    for source in [appearance, current, backstory]:
-        for part in split_descriptive_phrases(source):
-            if part and part not in objects:
-                objects.append(part[:48])
-            if len(objects) >= 3:
-                break
-        if len(objects) >= 3:
-            break
+    objects = extract_touchable_objects(appearance, current, backstory)
     if not objects:
-        objects.append("[未確定: profile.appearance から導出予定]")
+        objects.append(TOUCHABLE_OBJECT_PLACEHOLDER)
 
     scene_objects: list[str] = []
     for item in objects:
@@ -757,8 +749,8 @@ def infer_everyday_anchors(char: CharacterSheet) -> dict[str, str]:
     return {
         "places": join_items(places),
         "tasks": join_items(tasks),
-        "objects": join_items(objects),
-        "scene_objects": join_items(scene_objects),
+        "objects": join_items(objects, fallback=TOUCHABLE_OBJECT_PLACEHOLDER),
+        "scene_objects": join_items(scene_objects, fallback=TOUCHABLE_OBJECT_PLACEHOLDER),
     }
 
 
@@ -782,22 +774,15 @@ def infer_contradictions(char: CharacterSheet) -> list[str]:
     tone = source_text(char.tone.rule)
     personality_items = source_personality(char)
     personality = " ".join(personality_items)
-    current = source_text(char.context.current_situation)
     backstory = source_text(char.context.backstory)
     reaction_text = " ".join(source_text(value) for value in char.reactions.values())
     forbidden_text = " ".join(source_text(value) for value in char.forbidden)
 
     outward = first_sentence(tone) or first_sentence(personality) or "[未確定: profile.personality から導出予定]"
-    inward = (
-        first_sentence(backstory)
-        or first_sentence(current)
-        or first_sentence(reaction_text)
-        or "[未確定: profile.memories / unspoken から導出予定]"
-    )
+    inward = pick_inner_state_phrase([reaction_text, backstory, personality])
     contradiction = (
         first_sentence(forbidden_text)
         or (first_sentence(personality_items[1]) if len(personality_items) > 1 else "")
-        or first_sentence(current)
         or "[未確定: profile.contradictions から導出予定]"
     )
     return [
@@ -870,6 +855,146 @@ def split_descriptive_phrases(text: str | None) -> list[str]:
         return []
     parts = re.split(r"[、。/／\n,;；]+", clean)
     return [part.strip() for part in parts if source_text(part)]
+
+
+TOUCHABLE_OBJECT_PLACEHOLDER = "[未確定: Q3で指定されなかったため、scene 内で profile から導出]"
+
+TOUCHABLE_OBJECT_KEYWORDS = [
+    "ピアス",
+    "指輪",
+    "リング",
+    "ペン",
+    "万年筆",
+    "スマホ",
+    "携帯",
+    "鍵",
+    "財布",
+    "名刺",
+    "手帳",
+    "ノート",
+    "イヤホン",
+    "ヘッドホン",
+    "ネックレス",
+    "ブレスレット",
+    "ヘアピン",
+    "髪留め",
+    "眼鏡",
+    "メガネ",
+    "バッグ",
+    "鞄",
+    "トート",
+    "傘",
+    "カップ",
+]
+
+NON_TOUCHABLE_OBJECT_KEYWORDS = [
+    "目",
+    "瞳",
+    "体型",
+    "細身",
+    "巨乳",
+    "胸",
+    "肩",
+    "腰",
+    "背",
+    "身長",
+    "肌",
+    "顔",
+    "鍛え",
+    "体格",
+    "スタイル",
+    "服",
+    "服装",
+    "タートルネック",
+    "スラックス",
+    "コート",
+    "シャツ",
+    "袖",
+    "スカート",
+    "ワンピース",
+    "ニット",
+    "パーカー",
+    "ジャケット",
+    "靴",
+    "ヒール",
+]
+
+
+def is_touchable_object_phrase(text: str) -> bool:
+    if not text or contains_any(text, NON_TOUCHABLE_OBJECT_KEYWORDS):
+        return False
+    return contains_any(text, TOUCHABLE_OBJECT_KEYWORDS)
+
+
+def extract_touchable_objects(*texts: str, limit: int = 3) -> list[str]:
+    objects: list[str] = []
+    for text in texts:
+        for part in split_descriptive_phrases(text):
+            if is_touchable_object_phrase(part) and part not in objects:
+                objects.append(part[:48])
+            if len(objects) >= limit:
+                return objects
+    return objects
+
+
+INNER_STATE_PLACEHOLDER = "[未確定: Q4で指定されなかったため、scene 内で profile から導出]"
+
+INNER_STATE_KEYWORDS = [
+    "一人",
+    "内側",
+    "寂しい",
+    "疲れ",
+    "固まる",
+    "考え",
+    "見返す",
+    "飲み込む",
+    "隠",
+    "怖",
+    "不安",
+    "怒り",
+    "迷",
+    "躊躇",
+    "忘れ",
+    "残る",
+    "眠れ",
+    "黙",
+    "沈黙",
+    "笑え",
+    "言え",
+    "反応",
+]
+
+LIFE_LOGISTICS_KEYWORDS = [
+    "現場",
+    "職場",
+    "会社",
+    "清掃",
+    "コインランドリー",
+    "コンビニ",
+    "紙コップ",
+    "通勤",
+    "住所",
+    "勤務",
+    "店",
+    "駅",
+    "持ち物",
+    "バッグ",
+    "傘",
+]
+
+
+def is_inner_state_phrase(text: str) -> bool:
+    if not text or contains_any(text, LIFE_LOGISTICS_KEYWORDS):
+        return False
+    return contains_any(text, INNER_STATE_KEYWORDS)
+
+
+def pick_inner_state_phrase(texts: Iterable[str]) -> str:
+    for text in texts:
+        for part in split_descriptive_phrases(text):
+            if is_inner_state_phrase(part):
+                return part[:70]
+    return INNER_STATE_PLACEHOLDER
 
 
 def pick_descriptive_phrase(texts: Iterable[str], keywords: Iterable[str]) -> str:
@@ -960,7 +1085,8 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     if q3_anchor and not is_non_specific_literal(q3_anchor):
         descriptive_constraint_1 = q3_anchor
     elif q2_visual and not is_non_specific_literal(q2_visual):
-        descriptive_constraint_1 = visual_fields.get("notes") or q2_visual
+        q2_objects = extract_touchable_objects(q2_visual, visual_fields.get("notes", ""))
+        descriptive_constraint_1 = q2_objects[0] if q2_objects else TOUCHABLE_OBJECT_PLACEHOLDER
     layer_one = infer_layer_one(char)
     layer_two = infer_layer_two(values)
     flaw = infer_person_design_flaw(char)

@@ -49,6 +49,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 10（Q&A Redesign with GM Supplementary Question Flow）: 実装済み
 - Wave 10.1（Q3-Q5 Independence Restoration）: 実装済み
 - Wave 10.2（Main Question Template Flexibility）: 実装済み
+- Wave 10.3（Fallback Field Quality + Knowledge Boundary Meta HIDDEN）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -121,6 +122,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - story_spine の Main Question を5パターン（傷の治癒 / 選択 / 発見 / 変化 / 葛藤）へ拡張した。
 - Reveal Ladder / Background Truth / Pressure Direction も選択パターンに合わせて生成する。
 - 殺し屋・組織人・特殊職などを、必ず「傷を抱えて扱い直す」構文へ押し込まない。
+
+## Wave 10.3: Fallback Field Quality + Knowledge Boundary Meta HIDDEN [完了]
+- Q3 omakase fallback で `everyday anchors.よく触る物` に身体特徴や服装が入らないよう、持ち物・アクセサリー・小物だけを抽出対象にした。
+- Q4 omakase fallback で `contradictions.裏` に生活設定や持ち物リストが入らないよう、内面的な状態・感情・反応パターンだけを抽出対象にした。
+- resume / apply-turn 用 context では、ヒロインが知らない `knowledge_state.md` の meta 値を `[HIDDEN until shared in scene]` に置換し、服装や姿勢から推測して言い当てる経路を塞いだ。
+- 既存セッションのファイル自体は retrofit しないが、次回 context 構築時から meta HIDDEN が効く。
 
 ## 候補（優先度順、未確定）
 
