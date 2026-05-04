@@ -255,9 +255,9 @@ knowledge_state.md は他のファイルと**役割を分担しつつ連動**す
 | knowledge_state.md | 事実、経路、誰が知ってるか、状態 |
 | memory.md | 感情の跡、印象、心情 |
 
-例:
+例（構造説明のみ。literal として真似しないこと）:
 - knowledge_state: `主人公が便利屋 (shared, scene_1, weight: medium)`
-- memory.md: `主人公が「便利屋です」と言った時、澪は仕事の話に少し慎重になった（emotional_beat）`
+- memory.md: `主人公が「[職業/役割]です」と言った時、[ヒロインA]はその話題に少し慎重になった（emotional_beat）`
 
 両者は**同じ scene の異なる側面**を保持する。連動は AI がプロンプト時に両方読むことで成立する。
 
@@ -268,9 +268,9 @@ knowledge_state.md は他のファイルと**役割を分担しつつ連動**す
 | knowledge_state.md | 事実の状態（shared か否かなど） |
 | echo (memory.md 内) | 直前 scene の余韻、第一反応 |
 
-例:
+例（構造説明のみ。literal として真似しないこと）:
 - knowledge_state: `主人公が便利屋 (shared)`
-- echo: `便利屋という言葉に、澪が小さく反応した。距離が少し変わった`
+- echo: `[共有された事実]に、[ヒロインA]が小さく反応した。距離が少し変わった`
 
 knowledge_state は事実、echo は反応。連動は AI 判断。
 
@@ -281,7 +281,7 @@ knowledge_state は事実、echo は反応。連動は AI 判断。
 | knowledge_state.md | 「事実」が共有されているか |
 | decision_index.md | 「約束・拒否・保留」 |
 
-例:
+例（構造説明のみ。literal として真似しないこと）:
 - knowledge_state: `カフェで会う約束 (shared, scene_2, weight: high)`
 - decision_index: `約束: 明日カフェで会う / state: active / 期限: 明日`
 

@@ -45,6 +45,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 6（Opening Scene & Heroine Appearance）: 実装済み
 - Wave 7（Newgame Q&A Refinement & Protagonist Profile）: 実装済み
 - Wave 8（Knowledge Boundary Management）: 実装済み
+- Wave 9（Root Cure: Examples / Fallback / Keyword / References / Validator / Logging）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -85,14 +86,24 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - prompt/core.md に Knowledge Boundary Awareness と Authorship Boundary
 - 既存ファイル（memory, echo, decision_index, story_spine, protagonist, profile）と連動
 
+## Wave 9: Root Cure — Examples / Fallback / Keyword / References / Validator / Logging [完了]
+- prompt/templates の具体例を構造プレースホルダへ寄せ、literal copy禁止の見出しを追加。
+- opening_scene の良い例を具体sceneから Part 1-3 の構造説明へ置換。
+- style defaults は雨 / 夕暮れ / 路地に偏らない複数軸例へ分散。
+- story_pattern_stock / story_structure_stock は旧セッション固有名・固有傷・固有sceneを外し、主要箇所に `[ヒロインA]` 形式のplaceholder例を3つ以上追加。
+- `FALLBACK_LILIA_NAMES` と keyword → literal fallback を廃止し、profile / answers 抽出と placeholder fallback に寄せた。
+- apply-newgame 最終段に omakase / hardcoded literal validator を追加した。検知時は再推論を試し、失敗時は placeholder 化してログへ警告する。
+- `logs/apply_newgame_*.log` / `logs/apply_turn_*.log` を追加した。プレイ本文とAI出力本文は保存しない。
+- autosave report: `scene-tick` は `session.json` の autosave counter を進めるだけで、自動保存や `apply-turn` 実行はしない。`apply-turn` 後に counter をリセットする。Wave 9 では報告のみで未修正。
+
 ## 候補（優先度順、未確定）
 
-- Wave 9: 能力（内面の発露）。
-- Wave 10: 異界。
-- Wave 11: 組織。
-- Wave 12: 複数ヒロイン。
-- Wave 13: 共同体・生活・ビジネス。
-- Wave 14: NPC 知識管理（knowledge_state 拡張）。
+- Wave 10: 能力（内面の発露）。
+- Wave 11: 異界。
+- Wave 12: 組織。
+- Wave 13: 複数ヒロイン。
+- Wave 14: 共同体・生活・ビジネス。
+- Wave 15: NPC 知識管理（knowledge_state 拡張）。
 
 ## 3. Completed Foundation
 

@@ -18,6 +18,8 @@ TEMPLATE_DIR = ROOT / "templates" / "session"
 SAVES_DIR = ROOT / "saves"
 SESSION_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 UNCONFIRMED = "未確定(LLM CLI で再生成推奨)"
+PLACEHOLDER_LILIA_NAME = "作中名未確定"
+PLACEHOLDER_PROFILE_VALUE = "未確定: profile/answers から再推論"
 
 
 NEW_PROMPT_FILES = [
@@ -60,19 +62,6 @@ AUTOSAVE_DEFAULTS = {
     "autosave_required": False,
 }
 
-FALLBACK_LILIA_NAMES = [
-    "澪",
-    "紬",
-    "灯里",
-    "小夜",
-    "依織",
-    "七海",
-    "琴葉",
-    "朱音",
-    "沙月",
-    "美月",
-]
-
 TURN_UPDATE_TARGETS = {
     "scene": "current/scene.md",
     "state": "lilia/main/state.md",
@@ -90,6 +79,19 @@ TURN_UPDATE_TARGETS = {
     "knowledge_state": "current/knowledge_state.md",
     "hotset": "current/hotset.md",
 }
+
+HARDCODED_LITERALS = [
+    "ビニール傘",
+    "駅前",
+    "店先",
+    "コンビニ前",
+    "古い栞",
+    "花鋏",
+    "閉店札の紐",
+    "水切り用の鋏",
+    "雨音",
+]
+FORBIDDEN_GENERATED_LITERALS = HARDCODED_LITERALS
 
 
 def usage() -> None:
@@ -189,6 +191,39 @@ def write_session_json(path: Path, data: dict) -> None:
     )
 
 
+def log_timestamp() -> str:
+    return datetime.now(timezone.utc).astimezone().strftime("%Y%m%d_%H%M%S")
+
+
+def safe_log_id(value: str) -> str:
+    clean = re.sub(r"[^A-Za-z0-9_.-]+", "_", value.strip())
+    return clean or "session"
+
+
+class OperationLogger:
+    def __init__(self, operation: str, session_id: str):
+        logs_dir = ROOT / "logs"
+        logs_dir.mkdir(exist_ok=True)
+        self.path = logs_dir / f"{operation}_{safe_log_id(session_id)}_{log_timestamp()}.log"
+        self.write("start", operation=operation, session=session_id)
+
+    def write(self, event: str, **fields: object) -> None:
+        parts = [datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"), event]
+        for key, value in fields.items():
+            if isinstance(value, (list, tuple, set)):
+                rendered = ",".join(str(item) for item in value)
+            else:
+                rendered = str(value)
+            rendered = rendered.replace("\n", " / ")
+            parts.append(f"{key}={rendered}")
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(" | ".join(parts) + "\n")
+
+    def section(self, title: str) -> None:
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(f"\n=== {title} ===\n")
+
+
 def ensure_autosave(data: dict) -> dict:
     autosave = data.get("autosave")
     if not isinstance(autosave, dict):
@@ -216,6 +251,7 @@ def is_placeholder_lilia_name(value: object) -> bool:
             "なし",
             "特になし",
             "おまかせ",
+            "作中名未確定",
             "初対面",
             "顔見知り",
             "知っている",
@@ -253,6 +289,7 @@ OMAKASE_LITERAL_VALUES = {
     "任せます",
     "未指定",
 }
+OMAKASE_LITERALS = OMAKASE_LITERAL_VALUES
 
 NON_SPECIFIC_VALUES = OMAKASE_LITERAL_VALUES | {
     "特になし",
@@ -343,13 +380,39 @@ def explicit_name_from_answers(answers: dict[int | str, str]) -> str:
     return ""
 
 
+def ai_reinfer_name_stub(profile: str = "", answers: Optional[dict[int | str, str]] = None, logger: Optional[OperationLogger] = None) -> str:
+    if logger is not None:
+        logger.write(
+            "fallback_layer_b_name_unavailable",
+            profile_present=bool(profile.strip()),
+            answers_present=bool(answers),
+            reason="deterministic no-op stub",
+        )
+    return ""
+
+
+def resolve_lilia_name_layers(
+    *,
+    profile: str = "",
+    answers: Optional[dict[int | str, str]] = None,
+    logger: Optional[OperationLogger] = None,
+) -> tuple[str, str]:
+    profile_name = extract_profile_name(profile) if profile else ""
+    if profile_name:
+        return profile_name, "layer_a_profile"
+    if answers:
+        explicit = explicit_name_from_answers(answers)
+        if explicit:
+            return explicit, "layer_a_explicit_answer"
+    inferred = ai_reinfer_name_stub(profile, answers, logger)
+    if inferred:
+        return inferred, "layer_b_ai_reinfer"
+    return PLACEHOLDER_LILIA_NAME, "layer_c_placeholder"
+
+
 def generated_lilia_name(answers: dict[int | str, str], session_name: str = "") -> str:
-    explicit = explicit_name_from_answers(answers)
-    if explicit:
-        return explicit
-    seed = session_name + "\n" + "\n".join(answers.get(number, "") for number in range(1, 9))
-    index = sum(ord(char) for char in seed) % len(FALLBACK_LILIA_NAMES)
-    return FALLBACK_LILIA_NAMES[index]
+    del session_name
+    return resolve_lilia_name_layers(answers=answers)[0]
 
 
 def ensure_lilia_names(data: dict, name: str = "") -> str:
@@ -358,6 +421,8 @@ def ensure_lilia_names(data: dict, name: str = "") -> str:
         resolved = clean_lilia_name(data.get("lilia_name"))
     if not resolved:
         resolved = clean_lilia_name(data.get("lilia_display_name"))
+    if not resolved:
+        resolved = PLACEHOLDER_LILIA_NAME
     data["lilia_name"] = resolved
     data["lilia_display_name"] = resolved
     return resolved
@@ -395,16 +460,8 @@ def text_has_any(text: str, needles: list[str]) -> bool:
 
 
 def infer_simple_initial_place(heroine: str, relationship: str, taste: str, avoid: str) -> str:
-    text = f"{heroine}\n{relationship}\n{taste}\n{avoid}"
-    if text_has_any(text, ["便利屋", "依頼", "相談", "仕事"]):
-        return "夕方から夜にかけての駅前か小さな店先。仕事や相談に見える用事があり、会話の入口が自然に生まれる場所。"
-    if text_has_any(text, ["雨", "傘", "雨宿り"]):
-        return "雨の残る店先かコンビニ前。濡れた足元と傘、帰る判断が会話の入口になる場所。"
-    if text_has_any(text, ["日常", "甘酸っぱい", "じれじれ", "恋愛"]):
-        return "帰り道のコンビニ前か駅前。日常の用事が少しだけ重なり、立ち止まって話せる場所。"
-    if text_has_any(text, ["不思議", "能力", "違和感"]):
-        return "人通りが一瞬途切れた夕方の駅前。日常の中に小さな違和感だけが混じる場所。"
-    return "現代日常の帰り道。駅前、店先、コンビニ前のどれかから、ヒロイン像と体験の味に合わせてGMが具体化する。"
+    del heroine, relationship, taste, avoid
+    return "[未確定: scene 内で profile.context から導出]"
 
 
 def infer_simple_unspoken(heroine: str, relationship: str, taste: str, avoid: str) -> str:
@@ -435,27 +492,16 @@ def infer_simple_boundary(heroine: str, relationship: str, taste: str, avoid: st
 
 
 def infer_simple_scene_material(heroine: str, relationship: str, taste: str, avoid: str) -> str:
-    text = f"{heroine}\n{relationship}\n{taste}\n{avoid}"
-    items = ["スマホ", "レシート", "小さな袋", "傘か上着", "未送信の通知"]
-    if text_has_any(text, ["仕事", "相談", "依頼", "便利屋"]):
-        items = ["スマホの短い連絡", "メモ", "紙袋", "領収書", "まだ依頼と呼べない相談"]
-    elif text_has_any(text, ["雨", "傘", "雨宿り"]):
-        items = ["ビニール傘", "濡れたレシート", "温かい飲み物", "コンビニ袋", "遅延通知"]
-    elif text_has_any(text, ["色気", "距離", "胸", "身体"]):
-        items = ["羽織った上着", "スマホ", "持ち直したバッグ", "視線を逸らす手元", "近すぎない立ち位置"]
-    return "、".join(items)
+    del heroine, relationship, taste, avoid
+    return "[未確定: scene 内で profile.appearance / everyday anchors から導出]"
 
 
 def infer_simple_initial_event(heroine: str, relationship: str, taste: str, avoid: str, place: str, unspoken: str) -> str:
-    if text_has_any(taste, ["便利屋", "依頼", "相談", "仕事"]):
-        entry = "ヒロインが短い相談を切り出しかけるが、仕事として頼むか個人的に話すかを迷っている。"
-    elif text_has_any(taste, ["日常", "甘酸っぱい", "じれじれ", "恋愛"]):
-        entry = "帰る方向や小さな用事が重なり、名乗るか、少し一緒に歩くか、ここで別れるかを選べる。"
-    elif text_has_any(taste, ["不思議", "能力", "違和感"]):
-        entry = "日常の具体物に小さな違和感が混じるが、能力や大事件にはまだ広げず、本人の反応を見る。"
-    else:
-        entry = "手元の具体物か短い通知が会話の入口になり、声をかける、待つ、手伝う、理由を聞く余地が残る。"
-    return entry
+    for candidate in [place, unspoken, taste, relationship, heroine, avoid]:
+        value = story_clean_answer(candidate)
+        if value:
+            return value
+    return "[未確定: scene 内で profile.context から導出]"
 
 
 def normalize_newgame_answers(raw_answers: dict[int | str, str]) -> dict[int | str, str]:
@@ -836,6 +882,119 @@ def sanitize_generated_documents(documents: dict[str, str]) -> dict[str, str]:
     return {path: sanitize_omakase_literals(content) for path, content in documents.items()}
 
 
+def generated_document_issues(documents: dict[str, str]) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    for path, content in documents.items():
+        if LEAK_LITERAL_RE.search(content):
+            issues.append({"path": path, "kind": "omakase_literal", "literal": "omakase"})
+        for literal in FORBIDDEN_GENERATED_LITERALS:
+            if literal in content:
+                issues.append({"path": path, "kind": "hardcoded_literal", "literal": literal})
+    return issues
+
+
+def repair_generated_documents_with_placeholders(documents: dict[str, str]) -> dict[str, str]:
+    repaired = {path: sanitize_omakase_literals(content) for path, content in documents.items()}
+    for path, content in repaired.items():
+        updated = content
+        for literal in FORBIDDEN_GENERATED_LITERALS:
+            updated = updated.replace(literal, PLACEHOLDER_PROFILE_VALUE)
+        repaired[path] = updated
+    return repaired
+
+
+def issue_summary(issues: list[dict[str, str]]) -> str:
+    if not issues:
+        return "none"
+    counts: dict[str, int] = {}
+    for issue in issues:
+        key = f"{issue['kind']}:{issue['literal']}"
+        counts[key] = counts.get(key, 0) + 1
+    return ",".join(f"{key}={count}" for key, count in sorted(counts.items()))
+
+
+def validator_reinfer_documents(
+    answers: dict[int | str, str],
+    requested_engine: str,
+    logger: Optional[OperationLogger] = None,
+) -> tuple[Optional[dict[str, str]], Optional[str], str]:
+    engine = choose_engine(requested_engine)
+    if engine is None:
+        if logger is not None:
+            logger.write("validator_reinfer_unavailable", requested_engine=requested_engine)
+        return None, None, f"{requested_engine} engine unavailable"
+    instruction = (
+        build_character_instruction_from_answers(answers)
+        + "\n追加条件:\n"
+        + "- おまかせ、未指定、名前まかせ等の入力語を出力本文へ残さない。\n"
+        + "- Q&A、CharacterSheet、profileから推論できない具体物や場所は未確定として残す。\n"
+        + "- 次の固定リテラルは使わない: "
+        + "、".join(FORBIDDEN_GENERATED_LITERALS)
+        + "\n"
+    )
+    try:
+        from tools.character.core.master import generate_character
+
+        character = generate_character(instruction, engine=engine)
+        docs = render_documents_from_character_yaml(character, answers)
+        if logger is not None:
+            logger.write("validator_reinfer_success", engine=engine, generated_files=list(docs))
+        return docs, engine, f"validator re-inferred via {engine}"
+    except Exception as exc:
+        if logger is not None:
+            logger.write("validator_reinfer_failed", engine=engine, error=type(exc).__name__)
+        return None, engine, f"{engine} validator re-inference failed: {exc}"
+
+
+def validate_apply_newgame_documents(
+    documents: dict[str, str],
+    answers: dict[int | str, str],
+    requested_engine: str,
+    logger: Optional[OperationLogger] = None,
+) -> tuple[dict[str, str], dict[str, object]]:
+    initial_issues = generated_document_issues(documents)
+    result: dict[str, object] = {
+        "initial_issues": len(initial_issues),
+        "initial_summary": issue_summary(initial_issues),
+        "repair_path": "none",
+        "final_issues": 0,
+        "final_summary": "none",
+        "warning": "",
+    }
+    if logger is not None:
+        logger.write("validator_initial", issues=len(initial_issues), summary=result["initial_summary"])
+    if not initial_issues:
+        return documents, result
+
+    reinferred, engine, status = validator_reinfer_documents(answers, requested_engine, logger)
+    result["reinference_engine"] = engine or ""
+    result["reinference_status"] = status
+    if reinferred is not None:
+        reinferred_issues = generated_document_issues(reinferred)
+        if logger is not None:
+            logger.write("validator_reinferred", issues=len(reinferred_issues), summary=issue_summary(reinferred_issues))
+        if not reinferred_issues:
+            result["repair_path"] = "ai_reinfer"
+            return reinferred, result
+
+    repaired = repair_generated_documents_with_placeholders(documents)
+    final_issues = generated_document_issues(repaired)
+    result["repair_path"] = "placeholder"
+    result["final_issues"] = len(final_issues)
+    result["final_summary"] = issue_summary(final_issues)
+    if final_issues:
+        result["warning"] = "validator placeholder repair left issues; inspect generated files"
+    else:
+        result["warning"] = "validator used placeholder repair"
+    if logger is not None:
+        logger.write(
+            "validator_placeholder_repair",
+            final_issues=len(final_issues),
+            final_summary=result["final_summary"],
+        )
+    return repaired, result
+
+
 def render_turn_update_block(timestamp: str, body: str) -> str:
     return f"## Turn Update - {timestamp}\n\n{body.strip()}\n"
 
@@ -908,25 +1067,11 @@ def profile_short_items(text: str, limit: int = 3) -> str:
 
 def profile_place_focus(text: str) -> str:
     phrase = profile_phrase(text)
-    if "コンビニ" in phrase:
-        return "雨のコンビニ前" if "雨" in phrase else "コンビニ前"
-    if "店先" in phrase:
-        return "雨宿りしている店先" if "雨" in phrase else "店先"
-    if "駅" in phrase:
-        return "駅前" if "駅前" in phrase else "駅"
-    if "帰り道" in phrase:
-        return "帰り道"
     return phrase
 
 
 def profile_entry_focus(text: str) -> str:
     phrase = profile_phrase(text)
-    if "帰るタイミング" in phrase:
-        return "帰るタイミング"
-    if "スマホ" in phrase or "通知" in phrase:
-        return "スマホ通知"
-    if "買い物" in phrase:
-        return "手元の買い物"
     if len(phrase) > 28:
         return "次の行動の判断"
     return phrase
@@ -1035,46 +1180,24 @@ def story_anchor_from_context(q3: str, objects: str, q1: str, q2: str, place: st
     from_profile = story_clean_answer(objects)
     if from_profile:
         return profile_short_items(from_profile, 2)
-    text = " ".join([q1, q2, place])
-    if "古書" in text or "本" in text or "書店" in text:
-        return "古い栞"
-    if "花" in text:
-        return "花鋏"
-    if "市役所" in text or "役所" in text:
-        return "書類ファイル"
-    if "エンジニア" in text or "開発" in text or "コード" in text:
-        return "小さなピアス"
-    if "雨" in text or "傘" in text:
-        return "傘の先に残る雨粒"
-    return "手元に残る小さな持ち物"
+    del q1, q2, place
+    return "[未確定: profile.appearance から導出]"
 
 
 def story_environment_object(q1: str, q2: str, place: str) -> str:
-    text = " ".join([q1, q2, place])
-    if "古書" in text or "本" in text or "書店" in text:
-        return "閉店札の紐"
-    if "花" in text:
-        return "水切り用の鋏"
-    if "市役所" in text or "役所" in text:
-        return "窓口番号札"
-    if "エンジニア" in text or "開発" in text or "コード" in text:
-        return "ノートPCのスリープランプ"
-    if "雨" in text:
-        return "入口に残る雨粒"
-    return "場に残る具体物"
+    for candidate in [place, q2, q1]:
+        value = story_fragment(candidate, 48)
+        if value:
+            return value
+    return "[未確定: profile.context から導出]"
 
 
 def story_role_object(q1: str, q2: str, place: str) -> str:
-    text = " ".join([q1, q2, place])
-    if "古書" in text or "本" in text or "書店" in text:
-        return "台帳と棚の埃"
-    if "花" in text:
-        return "花鋏と水の跡"
-    if "市役所" in text or "役所" in text:
-        return "書類ファイル"
-    if "エンジニア" in text or "開発" in text or "コード" in text:
-        return "ノートPCと未送信のログ"
-    return "日常の仕事道具"
+    for candidate in [q1, place, q2]:
+        value = story_fragment(candidate, 48)
+        if value:
+            return value
+    return "[未確定: profile.occupation から導出]"
 
 
 def build_story_generation_fields(
@@ -1153,33 +1276,20 @@ def build_story_generation_fields(
 
 
 def infer_scene_time(text: str) -> str:
-    if "夜" in text:
-        return "夜。店の明かりと雨音が残る時間。"
-    if "朝" in text:
-        return "朝。まだ人の流れが落ち着かない時間。"
-    if "夕" in text or "帰" in text:
-        return "夕方から夜にかけて。帰る判断をする時間。"
-    if "雨" in text:
-        return "雨が続く、足を止めるしかない時間。"
-    return "初回scene開始時点。次の行動を決める直前。"
+    value = story_fragment(text, 60)
+    if value:
+        return f"{value}から導出する場面時間"
+    return "[未確定: scene 内で profile.context から導出]"
 
 
 def infer_scene_exit_beats(text: str, name: str) -> list[str]:
-    beats: list[str] = []
-    if "雨" in text:
-        beats.append("雨が弱まり、軒下から出る判断ができる")
-    if "通知" in text or "スマホ" in text or "連絡" in text:
-        beats.append("スマホ通知が来て、返事をするか迷う")
-    if "帰" in text or "部屋" in text:
-        beats.append(f"{name}が帰る判断をする")
-    if "紙袋" in text or "荷物" in text or "トート" in text:
-        beats.append("紙袋や荷物の持ち方をどうするかが小さな共同作業になる")
-    beats.extend(
-        [
-            "一緒に途中まで歩く / ここで別れる余地が出る",
-            "連絡先を聞くか、次に会う理由だけを残す余地が出る",
-        ]
-    )
+    context = story_fragment(text, 48)
+    beats = [
+        f"{name}が次の行動を自分で選ぶ余地が出る",
+        "ここで別れる / 少し残る / 次に会う理由だけを残す余地が出る",
+    ]
+    if context:
+        beats.insert(0, f"{context}が次の入口として残る")
     deduped: list[str] = []
     for beat in beats:
         if beat not in deduped:
@@ -1388,6 +1498,7 @@ def render_knowledge_state_document(
     profile: str,
     answers: dict[int | str, str],
     lilia_name: str,
+    story_fields: Optional[dict[str, object]] = None,
 ) -> str:
     sections = profile_sections(profile)
     q1 = answer_or_default(answers, 1, "未確定")
@@ -1412,9 +1523,20 @@ def render_knowledge_state_document(
     if is_unconfirmed_value(background_truth):
         background_truth = profile_value(sections, ["unspoken", "memories"], ["まだ言わないこと", "初期時点で既にある生活上の記憶"], "未確定")
     if is_unconfirmed_value(background_truth):
-        background_truth = "まだ言わないことが残っている"
+        background_truth = "[未確定: story_spine.Background Truth から導出予定]"
+    if story_fields:
+        story_background = str(story_fields.get("background_truth") or "").strip()
+        if story_background:
+            background_truth = story_background
     if is_unconfirmed_value(q5):
         q5 = background_truth
+    reveal_stage_1 = f"初回で見える入口: {q2}"
+    reveal_stage_2 = f"声や距離に出始める差: {q4}"
+    reveal_stage_3 = f"深部の傷の候補: {q5}"
+    if story_fields:
+        reveal_stage_1 = str(story_fields.get("visible") or reveal_stage_1)
+        reveal_stage_2 = str(story_fields.get("near_reveal") or reveal_stage_2)
+        reveal_stage_3 = str(story_fields.get("deep_reveal") or reveal_stage_3)
 
     item_lines: list[str] = []
     item_specs = [
@@ -1510,7 +1632,7 @@ def render_knowledge_state_document(
         ),
         dict(
             key="reveal_ladder_stage_1",
-            value=f"初回で見える入口: {q2}",
+            value=reveal_stage_1,
             fictional_status="gm_only",
             source="story_spine",
             known_to=["GM"],
@@ -1520,7 +1642,7 @@ def render_knowledge_state_document(
         ),
         dict(
             key="reveal_ladder_stage_2",
-            value=f"声や距離に出始める差: {q4}",
+            value=reveal_stage_2,
             fictional_status="gm_only",
             source="story_spine",
             known_to=["GM"],
@@ -1530,7 +1652,7 @@ def render_knowledge_state_document(
         ),
         dict(
             key="reveal_ladder_stage_3",
-            value=f"深部の傷の候補: {q5}",
+            value=reveal_stage_3,
             fictional_status="gm_only",
             source="story_spine",
             known_to=["GM"],
@@ -1630,8 +1752,8 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     exit_beats = infer_scene_exit_beats(combined_text, name)
     pressure = unspoken[0] if unspoken else (contradictions[0] if contradictions else "まだ言わないことが残っている")
     friction = contradictions[0] if contradictions else pressure
-    guard = values[0] if values else "自分で決める余地"
-    avoid = forbidden[0] if forbidden else "急に距離を詰められること"
+    guard = values[0] if values else "[未確定: profile.values から導出]"
+    avoid = forbidden[0] if forbidden else "[未確定: profile.forbidden から導出]"
     role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q1_components(q(1)).get("role") or "初回scene前にprofileから読む")
     story_fields = build_story_generation_fields(
         name=name,
@@ -1792,7 +1914,7 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
             ],
         ),
         "current/protagonist.md": render_protagonist_document(answers),
-        "current/knowledge_state.md": render_knowledge_state_document(profile, answers, name),
+        "current/knowledge_state.md": render_knowledge_state_document(profile, answers, name, story_fields),
         "lilia/main/core.md": render_document(
             "LILIA Core",
             "profile.md から抽出した最小核だけを置きます。profileの丸ごとコピーではありません。",
@@ -2651,7 +2773,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
     }
     documents.update(render_profile_initialized_documents(profile, answers))
     documents.update(render_style_documents(answers))
-    return sanitize_generated_documents(documents)
+    return documents
 
 
 def session_sort_value(path: Path) -> str:
@@ -3226,7 +3348,7 @@ def render_documents_from_character_yaml(character: object, answers: dict[int | 
     }
     documents.update(render_profile_initialized_documents(profile, answers))
     documents.update(render_style_documents(answers))
-    return sanitize_generated_documents(documents)
+    return documents
 
 
 def generate_character_documents(
@@ -3235,16 +3357,16 @@ def generate_character_documents(
 ) -> tuple[dict[str, str], Optional[str], str]:
     engine = choose_engine(requested_engine)
     if engine is None:
-        return sanitize_generated_documents(render_newgame_documents(answers)), None, f"{requested_engine} engine unavailable"
+        return render_newgame_documents(answers), None, f"{requested_engine} engine unavailable"
 
     instruction = build_character_instruction_from_answers(answers)
     try:
         from tools.character.core.master import generate_character
 
         character = generate_character(instruction, engine=engine)
-        return sanitize_generated_documents(render_documents_from_character_yaml(character, answers)), engine, f"generated via {engine}"
+        return render_documents_from_character_yaml(character, answers), engine, f"generated via {engine}"
     except Exception as exc:
-        return sanitize_generated_documents(render_newgame_documents(answers)), None, f"{engine} CLI failed: {exc}"
+        return render_newgame_documents(answers), None, f"{engine} CLI failed: {exc}"
 
 
 def command_apply_newgame(args: list[str]) -> None:
@@ -3253,17 +3375,49 @@ def command_apply_newgame(args: list[str]) -> None:
         die("apply-newgame requires <session_name> <answers.md> [--engine codex|claude|auto]")
 
     session_path = resolve_session(args[0])
+    logger = OperationLogger("apply_newgame", session_path.name)
+    logger.section("apply-newgame START")
+    logger.write("start_context", session_id=session_path.name, timestamp=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"))
     answers_path = Path(args[1]).expanduser()
+    logger.write("inputs", answers_path=answers_path, requested_engine=requested_engine)
     answers = parse_newgame_answers(answers_path)
+    logger.section("Q&A")
+    for number in range(1, 9):
+        logger.write("answer", question=f"Q{number}", value=answer(answers, number).replace("\n", " / "))
+    logger.section("LLM Calls")
     documents, selected_engine, generation_status = generate_character_documents(answers, requested_engine)
+    logger.write(
+        "profile generation",
+        selected_engine=selected_engine or "",
+        status=generation_status,
+        fallback_path=not bool(selected_engine),
+        generated_files=list(documents),
+    )
+    logger.section("Validator")
+    documents, validator_result = validate_apply_newgame_documents(documents, answers, requested_engine, logger)
+    logger.section("Fallback Triggered")
+    logger.write(
+        "fallback_summary",
+        generation_fallback=not bool(selected_engine),
+        validator_repair=validator_result.get("repair_path"),
+    )
     profile_name = extract_profile_name(documents["lilia/main/profile.md"])
     if not profile_name:
-        profile_name = generated_lilia_name(answers, session_path.name)
+        profile_name, name_source = resolve_lilia_name_layers(
+            profile=documents["lilia/main/profile.md"],
+            answers=answers,
+            logger=logger,
+        )
+        logger.write("name_resolution", source=name_source, placeholder=profile_name == PLACEHOLDER_LILIA_NAME)
         documents["lilia/main/profile.md"] = replace_profile_name(
             documents["lilia/main/profile.md"],
             profile_name,
         )
+    else:
+        logger.write("name_resolution", source="layer_a_profile", placeholder=False)
 
+    logger.section("Generated Files")
+    logger.write("generated_files", files=list(documents))
     for rel_path, content in documents.items():
         write_session_file(session_path, rel_path, content)
 
@@ -3278,6 +3432,14 @@ def command_apply_newgame(args: list[str]) -> None:
     initialization["first_scene_status"] = "ready"
     ensure_autosave(data)
     write_session_json(session_path, data)
+    logger.write(
+        "write_complete",
+        updated_files=["session.json", *documents.keys()],
+        validator_repair=validator_result.get("repair_path"),
+        validator_warning=validator_result.get("warning", ""),
+    )
+    logger.section("apply-newgame END")
+    logger.write("end", status="success")
 
     print(f"session: {session_path.relative_to(ROOT)}")
     if selected_engine:
@@ -3292,10 +3454,13 @@ def command_apply_newgame(args: list[str]) -> None:
         print("warning: profile.md has many unconfirmed fields. Re-run with a working LLM CLI for higher quality.")
     print(f"applied: {answers_path}")
     print("phase: first_scene_ready")
+    if validator_result.get("warning"):
+        print(f"warning: {validator_result['warning']}")
     print("updated:")
     print("  session.json")
     for rel_path in documents:
         print(f"  {rel_path}")
+    print(f"log: {logger.path.relative_to(ROOT)}")
 
 
 def command_apply_turn(args: list[str]) -> None:
@@ -3307,10 +3472,27 @@ def command_apply_turn(args: list[str]) -> None:
         die("apply-turn requires [--dry-run] <session_name> <turn_update.md>")
 
     session_path = resolve_session(args[0])
+    logger = OperationLogger("apply_turn", session_path.name)
+    logger.section("apply-turn START")
+    logger.write("start_context", session_id=session_path.name, timestamp=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"), dry_run=dry_run)
     update_path = Path(args[1]).expanduser()
     sections = parse_turn_update(update_path)
     if not sections:
         die("turn_update.md has no non-empty supported sections")
+    logger.write("inputs", update_path=update_path, dry_run=dry_run, sections=list(sections))
+    logger.section("References")
+    logger.write(
+        "read",
+        files=[
+            "prompt/core.md",
+            "current/profile.md",
+            "current/story_spine.md",
+            "current/knowledge_state.md (if present)",
+            str(update_path),
+        ],
+    )
+    logger.section("LLM Call")
+    logger.write("turn generation", status="not_performed_apply_turn_merges_turn_update_only")
 
     timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     updated: list[str] = []
@@ -3359,6 +3541,10 @@ def command_apply_turn(args: list[str]) -> None:
         autosave["autosave_required"] = False
         write_session_json(session_path, data)
         mark_updated("session.json")
+    logger.section("Updates")
+    logger.write("write_complete", dry_run=dry_run, updated=updated, skipped=skipped)
+    logger.section("apply-turn END")
+    logger.write("end", status="dry_run" if dry_run else "success")
 
     print(f"{'dry-run: ' if dry_run else ''}applied: {update_path}")
     print(f"session: {session_path.relative_to(ROOT)}")
@@ -3370,6 +3556,7 @@ def command_apply_turn(args: list[str]) -> None:
         print("skipped:")
         for message in skipped:
             print(f"  {message}")
+    print(f"log: {logger.path.relative_to(ROOT)}")
 
 
 def command_scene_tick(args: list[str]) -> None:

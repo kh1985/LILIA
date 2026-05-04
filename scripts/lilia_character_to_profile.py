@@ -522,27 +522,23 @@ def source_personality(char: CharacterSheet) -> list[str]:
 
 
 def infer_values(char: CharacterSheet) -> list[str]:
-    text = " ".join(
-        source_text(value)
-        for value in [
-            char.occupation,
-            char.tone.rule,
-            " ".join(char.personality),
-            " ".join(char.reactions.values()),
-            char.context.backstory,
-            char.context.current_situation,
-        ]
-    )
-    values = [
-        "自分で決める余地を残すこと",
-        "相手に負担を渡しすぎないこと",
-    ]
-    if contains_any(text, ["予定", "ドタキャン", "帰るタイミング", "崩れ"]):
-        values.append("予定が崩れても平気な顔を保つこと")
-    if contains_any(text, ["踏み込", "軽口", "軽く", "距離", "扱われ"]):
-        values.append("軽く扱われないこと")
-    if contains_any(text, ["クライアント", "フリーランス", "在宅", "一人でやれる"]):
-        values.append("仕事と生活の範囲を自分で決めること")
+    values: list[str] = []
+
+    def add_from(label: str, value: str | None) -> None:
+        clean = first_sentence(source_text(value))
+        if clean and clean != "未設定":
+            values.append(f"{label}: {clean[:70]}")
+
+    for item in char.forbidden[:2]:
+        add_from("境界", item)
+    for item in list(char.reactions.values())[:2]:
+        add_from("反応", item)
+    add_from("声", char.tone.rule)
+    add_from("生活", char.context.current_situation)
+    add_from("過去", char.context.backstory)
+    add_from("立場", char.occupation)
+    if not values:
+        values.append("[未確定: profile.personality / reactions から導出予定]")
     return dedupe(values)
 
 
@@ -551,54 +547,46 @@ def infer_everyday_anchors(char: CharacterSheet) -> dict[str, str]:
     backstory = source_text(char.context.backstory)
     current = source_text(char.context.current_situation)
     appearance = source_text(char.appearance.notes)
-    text = " ".join([role, backstory, current, appearance])
 
     places: list[str] = []
-    if "コンビニ" in text:
-        places.append("夜のコンビニ前")
-    if "帰" in current:
-        places.append("帰り道")
-    if contains_any(text, ["在宅", "上京", "一人でやれる"]):
-        places.append("一人で戻る部屋")
+    if current:
+        places.append(first_sentence(current) or current)
+    elif role:
+        places.append(f"{first_sentence(role) or role}に紐づく生活の場所")
     if not places:
-        places.append("日常の用事が残る場所")
+        places.append("[未確定: profile.context から導出予定]")
 
     tasks: list[str] = []
     role_summary = first_sentence(role)
     if role_summary:
         tasks.append(role_summary)
-    if contains_any(text, ["Web", "デザイナー"]):
-        tasks.append("Web制作")
-    if "クライアント" in text:
-        tasks.append("クライアント連絡")
-    if "在宅" in text:
-        tasks.append("在宅作業")
-    if "コンビニ" in current:
-        tasks.append("夜の買い物")
-    if contains_any(current, ["予定", "ドタキャン"]):
-        tasks.append("予定変更後の帰り支度")
+    if current and current not in tasks:
+        tasks.append(first_sentence(current) or current)
+    if not tasks:
+        tasks.append("[未確定: profile.occupation から導出予定]")
 
     objects: list[str] = []
-    if contains_any(text, ["スマホ", "連絡", "予定", "ドタキャン", "クライアント"]):
-        objects.append("スマホ")
-    if "コンビニ" in text:
-        objects.extend(["レシート", "コンビニ袋"])
-    if "トート" in text:
-        objects.append("トートバッグ")
-    if contains_any(text, ["傘", "雨", "濡"]):
-        objects.append("ビニール傘")
+    for source in [appearance, current, backstory]:
+        for part in split_descriptive_phrases(source):
+            if part and part not in objects:
+                objects.append(part[:48])
+            if len(objects) >= 3:
+                break
+        if len(objects) >= 3:
+            break
+    if not objects:
+        objects.append("[未確定: profile.appearance から導出予定]")
 
     scene_objects: list[str] = []
-    if "コンビニ" in text:
-        scene_objects.extend(["温かい飲み物", "レシート", "コンビニ袋"])
-    if contains_any(text, ["予定", "ドタキャン", "連絡"]):
-        scene_objects.append("未読通知のあるスマホ")
-    if "トート" in text:
-        scene_objects.append("ロゴ入りのトートバッグ")
-    if contains_any(text, ["傘", "雨", "濡"]):
-        scene_objects.append("開きにくいビニール傘")
+    for item in objects:
+        if item and item not in scene_objects:
+            scene_objects.append(item)
+        if len(scene_objects) >= 2:
+            break
+    if current:
+        scene_objects.append(first_sentence(current) or current)
     if not scene_objects:
-        scene_objects.append("手元に残っている小さな持ち物")
+        scene_objects.append("[未確定: profile.everyday anchors から導出予定]")
 
     return {
         "places": join_items(places),
@@ -612,57 +600,59 @@ def infer_context_event(char: CharacterSheet, q6: str) -> str:
     current = source_text(char.context.current_situation)
     if q6 and q6 != current:
         return q6
-    if contains_any(current, ["予定", "ドタキャン", "コンビニ"]):
-        return "帰るタイミングを探す間に、スマホの通知か手元の買い物が会話のきっかけになる"
-    return "生活上の小さな用事が会話のきっかけになる"
+    if current:
+        return first_sentence(current) or current
+    return "[未確定: profile.context から導出予定]"
 
 
 def infer_presence_reason(char: CharacterSheet) -> str:
     current = source_text(char.context.current_situation)
-    if contains_any(current, ["友人", "ドタキャン", "予定"]):
-        return "友人との予定が消えて、帰る踏ん切りがつかないため"
-    if "コンビニ" in current:
-        return "買い物のあと、帰る前に少し足が止まっているため"
-    if "仕事" in current:
-        return "仕事か用事の切れ目で、次の行動を決めきれていないため"
-    return "日常の用事の途中で、少しだけ足が止まっているため"
+    if current:
+        return f"{first_sentence(current) or current}ため"
+    return "[未確定: profile.context から導出予定]"
 
 
 def infer_contradictions(char: CharacterSheet) -> list[str]:
     tone = source_text(char.tone.rule)
-    personality = " ".join(source_personality(char))
+    personality_items = source_personality(char)
+    personality = " ".join(personality_items)
     current = source_text(char.context.current_situation)
-    text = " ".join([tone, personality, current])
+    backstory = source_text(char.context.backstory)
+    reaction_text = " ".join(source_text(value) for value in char.reactions.values())
+    forbidden_text = " ".join(source_text(value) for value in char.forbidden)
 
-    outward = "平気な顔で軽口を返す" if contains_any(text, ["軽口", "平気", "フラット"]) else "落ち着いて見える態度を保つ"
-    inward = "予定が崩れて少し所在なくなっている" if contains_any(current, ["予定", "ドタキャン", "帰るタイミング"]) else "言葉にする前に気持ちを内側で整理している"
-    contradiction = "誰かと話したいが、自分から寂しいとは言わない"
-    if contains_any(personality, ["頼る", "一人で抱え", "最後の手段"]):
-        contradiction = "助けがあると楽になる場面ほど、頼る相手を選びすぎる"
+    outward = first_sentence(tone) or first_sentence(personality) or "[未確定: profile.personality から導出予定]"
+    inward = (
+        first_sentence(backstory)
+        or first_sentence(current)
+        or first_sentence(reaction_text)
+        or "[未確定: profile.memories / unspoken から導出予定]"
+    )
+    contradiction = (
+        first_sentence(forbidden_text)
+        or (first_sentence(personality_items[1]) if len(personality_items) > 1 else "")
+        or first_sentence(current)
+        or "[未確定: profile.contradictions から導出予定]"
+    )
     return [
         f"表: {outward}",
         f"裏: {inward}",
         f"矛盾: {contradiction}",
-        "矛盾: 近づきたい気配があっても、踏み込まれると返事が遅れる",
     ]
 
 
 def infer_unspoken(char: CharacterSheet) -> list[str]:
     current = source_text(char.context.current_situation)
     backstory = source_text(char.context.backstory)
-    appearance = source_text(char.appearance.notes)
-    text = " ".join([current, backstory, appearance, char.occupation or ""])
     items: list[str] = []
-    if contains_any(current, ["友人", "ドタキャン"]):
-        items.append("友人にドタキャンされたことを、気にしていないふりをしている")
-    if contains_any(text, ["スマホ", "連絡", "予定", "ドタキャン", "レシート"]):
-        items.append("スマホの通知やレシートの内容を見られたくない")
-    if contains_any(current, ["帰る", "帰り", "タイミング"]):
-        items.append("一緒に帰れると少し助かるが、送ってほしいとは言いたくない")
-    if contains_any(backstory, ["仕事", "広げる気", "一人でやれる"]):
-        items.append("仕事の範囲を広げない理由は、まだ説明しない")
+    for source in [backstory, current, *char.reactions.values(), *char.forbidden]:
+        clean = first_sentence(source_text(source))
+        if clean:
+            items.append(f"まだ言葉にしていない: {clean[:80]}")
+        if len(items) >= 4:
+            break
     if not items:
-        items.append("事情を聞かれても、すぐ整理して話せる状態ではない")
+        items.append("[未確定: profile.memories と forbidden から導出予定]")
     return dedupe(items)
 
 
