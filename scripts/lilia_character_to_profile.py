@@ -167,6 +167,25 @@ META_PATTERNS = [
 ]
 
 SOURCE_FALLBACK = "まだ固定しない"
+OMAKASE_LITERAL_VALUES = {
+    "まかせる",
+    "おまかせ",
+    "お任せ",
+    "任せる",
+    "任せます",
+    "未指定",
+}
+
+
+def compact_literal(text: str | None) -> str:
+    if text is None:
+        return ""
+    return re.sub(r"\s+", "", str(text).strip()).strip("「」『』'\"")
+
+
+def is_non_specific_literal(text: str | None) -> bool:
+    compact = compact_literal(text)
+    return compact in OMAKASE_LITERAL_VALUES | {"未設定", "未確定", "特になし", "なし", SOURCE_FALLBACK}
 
 
 def parse_simple_yaml_scalar(value: str) -> str | int | None:
@@ -339,6 +358,9 @@ def sync_profile_to_session_state(
 ) -> None:
     launcher = load_lilia_launcher()
     docs = launcher.render_profile_initialized_documents(profile, answers)
+    sanitizer = getattr(launcher, "sanitize_generated_documents", None)
+    if callable(sanitizer):
+        docs = sanitizer(docs)
     for rel_path, content in docs.items():
         launcher.write_session_file(session_path, rel_path, content)
 
@@ -361,7 +383,7 @@ def parse_answers(path: Path | None) -> dict[int | str, str]:
     sections: dict[int | str, list[str]] = {}
     current: int | str | None = None
     for line in content.splitlines():
-        match = re.match(r"^##\s*Q([1-7])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
+        match = re.match(r"^##\s*Q([1-8])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
         if match:
             current = int(match.group(1))
             sections.setdefault(current, [])
@@ -374,7 +396,7 @@ def parse_answers(path: Path | None) -> dict[int | str, str]:
     try:
         launcher = load_lilia_launcher()
         normalizer = getattr(launcher, "normalize_newgame_answers", None)
-        if callable(normalizer) and all(answers.get(number) for number in range(1, 6)):
+        if callable(normalizer) and all(answers.get(number) for number in range(1, 9)):
             return normalizer(answers)
     except Exception:
         pass
@@ -383,11 +405,13 @@ def parse_answers(path: Path | None) -> dict[int | str, str]:
 
 def answer(answers: dict[int | str, str], key: int | str, fallback: str = "未設定") -> str:
     value = answers.get(key, "")
-    return value.strip() if isinstance(value, str) and value.strip() else fallback
+    if not isinstance(value, str) or not value.strip() or is_non_specific_literal(value):
+        return fallback
+    return value.strip()
 
 
 def bullets(items: Iterable[str], fallback: str = "未設定") -> str:
-    clean = [item.strip() for item in items if item and item.strip()]
+    clean = [item.strip() for item in items if item and item.strip() and not is_non_specific_literal(item)]
     if not clean:
         return f"- {fallback}"
     return "\n".join(f"- {item}" for item in clean)
@@ -405,7 +429,7 @@ def compact_text(text: str | None) -> str:
 
 def is_meta_text(text: str | None) -> bool:
     clean = compact_text(text)
-    if not clean or clean in {"未設定", "未確定"}:
+    if not clean or is_non_specific_literal(clean):
         return True
     return any(re.search(pattern, clean, re.IGNORECASE) for pattern in META_PATTERNS)
 
@@ -753,6 +777,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     q2 = source_answer(answers, 2, "互いをまだ深く知らない距離")
     q4 = source_answer(answers, 4, "恋愛成立や重い事件を急がない")
     q5_life = source_answer(answers, 5, role)
+    q8 = source_answer(answers, 8, "")
 
     personality = source_personality(char)
     first_personality = personality[0] if personality else "話しかけられれば返すが、自分から急に距離を詰めない"
@@ -779,10 +804,12 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     forbidden = dedupe(
         [
             *char.forbidden,
-            q4,
+            q8,
             "初期から恋愛成立や親密成立を確定しない",
         ]
     )
+    gap_back = contradictions[0] if contradictions else (unspoken[0] if unspoken else q4)
+    say_do_gap = f"{first_personality} / {gap_back}"
 
     sections = [
         "# LILIA Persona Profile",
@@ -899,7 +926,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         f"Layer 1（自己物語）: {layer_one}",
         f"Layer 2（心の核）: {layer_two}",
         "Layer 3（防壁マップ）:",
-        f"  Say/Do Gap: {q1} / 内側では言葉にする前に整理している",
+        f"  Say/Do Gap: {say_do_gap}",
         f"  逃げ方: {reaction_value(char, '踏', '急', fallback=boundary)}",
         "  強がり方: 平気な顔で軽く流し、必要な説明を短くする",
         "Layer 4（心の扉マップ）:",

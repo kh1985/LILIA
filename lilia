@@ -245,12 +245,87 @@ def extract_profile_name(profile: str) -> str:
     return ""
 
 
+OMAKASE_LITERAL_VALUES = {
+    "まかせる",
+    "おまかせ",
+    "お任せ",
+    "任せる",
+    "任せます",
+    "未指定",
+}
+
+NON_SPECIFIC_VALUES = OMAKASE_LITERAL_VALUES | {
+    "特になし",
+    "なし",
+    "未設定",
+    "未確定",
+    "SOURCE_FALLBACK",
+}
+
+
+def compact_text(value: str) -> str:
+    return re.sub(r"\s+", "", (value or "").strip()).strip("「」『』'\"")
+
+
+def is_omakase_literal(value: str) -> bool:
+    return compact_text(value) in OMAKASE_LITERAL_VALUES
+
+
+def is_non_specific_literal(value: str) -> bool:
+    compact = compact_text(value)
+    return compact in NON_SPECIFIC_VALUES or compact == compact_text(UNCONFIRMED)
+
+
+def q1_name_is_omakase(value: str) -> bool:
+    compact = compact_text(value)
+    return bool(compact and "名前" in compact and any(word in compact for word in ["まかせ", "おまかせ", "お任せ", "任せ"]))
+
+
+def q1_components(value: str) -> dict[str, str]:
+    text = re.sub(r"\s+", " ", (value or "").replace("\n", " / ")).strip()
+    parts = [part.strip() for part in re.split(r"[、,/／。]+", text) if part.strip()]
+    result = {"name": "", "age": "", "role": "", "appearance": "", "personality": ""}
+    appearance_words = ["巨乳", "胸", "カップ", "色気", "エロ", "髪", "目", "視線", "香", "服", "身体", "スタイル"]
+    personality_words = ["主人公にだけ", "だけ", "クール", "明る", "暗", "甘", "厳", "優", "無口", "強気", "弱気"]
+    role_words = ["店", "店主", "店員", "職", "勤務", "会社", "学生", "教師", "医師", "エンジニア", "作家", "役"]
+    appearance: list[str] = []
+    personality: list[str] = []
+    role: list[str] = []
+    for part in parts:
+        clean = part.strip()
+        if not clean or is_non_specific_literal(clean) or q1_name_is_omakase(clean):
+            continue
+        age_match = re.search(r"(\d{1,3}\s*歳)", clean)
+        if age_match and not result["age"]:
+            result["age"] = age_match.group(1).replace(" ", "")
+            clean = clean.replace(age_match.group(0), "").strip()
+            if not clean:
+                continue
+        if any(word in clean for word in appearance_words):
+            appearance.append(clean)
+            continue
+        if any(word in clean for word in personality_words):
+            personality.append(clean)
+            continue
+        if any(word in clean for word in role_words):
+            role.append(clean)
+            continue
+        if not result["name"] and len(clean) <= 12 and not any(char.isdigit() for char in clean):
+            result["name"] = clean
+        else:
+            role.append(clean)
+    result["appearance"] = "、".join(appearance)
+    result["personality"] = "、".join(personality)
+    result["role"] = "、".join(role)
+    return result
+
+
 def explicit_name_from_answers(answers: dict[int | str, str]) -> str:
     q1 = (answers.get(1) or answers.get("q1") or "").strip()
     if q1:
         first_segment = re.split(r"[、,。.\n]|(?:\d{1,3}\s*歳)", q1, maxsplit=1)[0]
         first_segment = re.sub(r"^(?:名前|ヒロイン|基本)\s*(?:は|:|：|=)\s*", "", first_segment.strip())
-        if first_segment and re.sub(r"\s+", "", first_segment) not in {"おまかせ", "任せる"}:
+        if first_segment and not is_non_specific_literal(first_segment) and not q1_name_is_omakase(first_segment):
             name = clean_lilia_name(first_segment)
             if name:
                 return name
@@ -649,7 +724,8 @@ def answer(answers: dict[int | str, str], number: int | str) -> str:
 
 
 def newgame_forbidden_text(answers: dict[int | str, str]) -> str:
-    return answer(answers, "q8") or answer(answers, 8)
+    text = answer(answers, "q8") or answer(answers, 8)
+    return "" if is_non_specific_literal(text) else text
 
 
 DESCRIPTIVE_FALLBACK_KEYWORDS = [
@@ -749,6 +825,17 @@ def render_document(title: str, intro: str, sections: list[tuple[str, str]]) -> 
     return "\n".join(parts) + "\n"
 
 
+LEAK_LITERAL_RE = re.compile(r"名前(?:とか)?まかせ|まかせる|おまかせ|お任せ|未指定")
+
+
+def sanitize_omakase_literals(text: str) -> str:
+    return LEAK_LITERAL_RE.sub("未確定: profile から推論", text)
+
+
+def sanitize_generated_documents(documents: dict[str, str]) -> dict[str, str]:
+    return {path: sanitize_omakase_literals(content) for path, content in documents.items()}
+
+
 def render_turn_update_block(timestamp: str, body: str) -> str:
     return f"## Turn Update - {timestamp}\n\n{body.strip()}\n"
 
@@ -799,6 +886,10 @@ def profile_unlabeled_value(line: str) -> str:
     if label.strip() in {"まだ言わないこと", "すぐには開示しない理由"}:
         return value.strip()
     return line
+
+
+def profile_line_value(line: str) -> str:
+    return line.split(":", 1)[1].strip() if ":" in line else line.strip()
 
 
 def profile_phrase(text: str) -> str:
@@ -863,7 +954,7 @@ def profile_bullets(sections: dict[str, str], section_name: str) -> list[str]:
     result: list[str] = []
     for raw_line in sections.get(section_name, "").splitlines():
         line = profile_clean_line(raw_line)
-        if is_unconfirmed_value(line):
+        if is_unconfirmed_value(line) or is_unconfirmed_value(profile_line_value(line)):
             continue
         if line.endswith(":"):
             continue
@@ -880,10 +971,10 @@ def bullet_lines(items: list[str], fallback: str = "未設定") -> str:
 
 def is_unconfirmed_value(value: str) -> bool:
     text = value.strip()
-    return not text or text in {"未設定", "未確定", "SOURCE_FALLBACK", UNCONFIRMED} or "LLM CLI で再生成推奨" in text
+    return not text or is_non_specific_literal(text) or "LLM CLI で再生成推奨" in text
 
 
-GENERIC_NEWGAME_ANSWERS = {"おまかせ", "任せる", "特になし", "なし", "未設定", "未確定"}
+GENERIC_NEWGAME_ANSWERS = NON_SPECIFIC_VALUES
 
 
 def story_clean_answer(value: str, fallback: str = "") -> str:
@@ -911,13 +1002,18 @@ def story_role_phrase(name: str, q1: str, profile_role: str = "") -> str:
     base = story_clean_answer(q1)
     role = ""
     if base:
+        parsed = q1_components(base)
+        if parsed["role"]:
+            return f"{parsed['role']}・{name}" if name else parsed["role"]
         parts = [part.strip() for part in re.split(r"[、,/／。]+", base) if part.strip()]
         role_parts: list[str] = []
         for part in parts:
             clean = re.sub(r"\d{1,3}\s*歳", "", part).strip()
-            if not clean:
+            if not clean or is_non_specific_literal(clean) or q1_name_is_omakase(clean):
                 continue
             if name and (clean == name or clean.replace(" ", "") == name.replace(" ", "")):
+                continue
+            if any(word in clean for word in ["巨乳", "胸", "カップ", "色気", "エロ", "主人公にだけ"]):
                 continue
             role_parts.append(clean)
         role = "、".join(role_parts[:2])
@@ -1160,8 +1256,7 @@ def answer_or_default(answers: dict[int | str, str], number: int, default: str) 
     value = answer(answers, number).replace("\n", " / ").strip()
     if not value:
         return default
-    compact = re.sub(r"\s+", "", value).strip("「」『』'\"")
-    if compact in {"おまかせ", "任せる", "特になし", "なし"}:
+    if is_non_specific_literal(value):
         return default
     return value
 
@@ -1198,7 +1293,7 @@ def infer_protagonist_body_fields(body_style: str) -> tuple[str, str, str, str]:
 
 
 def render_protagonist_document(answers: dict[int | str, str]) -> str:
-    calling = answer_or_default(answers, 6, "ヒロインの立場と関係から自然に決める")
+    calling = answer_or_default(answers, 6, "未確定: scene 内で開示")
     body_style = answer_or_default(answers, 7, "性別: 未確定 / 身長感: 中くらい / 体格: 普通 / 服装: 場面に自然な格好")
     constraints = answer_or_default(answers, 8, "特になし")
     sex, height, build, clothes = infer_protagonist_body_fields(body_style)
@@ -1301,16 +1396,25 @@ def render_knowledge_state_document(
     q4 = answer_or_default(answers, 4, "未確定")
     q5 = answer_or_default(answers, 5, "未確定")
     q8 = answer_or_default(answers, 8, "特になし")
-    calling = answer_or_default(answers, 6, "ヒロインの立場と関係から自然に決める")
+    calling = answer_or_default(answers, 6, "未確定: scene 内で開示")
     body_style = answer_or_default(answers, 7, "性別: 未確定 / 身長感: 中くらい / 体格: 普通 / 服装: 場面に自然な格好")
     gender, height, build, clothes = infer_protagonist_body_fields(body_style)
     role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q1)
+    if is_unconfirmed_value(q2):
+        q2 = profile_value(sections, ["Initial Scene Anchors", "context"], ["会話の入口", "初回sceneの生活上の用事", "初回scene開始時点の状況"], "未確定: profile から推論")
+    if is_unconfirmed_value(q4):
+        q4_items = profile_bullets(sections, "contradictions")
+        q4 = q4_items[0] if q4_items else "未確定: profile から推論"
     visual_anchor = q3
     if is_unconfirmed_value(visual_anchor):
         visual_anchor = profile_value(sections, ["描写の縛り"], ["必ず入れる質感1"], "未確定")
     background_truth = q5
     if is_unconfirmed_value(background_truth):
-        background_truth = profile_value(sections, ["unspoken"], ["まだ言わないこと"], "未確定")
+        background_truth = profile_value(sections, ["unspoken", "memories"], ["まだ言わないこと", "初期時点で既にある生活上の記憶"], "未確定")
+    if is_unconfirmed_value(background_truth):
+        background_truth = "まだ言わないことが残っている"
+    if is_unconfirmed_value(q5):
+        q5 = background_truth
 
     item_lines: list[str] = []
     item_specs = [
@@ -1484,7 +1588,7 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     answers = answers or {}
     sections = profile_sections(profile)
     name = extract_profile_name(profile) or "LILIA"
-    q = lambda number: answer(answers, number) if number in answers else ""
+    q = lambda number: answer_or_default(answers, number, "") if number in answers else ""
     place = profile_value(
         sections,
         ["Initial Scene Anchors", "everyday anchors", "context"],
@@ -1528,10 +1632,10 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     friction = contradictions[0] if contradictions else pressure
     guard = values[0] if values else "自分で決める余地"
     avoid = forbidden[0] if forbidden else "急に距離を詰められること"
-    role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q(1) or "初回scene前にprofileから読む")
+    role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q1_components(q(1)).get("role") or "初回scene前にprofileから読む")
     story_fields = build_story_generation_fields(
         name=name,
-        q1=q(1) or role,
+        q1=q(1) if q1_components(q(1)).get("role") else role,
         q2=q(2) or entry or distance,
         q3=q(3),
         q4=q(4) or friction,
@@ -1799,12 +1903,13 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
 
 
 def render_persona_profile_document(answers: dict[int | str, str], lilia_name: str) -> str:
-    appearance = answer(answers, 3).replace("\n", " / ") or UNCONFIRMED
-    relationship = answer(answers, 2).replace("\n", " / ") or UNCONFIRMED
-    inner_gap = answer(answers, 4).replace("\n", " / ") or UNCONFIRMED
-    avoid = newgame_forbidden_text(answers).replace("\n", " / ") or UNCONFIRMED
-    occupation = answer(answers, 1).replace("\n", " / ") or UNCONFIRMED
-    wound = answer(answers, 5).replace("\n", " / ") or UNCONFIRMED
+    q1 = q1_components(answer(answers, 1))
+    appearance = answer_or_default(answers, 3, q1.get("appearance") or UNCONFIRMED)
+    relationship = answer_or_default(answers, 2, "互いをまだ深く知らない距離")
+    inner_gap = answer_or_default(answers, 4, q1.get("personality") or "表では落ち着いて見えるが、内側では言葉にする前に整理している")
+    avoid = newgame_forbidden_text(answers).replace("\n", " / ") or "初回から恋愛成立や親密成立を確定しない"
+    occupation = q1.get("role") or "日常の場にいる人"
+    wound = answer_or_default(answers, 5, "まだ言葉にしていない傷がある。詳細は未確定: 進行で決める")
     descriptive_constraint = infer_fallback_descriptive_constraint(appearance)
     u = UNCONFIRMED
 
@@ -2546,7 +2651,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
     }
     documents.update(render_profile_initialized_documents(profile, answers))
     documents.update(render_style_documents(answers))
-    return documents
+    return sanitize_generated_documents(documents)
 
 
 def session_sort_value(path: Path) -> str:
@@ -3121,7 +3226,7 @@ def render_documents_from_character_yaml(character: object, answers: dict[int | 
     }
     documents.update(render_profile_initialized_documents(profile, answers))
     documents.update(render_style_documents(answers))
-    return documents
+    return sanitize_generated_documents(documents)
 
 
 def generate_character_documents(
@@ -3130,16 +3235,16 @@ def generate_character_documents(
 ) -> tuple[dict[str, str], Optional[str], str]:
     engine = choose_engine(requested_engine)
     if engine is None:
-        return render_newgame_documents(answers), None, f"{requested_engine} engine unavailable"
+        return sanitize_generated_documents(render_newgame_documents(answers)), None, f"{requested_engine} engine unavailable"
 
     instruction = build_character_instruction_from_answers(answers)
     try:
         from tools.character.core.master import generate_character
 
         character = generate_character(instruction, engine=engine)
-        return render_documents_from_character_yaml(character, answers), engine, f"generated via {engine}"
+        return sanitize_generated_documents(render_documents_from_character_yaml(character, answers)), engine, f"generated via {engine}"
     except Exception as exc:
-        return render_newgame_documents(answers), None, f"{engine} CLI failed: {exc}"
+        return sanitize_generated_documents(render_newgame_documents(answers)), None, f"{engine} CLI failed: {exc}"
 
 
 def command_apply_newgame(args: list[str]) -> None:
