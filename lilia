@@ -110,6 +110,7 @@ Usage:
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia codex-new [session_name]
   ./lilia codex-resume [session_name]
+  ./lilia format-input <player_input>
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
@@ -3734,6 +3735,63 @@ def sanitize_knowledge_state_for_context(content: str) -> str:
     return "\n".join(output)
 
 
+def split_action_and_monologue(player_input: str) -> tuple[str, str]:
+    """Split player-visible action from protagonist inner monologue.
+
+    Parentheses at line start or immediately after half-width whitespace are
+    treated as inner monologue. Parentheses directly after a word stay in the
+    action text as supplements.
+    """
+
+    text = player_input or ""
+    action: list[str] = []
+    monologues: list[str] = []
+    index = 0
+    pairs = {"（": "）", "(": ")"}
+
+    while index < len(text):
+        char = text[index]
+        close = pairs.get(char)
+        if not close:
+            action.append(char)
+            index += 1
+            continue
+
+        is_inner_position = index == 0 or text[index - 1] in {" ", "\t", "\n"}
+        close_index = text.find(close, index + 1)
+        if close_index == -1 or not is_inner_position:
+            action.append(char)
+            index += 1
+            continue
+
+        while action and action[-1] in {" ", "\t"}:
+            action.pop()
+        inner = text[index + 1 : close_index].strip()
+        if inner:
+            monologues.append(inner)
+        index = close_index + 1
+
+    action_text = re.sub(r"[ \t]{2,}", " ", "".join(action))
+    action_text = re.sub(r" *\n *", "\n", action_text).strip()
+    monologue_text = " / ".join(monologues)
+    return action_text, monologue_text
+
+
+def format_player_input_boundary(player_input: str) -> str:
+    action_text, monologue_text = split_action_and_monologue(player_input)
+    return "\n".join(
+        [
+            "[PLAYER_INNER_MONOLOGUE - GM_ONLY]",
+            monologue_text or "なし",
+            "[END_INNER_MONOLOGUE]",
+            "",
+            "[PLAYER_ACTION]",
+            action_text or "（行動・発言なし）",
+            "[END_PLAYER_ACTION]",
+        ]
+    )
+
+
 def render_file(path: Path) -> str:
     if not path.exists():
         return f"\n--- {path.relative_to(ROOT)} (missing) ---"
@@ -3851,6 +3909,8 @@ def build_codex_new_prompt_bundle(session_path: Path) -> str:
         "convert it into lilia/main/profile.md, read that profile, update the session scaffold, "
         "then write the first scene. Do not stop at first_scene_pending/first_scene_ready unless the user asks to pause. "
         "After the first scene begins, normal play is Play Mode: do not edit story/state files or run git checks after every user turn. "
+        "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
+        "while the heroine may perceive only PLAYER_ACTION. "
         "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
         "or when initialization requires file generation. If needed after a normal play turn, scene-tick may update only the "
         "autosave counter; it is not a save. If autosave_required becomes true, suggest saving but do not run apply-turn "
@@ -3868,6 +3928,8 @@ def build_codex_resume_prompt_bundle(session_path: Path) -> str:
         "instruction: This bundle is for continuing LILIA inside Codex interactive mode. "
         "Read the lightweight resume state, then continue one turn without resetting voice or relationship. "
         "During normal play, do not edit story/state files or run git checks after every user turn. "
+        "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
+        "while the heroine may perceive only PLAYER_ACTION. "
         "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
         "or when initialization requires file generation. If needed after a normal play turn, scene-tick may update only the "
         "autosave counter; it is not a save. If autosave_required becomes true, suggest saving but do not run apply-turn "
@@ -3911,6 +3973,8 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             "Ask Newgame Q1-Q9, run ./lilia apply-newgame to generate lilia/main/profile.md, current/protagonist.md, and current/knowledge_state.md, then start the first scene. "
             "Do not stop at first_scene_pending/first_scene_ready. "
             "During normal play after the first scene starts, do not edit story/state files or run git checks after every user turn. "
+            "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
+            "while the heroine may perceive only PLAYER_ACTION. "
             "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
             "or when initialization requires file generation. If needed after a normal play turn, run ./lilia scene-tick "
             f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
@@ -3926,6 +3990,8 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             "Do not edit files unless the prompt explicitly requires it. "
             "Output the playable scene text first. "
             "After the first scene starts, do not edit story/state files or run git checks after every user turn. "
+            "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
+            "while the heroine may perceive only PLAYER_ACTION. "
             "Enter save/update mode only when the user explicitly asks to save/update. "
             "If needed after a normal play turn, run ./lilia scene-tick "
             f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
@@ -3936,6 +4002,8 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
         f"Read {prompt_path} and continue LILIA. "
         "Do not start AI Harness or autoplay. "
         "During normal play, do not edit story/state files or run git checks after every user turn. "
+        "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
+        "while the heroine may perceive only PLAYER_ACTION. "
         "Respond in playable scene text first. "
         "Enter save/update mode only when the user explicitly asks to save/update or when initialization requires file generation. "
         "If needed after a normal play turn, run ./lilia scene-tick "
@@ -4515,6 +4583,16 @@ def command_scene_tick(args: list[str]) -> None:
         )
 
 
+def command_format_input(args: list[str]) -> None:
+    if args:
+        player_input = " ".join(args)
+    elif not sys.stdin.isatty():
+        player_input = sys.stdin.read()
+    else:
+        die("format-input requires <player_input> or stdin")
+    print(format_player_input_boundary(player_input))
+
+
 def main(argv: list[str]) -> None:
     if not argv or argv[0] in {"-h", "--help", "help"}:
         usage()
@@ -4529,6 +4607,8 @@ def main(argv: list[str]) -> None:
         command_codex_new(args)
     elif command == "codex-resume":
         command_codex_resume(args)
+    elif command == "format-input":
+        command_format_input(args)
     elif command == "list-sessions":
         command_list_sessions()
     elif command == "prompt-only":

@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本にする。
 
 ## 1. Goal
 
@@ -50,6 +50,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 10.1（Q3-Q5 Independence Restoration）: 実装済み
 - Wave 10.2（Main Question Template Flexibility）: 実装済み
 - Wave 10.3（Fallback Field Quality + Knowledge Boundary Meta HIDDEN）: 実装済み
+- Wave 10.4（Protagonist Inner Monologue Boundary）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -128,6 +129,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Q4 omakase fallback で `contradictions.裏` に生活設定や持ち物リストが入らないよう、内面的な状態・感情・反応パターンだけを抽出対象にした。
 - resume / apply-turn 用 context では、ヒロインが知らない `knowledge_state.md` の meta 値を `[HIDDEN until shared in scene]` に置換し、服装や姿勢から推測して言い当てる経路を塞いだ。
 - 既存セッションのファイル自体は retrofit しないが、次回 context 構築時から meta HIDDEN が効く。
+
+## Wave 10.4: Protagonist Inner Monologue Boundary [完了]
+- 行頭または半角空白/タブ直後の `（...）` / `(...)` を主人公の内心として扱い、語の直後の括弧は補足として行動側に残す。
+- `prompt/core.md` に `[PLAYER_INNER_MONOLOGUE - GM_ONLY]` と `[PLAYER_ACTION]` の境界を追加し、ヒロインが内心の語彙や内容を台詞・反応に使わないようにした。
+- `./lilia format-input` でプレイヤー入力を同じ境界形式へ整形できるようにした。
+- `docs/PLAYER_INPUT.md` を追加し、行動、内心、補足括弧の書き分けをユーザー向けに説明した。
 
 ## 候補（優先度順、未確定）
 
