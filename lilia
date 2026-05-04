@@ -883,6 +883,179 @@ def is_unconfirmed_value(value: str) -> bool:
     return not text or text in {"未設定", "未確定", "SOURCE_FALLBACK", UNCONFIRMED} or "LLM CLI で再生成推奨" in text
 
 
+GENERIC_NEWGAME_ANSWERS = {"おまかせ", "任せる", "特になし", "なし", "未設定", "未確定"}
+
+
+def story_clean_answer(value: str, fallback: str = "") -> str:
+    text = re.sub(r"\s+", " ", (value or "").replace("\n", " / ")).strip()
+    compact = re.sub(r"\s+", "", text).strip("「」『』'\"")
+    if compact in GENERIC_NEWGAME_ANSWERS or is_unconfirmed_value(text):
+        return fallback
+    return text
+
+
+def story_short_clause(value: str, limit: int = 70) -> str:
+    text = story_clean_answer(value)
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip("、。/ ") + "…"
+
+
+def story_fragment(value: str, limit: int = 70) -> str:
+    return story_short_clause(value, limit).rstrip("。.!！?？")
+
+
+def story_role_phrase(name: str, q1: str, profile_role: str = "") -> str:
+    base = story_clean_answer(q1)
+    role = ""
+    if base:
+        parts = [part.strip() for part in re.split(r"[、,/／。]+", base) if part.strip()]
+        role_parts: list[str] = []
+        for part in parts:
+            clean = re.sub(r"\d{1,3}\s*歳", "", part).strip()
+            if not clean:
+                continue
+            if name and (clean == name or clean.replace(" ", "") == name.replace(" ", "")):
+                continue
+            role_parts.append(clean)
+        role = "、".join(role_parts[:2])
+    if not role:
+        role = story_clean_answer(profile_role, "日常の場にいる人")
+    return f"{role}・{name}" if role else name
+
+
+def story_inferred_wound(name: str, q1: str, q4: str) -> str:
+    context = story_short_clause(q1, 48) or name
+    gap = story_short_clause(q4, 58) or "表の顔と内側の温度差"
+    return f"{context}として過ごす中で、{gap}を生んだ出来事がある。詳細は未確定: 進行で決める。"
+
+
+def story_anchor_from_context(q3: str, objects: str, q1: str, q2: str, place: str) -> str:
+    direct = story_clean_answer(q3)
+    if direct:
+        return direct
+    from_profile = story_clean_answer(objects)
+    if from_profile:
+        return profile_short_items(from_profile, 2)
+    text = " ".join([q1, q2, place])
+    if "古書" in text or "本" in text or "書店" in text:
+        return "古い栞"
+    if "花" in text:
+        return "花鋏"
+    if "市役所" in text or "役所" in text:
+        return "書類ファイル"
+    if "エンジニア" in text or "開発" in text or "コード" in text:
+        return "小さなピアス"
+    if "雨" in text or "傘" in text:
+        return "傘の先に残る雨粒"
+    return "手元に残る小さな持ち物"
+
+
+def story_environment_object(q1: str, q2: str, place: str) -> str:
+    text = " ".join([q1, q2, place])
+    if "古書" in text or "本" in text or "書店" in text:
+        return "閉店札の紐"
+    if "花" in text:
+        return "水切り用の鋏"
+    if "市役所" in text or "役所" in text:
+        return "窓口番号札"
+    if "エンジニア" in text or "開発" in text or "コード" in text:
+        return "ノートPCのスリープランプ"
+    if "雨" in text:
+        return "入口に残る雨粒"
+    return "場に残る具体物"
+
+
+def story_role_object(q1: str, q2: str, place: str) -> str:
+    text = " ".join([q1, q2, place])
+    if "古書" in text or "本" in text or "書店" in text:
+        return "台帳と棚の埃"
+    if "花" in text:
+        return "花鋏と水の跡"
+    if "市役所" in text or "役所" in text:
+        return "書類ファイル"
+    if "エンジニア" in text or "開発" in text or "コード" in text:
+        return "ノートPCと未送信のログ"
+    return "日常の仕事道具"
+
+
+def build_story_generation_fields(
+    *,
+    name: str,
+    q1: str,
+    q2: str,
+    q3: str,
+    q4: str,
+    q5: str,
+    q8: str,
+    profile_role: str = "",
+    place: str = "",
+    objects: str = "",
+) -> dict[str, object]:
+    basic = story_clean_answer(q1, name)
+    encounter = story_clean_answer(q2, "初回sceneの出会い")
+    gap = story_clean_answer(q4, "表に出している顔と内側の差")
+    wound_direct = story_clean_answer(q5)
+    wound = wound_direct or story_inferred_wound(name, basic, gap)
+    boundary = story_clean_answer(q8) or f"{gap}を急に言い当てられること"
+    role = story_role_phrase(name, basic, profile_role)
+    anchor = story_fragment(story_anchor_from_context(q3, objects, basic, encounter, place), 90)
+    env_object = story_environment_object(basic, encounter, place)
+    role_object = story_role_object(basic, encounter, place)
+    wound_focus = story_fragment(wound, 72) or "まだ言葉にしていない傷"
+    gap_focus = story_fragment(gap, 72) or "表と内の差"
+    wound_matter = f"{wound_focus}という事実"
+    gap_matter = f"{gap_focus}という表と内の差"
+
+    if wound_direct:
+        background_truth = "\n".join(
+            [
+                wound_direct,
+                f"{name}はこの事実をまだ整理しきれておらず、{gap_matter}として現在の声や距離に影を落としている。",
+                "詳細は未確定: 進行で決める。",
+            ]
+        )
+    else:
+        background_truth = wound
+
+    return {
+        "role": role,
+        "anchor": anchor,
+        "main_question": f"{role}は、{wound_matter}を抱えたまま、{gap_matter}を誰かとの関係の中で扱い直せるか。",
+        "visible": f"{anchor}が、初回の観察可能な違和感として残る。",
+        "near_reveal": f"{gap_focus}が、言葉の遅れや距離の取り方に少しずつ出始める。",
+        "deep_reveal": f"{wound_focus}の核心に、関係の中で近づく。",
+        "background_truth": background_truth,
+        "pressure_items": [
+            f"{role}としての場や用事が進み、{anchor}だけが次の入口として残る",
+            f"{name}が{wound_matter}を言わないまま、{gap_focus}の表側だけで対応する",
+            f"{env_object}が、避けた話題をもう一度場へ戻す",
+        ],
+        "prize": f"{name}が{wound_matter}を自分のタイミングで扱えること",
+        "life": f"{basic} / {encounter}",
+        "secret": wound,
+        "boundary": boundary,
+        "emotion": gap,
+        "ignored_items": [
+            f"{name}は{role}の場に戻り、{anchor}への触れ方だけが記憶に残る",
+            f"{wound_matter}が言葉にならないまま、次の沈黙や反応の遅れとして戻る",
+            f"{gap_focus}の表側だけが強まり、関係の入口が狭くなる",
+        ],
+        "drift_items": [
+            f"{anchor} — {wound_focus}",
+            f"{env_object} — {gap_focus}",
+            f"{role_object} — {role}としての時間と、{wound_focus}",
+        ],
+        "relationship_theme": f"{gap_focus}。{wound_matter}を急いで説明させず、{name}が話すことと黙ることを自分で選べる関係。",
+        "relationship_question": f"{anchor}や{encounter}に触れる時、{name}の沈黙を奪わずにどう関わるか。",
+        "first_friction": gap,
+        "guard": f"{name}が{wound_matter}を自分のタイミングで扱えること",
+        "avoid": boundary,
+    }
+
+
 def infer_scene_time(text: str) -> str:
     if "夜" in text:
         return "夜。店の明かりと雨音が残る時間。"
@@ -1355,7 +1528,20 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     friction = contradictions[0] if contradictions else pressure
     guard = values[0] if values else "自分で決める余地"
     avoid = forbidden[0] if forbidden else "急に距離を詰められること"
-    theme = "近さと主体性。助けることと奪うことの違い。"
+    role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q(1) or "初回scene前にprofileから読む")
+    story_fields = build_story_generation_fields(
+        name=name,
+        q1=q(1) or role,
+        q2=q(2) or entry or distance,
+        q3=q(3),
+        q4=q(4) or friction,
+        q5=q(5) or pressure,
+        q8=q(8) or avoid,
+        profile_role=role,
+        place=place,
+        objects=objects,
+    )
+    theme = str(story_fields["relationship_theme"])
     place_phrase = profile_place_focus(place)
     object_phrase = profile_phrase(objects)
     object_focus = profile_short_items(objects)
@@ -1434,28 +1620,28 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
             "初回sceneを固定ルートにせず、関係の変化方向だけを保持します。",
             [
                 ("この関係で育てたいテーマ", bullet_lines([theme])),
-                ("最初の摩擦", bullet_lines([friction])),
-                ("LILIAが守るもの", bullet_lines([guard])),
-                ("LILIAが避けるもの", bullet_lines([avoid])),
-                ("ユーザー側に問うこと", bullet_lines([f"{name}の主体性を奪わず、{entry} にどう関わるか。"])),
+                ("最初の摩擦", bullet_lines([str(story_fields["first_friction"])])),
+                ("LILIAが守るもの", bullet_lines([str(story_fields["guard"])])),
+                ("LILIAが避けるもの", bullet_lines([str(story_fields["avoid"])])),
+                ("ユーザー側に問うこと", bullet_lines([str(story_fields["relationship_question"])])),
                 ("関係が変化する方向", bullet_lines(["名乗る、待つ、確認する、別れる/一緒に歩くのどれを選ぶかで、信頼と警戒の出方が変わる。"])),
             ],
         ),
         "current/story_spine.md": render_story_spine_document(
             name=name,
-            main_question=f"{name}は、{guard}を守ったまま、ユーザーとの距離を選び直せるか。",
-            visible=f"{place_phrase}で、{object_focus}と{entry_focus}が最初の入口として見える。",
-            near_reveal=f"{pressure} が生活の用事や沈黙に少しずつ出始める。",
-            deep_reveal=f"{friction} の奥にある理由が、関係の中で開示候補になる。",
-            background_truth=f"{pressure} と {friction} が現在の言動を歪めている。詳細は未確定: 進行で決める。",
-            pressure_items=[f"{entry_focus}が放置され、{name}が自分だけで判断する", f"{object_focus}が次に会う理由として残る", pressure],
-            prize=guard,
-            life=place,
-            secret=pressure,
-            boundary=avoid,
-            emotion=friction,
-            ignored_items=[f"{name}が{entry_focus}を抱えたまま帰る", f"{object_focus}だけが場に残る", pressure],
-            drift_items=[f"{object_focus} — {pressure}", f"{place_phrase} — {friction}", f"{entry_focus} — {guard}"],
+            main_question=str(story_fields["main_question"]),
+            visible=str(story_fields["visible"]),
+            near_reveal=str(story_fields["near_reveal"]),
+            deep_reveal=str(story_fields["deep_reveal"]),
+            background_truth=str(story_fields["background_truth"]),
+            pressure_items=list(story_fields["pressure_items"]),
+            prize=str(story_fields["prize"]),
+            life=str(story_fields["life"]),
+            secret=str(story_fields["secret"]),
+            boundary=str(story_fields["boundary"]),
+            emotion=str(story_fields["emotion"]),
+            ignored_items=list(story_fields["ignored_items"]),
+            drift_items=list(story_fields["drift_items"]),
         ),
         "current/hotset.md": render_document(
             "Hotset",
@@ -2081,6 +2267,18 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
     not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q8由来の制約とQ2の初期距離を尊重"
     lilia_name = generated_lilia_name(answers, session_name)
     profile = render_persona_profile_document(answers, lilia_name)
+    story_fields = build_story_generation_fields(
+        name=lilia_name,
+        q1=q_line(1),
+        q2=q_line(2),
+        q3=q_line(3),
+        q4=q_line(4),
+        q5=q_line(5),
+        q8=q_line(8),
+        profile_role=q_line(1),
+        place=q_line(2),
+        objects=q_line(3),
+    )
 
     documents = {
         "lilia/main/profile.md": profile,
@@ -2273,12 +2471,12 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "Relationship Spine",
             "この関係で育てたいテーマと、変化の方向を記録します。",
             [
-                ("この関係で育てたいテーマ", q(2)),
-                ("最初の摩擦", q(4)),
-                ("LILIAが守るもの", q(5)),
-                ("LILIAが避けるもの", q(8)),
-                ("LILIA側の課題", "- Q5の傷を抱えたまま、Q4の表と内の差をどう扱うか。"),
-                ("ユーザー側に問うこと", "- Q2の出会いの中で、Q3の具体物と距離にどう触れるか。"),
+                ("この関係で育てたいテーマ", bullet_lines([str(story_fields["relationship_theme"])])),
+                ("最初の摩擦", bullet_lines([str(story_fields["first_friction"])])),
+                ("LILIAが守るもの", bullet_lines([str(story_fields["guard"])])),
+                ("LILIAが避けるもの", bullet_lines([str(story_fields["avoid"])])),
+                ("LILIA側の課題", bullet_lines([f"{story_fields['secret']}を抱えたまま、{story_fields['emotion']}をどう扱うか。"])),
+                ("ユーザー側に問うこと", bullet_lines([str(story_fields["relationship_question"])])),
                 ("関係が変化する方向", "- Q2を通じて、声、距離、信頼、警戒、沈黙のどれが少し動くかを見る。"),
                 ("固定しないこと", "- これはfull plotではない: はい\n- 事前に決めない展開: 初回scene後の反応と選択\n- LILIAの反応とユーザーの選択で変わる余地: あり"),
                 ("次に変わりうる点", "- 声: Q1 / Q6由来\n- 距離感: Q2由来\n- 呼び方: Q6由来\n- 信頼 / 警戒: Q2 / Q4由来\n- 境界線: Q8由来\n- beliefs: 初回scene後に更新\n- 危機後の頼り方 / 頼られ方: 初回では重くしない\n- 能力使用後の信頼 / 警戒: 未発生"),
@@ -2286,31 +2484,19 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
         ),
         "current/story_spine.md": render_story_spine_document(
             name=lilia_name,
-            main_question=f"{lilia_name}は、{q_line(5)}を抱えたまま、{q_line(2)}から関係を始められるか。",
-            visible=f"{q_line(2)}で見える状況と、{q_line(3)}が最初の具体物になる。",
-            near_reveal=f"{q_line(4)}が声、距離、仕草に少しずつ出始める。",
-            deep_reveal="過去の傷や本当の動機は未確定: 進行で決める。",
-            background_truth=f"{q_line(5)}が現在の言動を歪めている可能性がある。詳細は未確定: 進行で決める。",
-            pressure_items=[
-                f"{q_line(2)}の状況が進み、次に会う理由だけが残る",
-                f"{lilia_name}が{q_line(5)}を言わないまま自分で判断する",
-                "小さな通知、持ち物、約束のどれかが1-3 scene後に戻る",
-            ],
-            prize="未確定: 進行で見えてきた時だけ設定する",
-            life=q_line(1),
-            secret=q_line(5),
-            boundary=q_line(8),
-            emotion=q_line(4),
-            ignored_items=[
-                f"{lilia_name}が用事を抱えたまま場を離れる",
-                "連絡や持ち物が次の入口として残る",
-                f"{q_line(5)}が沈黙や避け方として戻る",
-            ],
-            drift_items=[
-                f"{q_line(3)} — {q_line(5)}",
-                f"{q_line(2)}の持ち物 — 出会いの起点",
-                "未送信の通知 — 言えない理由",
-            ],
+            main_question=str(story_fields["main_question"]),
+            visible=str(story_fields["visible"]),
+            near_reveal=str(story_fields["near_reveal"]),
+            deep_reveal=str(story_fields["deep_reveal"]),
+            background_truth=str(story_fields["background_truth"]),
+            pressure_items=list(story_fields["pressure_items"]),
+            prize=str(story_fields["prize"]),
+            life=str(story_fields["life"]),
+            secret=str(story_fields["secret"]),
+            boundary=str(story_fields["boundary"]),
+            emotion=str(story_fields["emotion"]),
+            ignored_items=list(story_fields["ignored_items"]),
+            drift_items=list(story_fields["drift_items"]),
         ),
         "story/story_deck.md": render_document(
             "Story Deck",
