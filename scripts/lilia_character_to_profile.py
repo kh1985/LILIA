@@ -383,7 +383,7 @@ def parse_answers(path: Path | None) -> dict[int | str, str]:
     sections: dict[int | str, list[str]] = {}
     current: int | str | None = None
     for line in content.splitlines():
-        match = re.match(r"^##\s*Q([1-8])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
+        match = re.match(r"^##\s*Q([1-9])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
         if match:
             current = int(match.group(1))
             sections.setdefault(current, [])
@@ -399,6 +399,7 @@ def parse_answers(path: Path | None) -> dict[int | str, str]:
         if callable(normalizer) and (
             all(answers.get(number) for number in range(1, 7))
             or all(answers.get(number) for number in range(1, 9))
+            or all(answers.get(number) for number in range(1, 10))
         ):
             return normalizer(answers)
     except Exception:
@@ -449,9 +450,19 @@ def source_answer(answers: dict[int | str, str], key: int | str, fallback: str =
 
 
 def is_wave10_answers(answers: dict[int | str, str]) -> bool:
-    return str(answers.get("format") or "") == "wave10_q1_q6" or not any(
-        str(answers.get(number, "")).strip() for number in (7, 8)
+    return str(answers.get("format") or "") == "wave10_q1_q6" or (
+        not is_wave101_answers(answers)
+        and not str(answers.get(7, "")).strip()
+        and not str(answers.get(8, "")).strip()
     )
+
+
+def is_wave101_answers(answers: dict[int | str, str]) -> bool:
+    return str(answers.get("format") or "") == "wave101_q1_q9" or bool(str(answers.get(9, "")).strip())
+
+
+def is_wave7_answers(answers: dict[int | str, str]) -> bool:
+    return not is_wave101_answers(answers) and not is_wave10_answers(answers)
 
 
 def qa_basic(answers: dict[int | str, str]) -> str:
@@ -459,18 +470,56 @@ def qa_basic(answers: dict[int | str, str]) -> str:
 
 
 def qa_visual(answers: dict[int | str, str]) -> str:
-    return source_answer(answers, 2 if is_wave10_answers(answers) else 3)
+    return source_answer(answers, 2 if not is_wave7_answers(answers) else 3)
 
 
 def qa_freeform(answers: dict[int | str, str]) -> str:
-    return source_answer(answers, 3 if is_wave10_answers(answers) else 5)
+    return source_answer(answers, 3) if is_wave10_answers(answers) else ""
+
+
+def qa_anchor(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return source_answer(answers, 3)
+    if is_wave10_answers(answers):
+        return qa_freeform(answers)
+    return source_answer(answers, 3)
+
+
+def qa_gap(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return source_answer(answers, 4)
+    if is_wave10_answers(answers):
+        return qa_freeform(answers)
+    return source_answer(answers, 4)
+
+
+def qa_wound(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return source_answer(answers, 5)
+    if is_wave10_answers(answers):
+        return qa_freeform(answers)
+    return source_answer(answers, 5)
 
 
 def qa_encounter(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return source_answer(answers, 6)
     return source_answer(answers, 4 if is_wave10_answers(answers) else 2)
 
 
+def qa_calling(answers: dict[int | str, str]) -> str:
+    return source_answer(answers, 7 if is_wave101_answers(answers) else 6)
+
+
+def qa_protagonist(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return source_answer(answers, 8)
+    return source_answer(answers, 5 if is_wave10_answers(answers) else 7)
+
+
 def qa_constraints(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return source_answer(answers, 9)
     if not is_wave10_answers(answers):
         return source_answer(answers, 8)
     freeform = qa_freeform(answers)
@@ -491,20 +540,75 @@ def visual_answer_components(value: str) -> dict[str, str]:
     for part in parts:
         if is_non_specific_literal(part):
             continue
-        if any(word in part for word in ["髪", "ボブ", "ロング", "ショート", "ウェーブ"]):
-            if any(color in part for color in ["黒", "茶", "栗", "金", "銀", "白", "赤", "青", "緑", "灰"]):
-                result["hair_color"] = result["hair_color"] or part
-            result["hair_style"] = result["hair_style"] or part
+        if any(word in part for word in ["髪", "ボブ", "ロング", "ショート", "ウェーブ", "前髪", "ヘア"]):
+            style, color = split_hair_part(part)
+            if color:
+                result["hair_color"] = result["hair_color"] or color
+            if style:
+                if result["hair_style"] and style not in result["hair_style"]:
+                    result["hair_style"] = f"{result['hair_style']}、{style}"
+                else:
+                    result["hair_style"] = result["hair_style"] or style
         elif any(word in part for word in ["目", "眼", "瞳"]):
             result["eye_color"] = result["eye_color"] or part
         elif any(word in part for word in ["細身", "小柄", "長身", "巨乳", "体型", "中肉", "がっしり", "曲線"]):
             result["body"] = result["body"] or part
-        elif any(word in part for word in ["服", "シャツ", "スカート", "ニット", "パーカー", "ジャケット", "コート", "靴", "外套"]):
+        elif any(word in part for word in ["服", "シャツ", "スカート", "ニット", "タートルネック", "スラックス", "パーカー", "ジャケット", "コート", "靴", "外套"]):
             result["outfit"] = result["outfit"] or part
         else:
             notes.append(part)
-    result["notes"] = " / ".join(notes) or source_text(value)
+    result["notes"] = " / ".join(notes)
     return result
+
+
+HAIR_COLOR_PATTERNS = [
+    (r"黒髪|黒い髪|黒の髪|黒", "黒"),
+    (r"茶髪|茶色の髪|茶色|ブラウン", "茶"),
+    (r"栗色の髪|栗色", "栗色"),
+    (r"金髪|金色の髪|ブロンド|金", "金"),
+    (r"銀髪|銀色の髪|銀", "銀"),
+    (r"白髪|白い髪|白", "白"),
+    (r"赤髪|赤い髪|赤", "赤"),
+    (r"青髪|青い髪|青", "青"),
+    (r"緑髪|緑の髪|緑", "緑"),
+    (r"灰色の髪|灰髪|グレー|灰", "灰"),
+]
+
+
+def split_hair_part(part: str) -> tuple[str, str]:
+    color = ""
+    style = part.strip()
+    for pattern, label in HAIR_COLOR_PATTERNS:
+        if re.search(pattern, style):
+            color = label
+            style = re.sub(pattern, "", style, count=1)
+            break
+    style = re.sub(r"^(?:髪型|髪色|髪|の)+", "", style)
+    style = re.sub(r"(?:髪|ヘア)$", "", style).strip(" の、,/／")
+    return style, color
+
+
+def split_gap_answer(value: str) -> tuple[str, str, str]:
+    clean = source_text(value)
+    if not clean:
+        return "", "", ""
+    outward = ""
+    inward = ""
+    for pattern in [
+        r"表(?:は|では)?(.+?)(?:内側|内|裏|一人(?:の時)?)(?:は|では)?(.+)",
+        r"(?:人前|他人の前)(?:は|では)?(.+?)(?:一人(?:の時)?|内側|裏)(?:は|では)?(.+)",
+    ]:
+        match = re.search(pattern, clean)
+        if match:
+            outward = match.group(1).strip(" 、。/／")
+            inward = match.group(2).strip(" 、。/／")
+            break
+    if not outward or not inward:
+        parts = [part.strip() for part in re.split(r"[。/／;；]+", clean) if part.strip()]
+        if len(parts) >= 2:
+            outward, inward = parts[0], parts[1]
+    contradiction = f"{outward} / {inward}" if outward and inward else clean
+    return outward, inward, contradiction
 
 
 def first_sentence(text: str | None) -> str:
@@ -828,10 +932,12 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     q1 = qa_basic(answers) or "落ち着いて見えるが、返答の間や持ち物に乱れが出る"
     q2_visual = qa_visual(answers)
     visual_fields = visual_answer_components(q2_visual)
-    q4_encounter = qa_encounter(answers) or "互いをまだ深く知らない距離"
-    q3_freeform = qa_freeform(answers) or "恋愛成立や重い事件を急がない"
+    q3_anchor = qa_anchor(answers)
+    q4_gap = qa_gap(answers)
+    q5_wound = qa_wound(answers)
+    q6_encounter = qa_encounter(answers) or "互いをまだ深く知らない距離"
     q5_life = role
-    q8 = qa_constraints(answers)
+    q9 = qa_constraints(answers)
 
     personality = source_personality(char)
     first_personality = personality[0] if personality else "話しかけられれば返すが、自分から急に距離を詰めない"
@@ -851,7 +957,9 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     contradictions = infer_contradictions(char)
     unspoken = infer_unspoken(char)
     descriptive_constraint_1, descriptive_constraint_2 = infer_descriptive_constraints(char)
-    if q2_visual and not is_non_specific_literal(q2_visual):
+    if q3_anchor and not is_non_specific_literal(q3_anchor):
+        descriptive_constraint_1 = q3_anchor
+    elif q2_visual and not is_non_specific_literal(q2_visual):
         descriptive_constraint_1 = visual_fields.get("notes") or q2_visual
     layer_one = infer_layer_one(char)
     layer_two = infer_layer_two(values)
@@ -860,11 +968,23 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
     forbidden = dedupe(
         [
             *char.forbidden,
-            q8,
+            q9,
             "初期から恋愛成立や親密成立を確定しない",
         ]
     )
-    gap_back = contradictions[0] if contradictions else (unspoken[0] if unspoken else q3_freeform)
+    outward, inward, gap_text = split_gap_answer(q4_gap)
+    if q4_gap and not is_non_specific_literal(q4_gap):
+        contradictions = dedupe(
+            [
+                f"表の態度: {outward}" if outward else "",
+                f"内側の反応: {inward}" if inward else "",
+                f"表の態度と内側の矛盾: {gap_text}",
+            ]
+        )
+    if q5_wound and not is_non_specific_literal(q5_wound):
+        unspoken = dedupe([q5_wound, *unspoken])
+        backstory = q5_wound
+    gap_back = contradictions[0] if contradictions else (unspoken[0] if unspoken else gap_text)
     say_do_gap = f"{first_personality} / {gap_back}"
 
     sections = [
@@ -917,8 +1037,8 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "## everyday anchors",
         f"- 生活の場所: {anchors['places']}",
         f"- 仕事 / 用事 / 習慣: {anchors['tasks']}",
-        f"- よく触る物: {anchors['objects']}",
-        f"- 初回sceneで使える具体物: {anchors['scene_objects']}",
+        f"- よく触る物: {q3_anchor or anchors['objects']}",
+        f"- 初回sceneで使える具体物: {q3_anchor or anchors['scene_objects']}",
         "",
         "## memories",
         "- 初期時点で既にある生活上の記憶",
@@ -962,7 +1082,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "- 実プレイで成立した事実は scene.md / hotset / knowledge_state へ書く",
         "",
         f"- 初回scene開始時点の状況: {current}",
-        f"- ユーザーとの関係位置: {q4_encounter}",
+        f"- ユーザーとの関係位置: {q6_encounter}",
         f"- 今日なぜそこにいるか: {infer_presence_reason(char)}",
         f"- 初回sceneの生活上の用事: {small_event}",
         "",
@@ -981,7 +1101,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "## Initial Scene Anchors",
         f"- 場所と状況: {current}",
         f"- 手元の具体物: {anchors['scene_objects']}",
-        f"- 最初の距離: {q4_encounter}",
+        f"- 最初の距離: {q6_encounter}",
         f"- 会話の入口: {small_event}",
         "- 正本: この欄は初回scene用の一時アンカーであり、current/scene.md と current/hotset.md が現在形の正本になる。",
         "",
@@ -1045,7 +1165,7 @@ def render_profile(char: CharacterSheet, answers: dict[int | str, str]) -> str:
         "## Relationship Progression",
         "rapport:",
         "  stage: 初期 / 未確認",
-        f"  note: {q4_encounter}",
+        f"  note: {q6_encounter}",
         "",
         "intimacy:",
         "  stage: 未確認",

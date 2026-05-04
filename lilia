@@ -357,10 +357,24 @@ def q1_components(value: str) -> dict[str, str]:
     return result
 
 
+def answer_has_value(answers: dict[int | str, str], number: int) -> bool:
+    return bool(str(answers.get(number, "")).strip())
+
+
+def is_wave101_answers(answers: dict[int | str, str]) -> bool:
+    return str(answers.get("format") or "") == "wave101_q1_q9" or answer_has_value(answers, 9)
+
+
 def is_wave10_answers(answers: dict[int | str, str]) -> bool:
-    return str(answers.get("format") or "") == "wave10_q1_q6" or not any(
-        str(answers.get(number, "")).strip() for number in (7, 8)
+    return str(answers.get("format") or "") == "wave10_q1_q6" or (
+        not is_wave101_answers(answers)
+        and not answer_has_value(answers, 7)
+        and not answer_has_value(answers, 8)
     )
+
+
+def is_wave7_answers(answers: dict[int | str, str]) -> bool:
+    return not is_wave101_answers(answers) and not is_wave10_answers(answers)
 
 
 def qa_basic(answers: dict[int | str, str]) -> str:
@@ -368,18 +382,30 @@ def qa_basic(answers: dict[int | str, str]) -> str:
 
 
 def qa_visual(answers: dict[int | str, str]) -> str:
-    return answer(answers, 2 if is_wave10_answers(answers) else 3)
+    return answer(answers, 2 if not is_wave7_answers(answers) else 3)
 
 
 def qa_freeform(answers: dict[int | str, str]) -> str:
-    return answer(answers, 3 if is_wave10_answers(answers) else 5)
+    return answer(answers, 3) if is_wave10_answers(answers) else ""
+
+
+def qa_anchor(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return answer(answers, 3)
+    if is_wave10_answers(answers):
+        return qa_freeform(answers)
+    return answer(answers, 3)
 
 
 def qa_encounter(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return answer(answers, 6)
     return answer(answers, 4 if is_wave10_answers(answers) else 2)
 
 
 def qa_gap(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return answer(answers, 4)
     if is_wave10_answers(answers):
         freeform = qa_freeform(answers)
         return "" if is_non_specific_literal(freeform) else freeform
@@ -387,14 +413,18 @@ def qa_gap(answers: dict[int | str, str]) -> str:
 
 
 def qa_wound(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return answer(answers, 5)
     return qa_freeform(answers) if is_wave10_answers(answers) else answer(answers, 5)
 
 
 def qa_calling(answers: dict[int | str, str]) -> str:
-    return answer(answers, 6)
+    return answer(answers, 7 if is_wave101_answers(answers) else 6)
 
 
 def qa_protagonist(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return answer(answers, 8)
     return answer(answers, 5 if is_wave10_answers(answers) else 7)
 
 
@@ -414,16 +444,45 @@ def extract_avoid_from_freeform(text: str) -> str:
 
 
 def qa_constraints(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return answer(answers, 9)
     if is_wave10_answers(answers):
         return extract_avoid_from_freeform(qa_freeform(answers))
     return answer(answers, 8)
 
 
 def qa_visual_or_anchor(answers: dict[int | str, str]) -> str:
-    for value in [qa_visual(answers), qa_freeform(answers)]:
+    for value in [qa_anchor(answers), qa_visual(answers)]:
         if value and not is_non_specific_literal(value):
             return value
     return ""
+
+
+HAIR_COLOR_PATTERNS = [
+    (r"黒髪|黒い髪|黒の髪|黒", "黒"),
+    (r"茶髪|茶色の髪|茶色|ブラウン", "茶"),
+    (r"栗色の髪|栗色", "栗色"),
+    (r"金髪|金色の髪|ブロンド|金", "金"),
+    (r"銀髪|銀色の髪|銀", "銀"),
+    (r"白髪|白い髪|白", "白"),
+    (r"赤髪|赤い髪|赤", "赤"),
+    (r"青髪|青い髪|青", "青"),
+    (r"緑髪|緑の髪|緑", "緑"),
+    (r"灰色の髪|灰髪|グレー|灰", "灰"),
+]
+
+
+def split_hair_part(part: str) -> tuple[str, str]:
+    color = ""
+    style = part.strip()
+    for pattern, label in HAIR_COLOR_PATTERNS:
+        if re.search(pattern, style):
+            color = label
+            style = re.sub(pattern, "", style, count=1)
+            break
+    style = re.sub(r"^(?:髪型|髪色|髪|の)+", "", style)
+    style = re.sub(r"(?:髪|ヘア)$", "", style).strip(" の、,/／")
+    return style, color
 
 
 def visual_components(value: str) -> dict[str, str]:
@@ -435,20 +494,51 @@ def visual_components(value: str) -> dict[str, str]:
         compact = compact_text(part)
         if not compact or is_non_specific_literal(part):
             continue
-        if any(word in part for word in ["髪", "ボブ", "ロング", "ショート", "ウェーブ"]):
-            if any(color in part for color in ["黒", "茶", "栗", "金", "銀", "白", "赤", "青", "緑", "灰"]):
-                result["hair_color"] = result["hair_color"] or part
-            result["hair_style"] = result["hair_style"] or part
+        if any(word in part for word in ["髪", "ボブ", "ロング", "ショート", "ウェーブ", "前髪", "ヘア"]):
+            style, color = split_hair_part(part)
+            if color:
+                result["hair_color"] = result["hair_color"] or color
+            if style:
+                if result["hair_style"] and style not in result["hair_style"]:
+                    result["hair_style"] = f"{result['hair_style']}、{style}"
+                else:
+                    result["hair_style"] = result["hair_style"] or style
         elif any(word in part for word in ["目", "眼", "瞳"]):
             result["eye_color"] = result["eye_color"] or part
         elif any(word in part for word in ["細身", "小柄", "長身", "巨乳", "体型", "中肉", "がっしり", "曲線"]):
             result["body"] = result["body"] or part
-        elif any(word in part for word in ["服", "シャツ", "スカート", "ニット", "パーカー", "ジャケット", "コート", "靴", "外套"]):
+        elif any(word in part for word in ["服", "シャツ", "スカート", "ニット", "タートルネック", "スラックス", "パーカー", "ジャケット", "コート", "靴", "外套"]):
             result["outfit"] = result["outfit"] or part
         else:
             note_parts.append(part)
     result["notes"] = " / ".join(note_parts) or text
     return result
+
+
+def split_gap_answer(value: str) -> tuple[str, str, str]:
+    clean = (value or "").replace("\n", " / ").strip()
+    if not clean or is_non_specific_literal(clean):
+        return "", "", ""
+    outward = ""
+    inward = ""
+    patterns = [
+        (r"表(?:は|では)?(.+?)(?:内側|内|裏|一人(?:の時)?)(?:は|では)?(.+)", "表", "内"),
+        (r"(?:人前|他人の前)(?:は|では)?(.+?)(?:一人(?:の時)?|内側|裏)(?:は|では)?(.+)", "人前", "一人"),
+    ]
+    for pattern, _, _ in patterns:
+        match = re.search(pattern, clean)
+        if match:
+            outward = match.group(1).strip(" 、。/／")
+            inward = match.group(2).strip(" 、。/／")
+            break
+    if not outward or not inward:
+        parts = [part.strip() for part in re.split(r"[。/／;；]+", clean) if part.strip()]
+        if len(parts) >= 2:
+            outward, inward = parts[0], parts[1]
+    contradiction = clean
+    if outward and inward:
+        contradiction = f"{outward} / {inward}"
+    return outward, inward, contradiction
 
 
 ABSTRACT_PERSONALITY_WORDS = {"優しい", "明るい", "真面目", "クール", "静か", "元気", "大人しい", "普通"}
@@ -481,17 +571,39 @@ NEWGAME_QUESTIONS = [
     },
     {
         "number": 3,
-        "title": "その他のこだわり（自由欄）",
-        "prompt": "書きたい人だけ。描写の縛り、表と内の差、過去の傷、避けたい展開など。特になしでもOK。",
-        "required": [],
+        "title": "描写の縛り",
+        "prompt": "毎回そのキャラの場面に出てくる「物的な印」を1つ教えてください。持ち物、アクセサリー、癖、香り、音などです。",
+        "required": ["物的アンカー"],
         "examples": [
-            "描写の縛り: 「[身につけている物]を、[特定の気持ちになる時]に触る」",
-            "表と内の差: 「[人前の態度]だが、[一人の時の反応]が違う」",
-            "過去/避けたい展開: 「[過去の保留]がある。 [苦手な描写]は避けたい」",
+            "「[身につけている小物]、[無意識に触る癖]」",
+            "「[使い込まれた道具]、[使わない時の置き方]」",
+            "「[消えかけの印]、[理由はまだ説明しない]」",
         ],
     },
     {
         "number": 4,
+        "title": "表と内の差",
+        "prompt": "他人に見せる顔と、一人の時の違いを教えてください。",
+        "required": ["表", "内"],
+        "examples": [
+            "「表は[落ち着いた仕事中の顔]。内側は[一人になると長く止まる反応]」",
+            "「表は[面倒見のいい先輩]。内側は[寝る前に古い記録を見返す]」",
+            "「表は[無口で距離を取る]。内側は[構われたいが言えない]」",
+        ],
+    },
+    {
+        "number": 5,
+        "title": "過去の傷の種",
+        "prompt": "今でも引きずっている何か。重くなくてOK。",
+        "required": ["過去の出来事"],
+        "examples": [
+            "「[大切な人から何かを継いだ]。最後に言えなかった一言がある」",
+            "「[前の居場所]で踏み込まれすぎて離れた。詳細は本人も整理中」",
+            "「[昔の共同作業]が壊れた。それ以来、[特定の感覚]を避けている」",
+        ],
+    },
+    {
+        "number": 6,
         "title": "最初の出会い + 関係性の起点",
         "prompt": "二人の関係の出発点と、最初の場面を教えてください。",
         "required": ["関係性", "シーン"],
@@ -502,7 +614,18 @@ NEWGAME_QUESTIONS = [
         ],
     },
     {
-        "number": 5,
+        "number": 7,
+        "title": "ヒロインからの呼ばれ方",
+        "prompt": "ヒロインがあなた（プレイヤー）を何と呼ぶか教えてください。",
+        "required": ["呼ばれ方"],
+        "examples": [
+            "「[名字]+さん」（丁寧）",
+            "「[二人称]」（距離が近い/遠い）",
+            "「[関係性を示す呼称]」（職場や学校の上下、昔からの呼び方など）",
+        ],
+    },
+    {
+        "number": 8,
         "title": "主人公の身体・格好・仕事",
         "prompt": "あなた（プレイヤー）の身体感覚、服装、仕事を教えてください。",
         "required": ["性別", "身長", "体型", "服装", "仕事"],
@@ -513,14 +636,15 @@ NEWGAME_QUESTIONS = [
         ],
     },
     {
-        "number": 6,
-        "title": "ヒロインからの呼ばれ方",
-        "prompt": "ヒロインがあなた（プレイヤー）を何と呼ぶか。",
-        "required": ["呼ばれ方"],
+        "number": 9,
+        "title": "避けたい展開・苦手なノリ",
+        "prompt": "このセッションで出してほしくない要素があれば教えてください。",
+        "required": [],
+        "accept": "「なし」または「おまかせ」可。",
         "examples": [
-            "「[名字]+さん」（丁寧）",
-            "「[二人称]」（距離が近い/遠い）",
-            "「[関係性を示す呼称]」（職場や学校の上下、昔からの呼び方など）",
+            "「[過度に陰惨な描写]」",
+            "「[複数ヒロインの取り合い]」",
+            "「[主人公を加害者として固定する展開]」",
         ],
     },
 ]
@@ -534,7 +658,7 @@ def render_interactive_question(question: dict[str, object]) -> str:
         "例（構造説明のみ。literal として真似しないこと）:",
     ]
     lines.extend(f"- {example}" for example in question.get("examples", []))
-    lines.extend(["", "「おまかせ」可。"])
+    lines.extend(["", str(question.get("accept") or "「おまかせ」可。")])
     return "\n".join(lines)
 
 
@@ -590,7 +714,25 @@ def supplementary_question(number: int, text: str) -> str:
             return "見た目をもう少しだけ具体化できますか？ 髪、目、体型、服装のうち1つでも OK です。"
         if compact_text(clean) in {compact_text(word) for word in ABSTRACT_VISUAL_WORDS}:
             return f"「{clean}」を、髪・目・体型・服装のどれか1つに置き換えて教えてください。"
+    elif number == 3:
+        if not clean:
+            return "物的な印を1つ教えてください。または『おまかせ』でも OK です。"
+        if compact_text(clean) in {"アクセサリー", "持ち物", "小物", "癖", "香り", "音"}:
+            return "その印をもう少し具体化できますか？ 物、癖、香り、音のどれか1つを具体名で足してください。"
     elif number == 4:
+        if not clean:
+            return "他人に見せる顔と、一人の時の違いを教えてください。または『おまかせ』でも OK です。"
+        outward, inward, _ = split_gap_answer(clean)
+        if not (outward and inward):
+            return "表に見せる顔と、内側または一人の時の違いを両方教えてください。不足分は『おまかせ』でも OK です。"
+        if compact_text(clean) in {"表裏ない", "普通", "特にない"}:
+            return "差が小さい場合でも、外から見える態度と一人の時の出方を1つずつ教えてください。"
+    elif number == 5:
+        if not clean:
+            return "今でも少し引きずっている出来事を1つ教えてください。または『おまかせ』でも OK です。"
+        if compact_text(clean) in {"いろいろあった", "過去がある", "事情がある"}:
+            return "その過去をもう少しだけ具体化できますか？ 何が残っているかを一言で足してください。"
+    elif number == 6:
         if not clean:
             return "関係性と最初の場面を教えてください。または『おまかせ』でも OK です。"
         has_relation = any(word in clean for word in ["初対面", "顔見知り", "知人", "同じ", "幼馴染", "友人", "先輩", "後輩", "元々"])
@@ -599,13 +741,13 @@ def supplementary_question(number: int, text: str) -> str:
             return "関係性と、どこでどんなふうに始まるかを両方教えてください。または不足分は『おまかせ』でも OK です。"
         if compact_text(clean) in {compact_text(word) for word in ABSTRACT_SCENE_WORDS}:
             return "最初の場面をもう少し具体化できますか？ 時間帯、場所の性質、何が起きるかのうち1つで OK です。"
-    elif number == 5:
+    elif number == 8:
         missing = protagonist_missing_fields(clean)
         if missing:
             return f"{'、'.join(missing)}も教えてください。または、不足分は『おまかせ』でも OK です。"
         if compact_text(clean) in {"普通", "無難"}:
             return "身体感覚、服装、仕事のどれか1つだけ具体化してください。"
-    elif number == 6 and not clean:
+    elif number == 7 and not clean:
         return "呼ばれ方を教えてください。または『おまかせ』でも OK です。"
     return ""
 
@@ -769,13 +911,20 @@ def infer_simple_initial_event(heroine: str, relationship: str, taste: str, avoi
 
 def normalize_newgame_answers(raw_answers: dict[int | str, str]) -> dict[int | str, str]:
     answers: dict[int | str, str] = dict(raw_answers)
-    legacy = any(str(answers.get(number, "")).strip() for number in (7, 8))
-    question_count = 8 if legacy else 6
+    if answer_has_value(answers, 9):
+        question_count = 9
+        answer_format = "wave101_q1_q9"
+    elif answer_has_value(answers, 7) or answer_has_value(answers, 8):
+        question_count = 8
+        answer_format = "wave7_q1_q8_legacy"
+    else:
+        question_count = 6
+        answer_format = "wave10_q1_q6"
     required_missing = [f"Q{number}" for number in range(1, question_count + 1) if not str(answers.get(number, "")).strip()]
     if required_missing:
         die(f"answers.md is missing non-empty sections: {', '.join(required_missing)}")
 
-    answers["format"] = "wave7_q1_q8_legacy" if legacy else "wave10_q1_q6"
+    answers["format"] = answer_format
     for number in range(1, question_count + 1):
         answers[f"q{number}"] = str(answers[number]).strip()
     return answers
@@ -788,7 +937,7 @@ def parse_newgame_answers(path: Path) -> dict[int | str, str]:
     sections: dict[int | str, list[str]] = {}
     current: Optional[int] = None
     for line in content.splitlines():
-        match = re.match(r"^##\s*Q([1-8])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
+        match = re.match(r"^##\s*Q([1-9])(?:\b|[.\s:：-])", line.strip(), re.IGNORECASE)
         if match:
             current = int(match.group(1))
             sections.setdefault(current, [])
@@ -1035,7 +1184,9 @@ def answer(answers: dict[int | str, str], number: int | str) -> str:
 
 
 def newgame_forbidden_text(answers: dict[int | str, str]) -> str:
-    if is_wave10_answers(answers):
+    if is_wave101_answers(answers):
+        text = qa_constraints(answers)
+    elif is_wave10_answers(answers):
         text = qa_constraints(answers)
     else:
         text = answer(answers, "q8") or answer(answers, 8)
@@ -1077,6 +1228,20 @@ def infer_fallback_descriptive_constraint(appearance: str) -> str:
 
 
 def render_newgame_answer_summary(answers: dict[int | str, str]) -> str:
+    if is_wave101_answers(answers):
+        return "\n".join(
+            [
+                f"- Q1 ヒロインの基本: {qa_basic(answers).replace(chr(10), ' / ')}",
+                f"- Q2 ヒロインの見た目: {qa_visual(answers).replace(chr(10), ' / ')}",
+                f"- Q3 描写の縛り: {qa_anchor(answers).replace(chr(10), ' / ')}",
+                f"- Q4 表と内の差: {qa_gap(answers).replace(chr(10), ' / ')}",
+                f"- Q5 過去の傷の種: {qa_wound(answers).replace(chr(10), ' / ')}",
+                f"- Q6 最初の出会い + 関係性の起点: {qa_encounter(answers).replace(chr(10), ' / ')}",
+                f"- Q7 ヒロインからの呼ばれ方: {qa_calling(answers).replace(chr(10), ' / ')}",
+                f"- Q8 主人公の身体・格好・仕事: {qa_protagonist(answers).replace(chr(10), ' / ')}",
+                f"- Q9 避けたい展開・苦手なノリ: {newgame_forbidden_text(answers).replace(chr(10), ' / ') or '特になし'}",
+            ]
+        )
     if is_wave10_answers(answers):
         return "\n".join(
             [
@@ -1112,19 +1277,24 @@ def build_character_instruction_from_answers(answers: dict[int | str, str]) -> s
 Q&A:
 - ヒロインの基本: {value(qa_basic(answers))}
 - ヒロインの見た目: {value(qa_visual(answers))}
-- その他のこだわり: {value(qa_freeform(answers))}
+- 描写の縛り: {value(qa_anchor(answers))}
+- 表と内の差: {value(qa_gap(answers))}
+- 過去の傷の種: {value(qa_wound(answers))}
 - 最初の出会い + 関係性の起点: {value(qa_encounter(answers))}
 - 主人公の身体・格好・仕事: {value(qa_protagonist(answers))}
 - ヒロインからの呼ばれ方: {value(qa_calling(answers))}
+- 避けたい展開・苦手なノリ: {value(newgame_forbidden_text(answers))}
 
 条件:
 - 名前を生成する
 - 年齢は成人
 - Q1の立場と性格から、生活、口調、反応、境界線の素材を導出する
 - Q2の見た目を appearance.hair_style / hair_color / notes に必ず反映し、体型と服装は profile.md の appearance/body/outfit へ反映できる素材にする
-- Q3の自由欄に描写の縛り、表と内の差、過去の傷、避けたい展開がある場合は、それぞれ appearance.notes / personality / context / forbidden へ分解する
-- Q4の出会いと関係性を context.current_situation と初回sceneの入口に反映する
-- Q5の主人公情報はヒロインprofileに混ぜず、scene整合性のための外部条件としてのみ扱う
+- Q3の描写の縛りは、profile.描写の縛り と everyday anchors の物的アンカーへ直接反映する
+- Q4の表と内の差は、profile.contradictions の表 / 裏 / 矛盾へ直接反映する
+- Q5の過去の傷は、profile.memories / unspoken と story_spine.Background Truth の骨格へ直接反映する
+- Q6の出会いと関係性を context.current_situation と初回sceneの入口に反映する
+- Q8の主人公情報はヒロインprofileに混ぜず、scene整合性のための外部条件としてのみ扱う
 - tone examples を3つ出す
 - personality は形容詞ではなく行動で書く
 - reactions と forbidden を出す
@@ -1137,7 +1307,7 @@ Q&A:
 
 
 def render_applied_header() -> str:
-    return "このファイルは `./lilia apply-newgame` により、Newgame Q1-Q6回答から初期反映した状態です。"
+    return "このファイルは `./lilia apply-newgame` により、Newgame Q1-Q9回答から初期反映した状態です。"
 
 
 def render_document(title: str, intro: str, sections: list[tuple[str, str]]) -> str:
@@ -1526,7 +1696,7 @@ def build_story_generation_fields(
         "deep_reveal": f"{wound_focus}の核心に、関係の中で近づく。",
         "background_truth": background_truth,
         "pressure_items": [
-            f"{role}としての場や用事が進み、{anchor}だけが次の入口として残る",
+            f"{role}としての場や用事が進み、手元の印だけが次の入口として残る",
             f"{name}が{wound_matter}を言わないまま、{gap_focus}の表側だけで対応する",
             f"{env_object}が、避けた話題をもう一度場へ戻す",
         ],
@@ -1536,7 +1706,7 @@ def build_story_generation_fields(
         "boundary": boundary,
         "emotion": gap,
         "ignored_items": [
-            f"{name}は{role}の場に戻り、{anchor}への触れ方だけが記憶に残る",
+            f"{name}は{role}の場に戻り、物的アンカーへの触れ方だけが記憶に残る",
             f"{wound_matter}が言葉にならないまま、次の沈黙や反応の遅れとして戻る",
             f"{gap_focus}の表側だけが強まり、関係の入口が狭くなる",
         ],
@@ -1546,7 +1716,7 @@ def build_story_generation_fields(
             f"{role_object} — {role}としての時間と、{wound_focus}",
         ],
         "relationship_theme": f"{gap_focus}。{wound_matter}を急いで説明させず、{name}が話すことと黙ることを自分で選べる関係。",
-        "relationship_question": f"{anchor}や{encounter}に触れる時、{name}の沈黙を奪わずにどう関わるか。",
+        "relationship_question": f"物的アンカーや{encounter}に触れる時、{name}の沈黙を奪わずにどう関わるか。",
         "first_friction": gap,
         "guard": f"{name}が{wound_matter}を自分のタイミングで扱えること",
         "avoid": boundary,
@@ -1800,10 +1970,11 @@ def render_knowledge_state_document(
     sections = profile_sections(profile)
     q1 = qa_basic(answers) or "未確定"
     q2 = qa_visual(answers) or "未確定"
-    q3 = qa_freeform(answers) or "未確定"
-    q4 = qa_encounter(answers) or "未確定"
-    q5 = qa_protagonist(answers) or "未確定"
-    q8 = newgame_forbidden_text(answers) or "特になし"
+    q3 = qa_anchor(answers) or "未確定"
+    q4 = qa_gap(answers) or "未確定"
+    q5 = qa_wound(answers) or "未確定"
+    q6 = qa_encounter(answers) or "未確定"
+    q9 = newgame_forbidden_text(answers) or "特になし"
     calling = qa_calling(answers) or "未確定: scene 内で開示"
     if is_non_specific_literal(calling):
         calling = "未確定: scene 内で開示"
@@ -1811,15 +1982,15 @@ def render_knowledge_state_document(
     gender, height, build, clothes = infer_protagonist_body_fields(body_style)
     protagonist_job = infer_protagonist_job_field(body_style)
     role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q1)
-    if is_unconfirmed_value(q4):
-        q4 = profile_value(sections, ["Initial Scene Anchors", "context"], ["会話の入口", "初回sceneの生活上の用事", "初回scene開始時点の状況"], "未確定: profile から推論")
+    if is_unconfirmed_value(q6):
+        q6 = profile_value(sections, ["Initial Scene Anchors", "context"], ["会話の入口", "初回sceneの生活上の用事", "初回scene開始時点の状況"], "未確定: profile から推論")
     if is_unconfirmed_value(q4):
         q4_items = profile_bullets(sections, "contradictions")
         q4 = q4_items[0] if q4_items else "未確定: profile から推論"
-    visual_anchor = qa_visual_or_anchor(answers)
+    visual_anchor = q3 if not is_unconfirmed_value(q3) else qa_visual_or_anchor(answers)
     if is_unconfirmed_value(visual_anchor):
         visual_anchor = profile_value(sections, ["描写の縛り"], ["必ず入れる質感1"], "未確定")
-    background_truth = q3
+    background_truth = q5
     if is_unconfirmed_value(background_truth):
         background_truth = profile_value(sections, ["unspoken", "memories"], ["まだ言わないこと", "初期時点で既にある生活上の記憶"], "未確定")
     if is_unconfirmed_value(background_truth):
@@ -1829,9 +2000,9 @@ def render_knowledge_state_document(
         if story_background:
             background_truth = story_background
     if is_unconfirmed_value(q3):
-        q3 = background_truth
-    reveal_stage_1 = f"初回で見える入口: {q4}"
-    reveal_stage_2 = f"声や距離に出始める差: {q3}"
+        q3 = visual_anchor
+    reveal_stage_1 = f"初回で見える物的アンカー: {q3}"
+    reveal_stage_2 = f"声や距離に出始める差: {q4}"
     reveal_stage_3 = f"深部の傷の候補: {background_truth}"
     if story_fields:
         reveal_stage_1 = str(story_fields.get("visible") or reveal_stage_1)
@@ -1972,7 +2143,7 @@ def render_knowledge_state_document(
         ),
         dict(
             key="session_constraints",
-            value=q8,
+            value=q9,
             fictional_status="meta-system",
             source="protagonist",
             known_to=["GM"],
@@ -2022,7 +2193,9 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     name = extract_profile_name(profile) or "LILIA"
     q_basic = qa_basic(answers)
     q_visual = qa_visual(answers)
-    q_freeform = qa_freeform(answers)
+    q_anchor = qa_anchor(answers)
+    q_gap = qa_gap(answers)
+    q_wound = qa_wound(answers)
     q_encounter = qa_encounter(answers)
     q_calling = qa_calling(answers)
     q_constraints = newgame_forbidden_text(answers)
@@ -2036,7 +2209,7 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
         sections,
         ["Initial Scene Anchors", "everyday anchors"],
         ["手元の具体物", "初回sceneで使える具体物", "よく触る物"],
-        UNCONFIRMED,
+        q_anchor or UNCONFIRMED,
     )
     distance = profile_value(
         sections,
@@ -2065,19 +2238,19 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     combined_text = " / ".join([place, objects, distance, entry, " / ".join(unspoken), " / ".join(contradictions)])
     scene_time = infer_scene_time(combined_text)
     exit_beats = infer_scene_exit_beats(combined_text, name)
-    pressure = unspoken[0] if unspoken else (contradictions[0] if contradictions else "まだ言わないことが残っている")
-    friction = contradictions[0] if contradictions else pressure
+    pressure = q_wound if q_wound and not is_non_specific_literal(q_wound) else (unspoken[0] if unspoken else "まだ言わないことが残っている")
+    friction = q_gap if q_gap and not is_non_specific_literal(q_gap) else (contradictions[0] if contradictions else pressure)
     guard = values[0] if values else "[未確定: profile.values から導出]"
     avoid = forbidden[0] if forbidden else "[未確定: profile.forbidden から導出]"
     role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q1_components(q_basic).get("role") or "初回scene前にprofileから読む")
-    story_anchor = q_freeform or q_visual or objects
+    story_anchor = q_anchor or objects or q_visual
     story_fields = build_story_generation_fields(
         name=name,
         q1=q_basic if q1_components(q_basic).get("role") else role,
         q2=q_encounter or entry or distance,
         q3=story_anchor,
-        q4=q_freeform or friction,
-        q5=q_freeform or pressure,
+        q4=q_gap or friction,
+        q5=q_wound or pressure,
         q8=q_constraints or avoid,
         profile_role=role,
         place=place,
@@ -2346,12 +2519,15 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
     visual_fields = visual_components(visual)
     appearance = visual if visual and not is_non_specific_literal(visual) else q1.get("appearance") or UNCONFIRMED
     relationship = qa_encounter(answers) if qa_encounter(answers) and not is_non_specific_literal(qa_encounter(answers)) else "互いをまだ深く知らない距離"
-    freeform = qa_freeform(answers)
-    inner_gap = freeform if freeform and not is_non_specific_literal(freeform) else q1.get("personality") or UNCONFIRMED
+    anchor = qa_anchor(answers)
+    gap = qa_gap(answers)
+    wound_answer = qa_wound(answers)
+    outward, inward, gap_text = split_gap_answer(gap)
+    inner_gap = gap_text if gap_text else q1.get("personality") or UNCONFIRMED
     avoid = newgame_forbidden_text(answers).replace("\n", " / ") or "初回から恋愛成立や親密成立を確定しない"
     occupation = q1.get("role") or "日常の場にいる人"
-    wound = freeform if freeform and not is_non_specific_literal(freeform) else "まだ言葉にしていない傷がある。詳細は未確定: 進行で決める"
-    descriptive_constraint = infer_fallback_descriptive_constraint(appearance)
+    wound = wound_answer if wound_answer and not is_non_specific_literal(wound_answer) else "まだ言葉にしていない傷がある。詳細は未確定: 進行で決める"
+    descriptive_constraint = anchor if anchor and not is_non_specific_literal(anchor) else infer_fallback_descriptive_constraint(appearance)
     u = UNCONFIRMED
 
     return "\n".join(
@@ -2404,20 +2580,22 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             "## everyday anchors",
             f"- 生活の場所: {u}",
             f"- 仕事 / 用事 / 習慣: {occupation}",
-            f"- よく触る物: {u}",
-            f"- 初回sceneで使える具体物: {u}",
+            f"- よく触る物: {descriptive_constraint}",
+            f"- 初回sceneで使える具体物: {descriptive_constraint}",
             "",
             "## memories",
-            f"- 初期時点で既にある生活上の記憶: {u}",
+            f"- 初期時点で既にある生活上の記憶: {wound}",
             "- 実際に過去として固定してよいものだけ",
             "",
             "## contradictions",
-            f"- 表の態度と内側の矛盾: {u}",
+            f"- 表の態度: {outward or u}",
+            f"- 内側の反応: {inward or inner_gap}",
+            f"- 表の態度と内側の矛盾: {inner_gap}",
             f"- 頼りたい / 頼れない: {u}",
             f"- 近づきたい / 距離を守りたい: {u}",
             "",
             "## unspoken",
-            f"- まだ言わないこと: {u}",
+            f"- まだ言わないこと: {wound}",
             f"- すぐには開示しない理由: {u}",
             "",
             "## reactions",
@@ -2464,7 +2642,7 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             "",
             "## Initial Scene Anchors",
             f"- 場所と状況: {u}",
-            f"- 手元の具体物: {u}",
+            f"- 手元の具体物: {descriptive_constraint}",
             f"- 最初の距離: {relationship}",
             f"- 会話の入口: {u}",
             "",
@@ -2820,29 +2998,30 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
 def render_newgame_documents(answers: dict[int | str, str], session_name: str = "") -> dict[str, str]:
     semantic = {
         1: qa_basic(answers),
-        2: qa_encounter(answers),
-        3: qa_visual_or_anchor(answers),
-        4: qa_freeform(answers) or q1_components(qa_basic(answers)).get("personality", ""),
-        5: qa_freeform(answers),
-        6: qa_calling(answers),
-        7: qa_protagonist(answers),
-        8: newgame_forbidden_text(answers),
+        2: qa_visual(answers),
+        3: qa_anchor(answers) or qa_visual_or_anchor(answers),
+        4: qa_gap(answers) or q1_components(qa_basic(answers)).get("personality", ""),
+        5: qa_wound(answers),
+        6: qa_encounter(answers),
+        7: qa_calling(answers),
+        8: qa_protagonist(answers),
+        9: newgame_forbidden_text(answers),
     }
     q = lambda number: bullet_block(semantic.get(number, ""))
     q_line = lambda number: str(semantic.get(number, "")).replace("\n", " / ")
-    not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q3由来の制約とQ4の初期距離を尊重"
+    not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q3由来の制約とQ6の初期距離を尊重"
     lilia_name = generated_lilia_name(answers, session_name)
     profile = render_persona_profile_document(answers, lilia_name)
     story_fields = build_story_generation_fields(
         name=lilia_name,
         q1=q_line(1),
-        q2=q_line(2),
+        q2=q_line(6),
         q3=q_line(3),
         q4=q_line(4),
         q5=q_line(5),
-        q8=q_line(8),
+        q8=q_line(9),
         profile_role=q_line(1),
-        place=q_line(2),
+        place=q_line(6),
         objects=q_line(3),
     )
 
@@ -2852,15 +3031,15 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "Scene",
             "",
             [
-                ("今いる場所", q(2)),
-                ("現在時刻または場面時間", "- Q2の出会いから自然に導出する。"),
-                ("LILIAとユーザーの距離", q(2)),
+                ("今いる場所", q(6)),
+                ("現在時刻または場面時間", "- Q6の出会いから自然に導出する。"),
+                ("LILIAとユーザーの距離", q(6)),
                 ("今この場で見えているもの", q(3)),
-                ("今の場面", q(2)),
+                ("今の場面", q(6)),
                 ("直前のやりとり", "- Q&A完了。初回scene本文は未生成。"),
-                ("初回sceneの入口", q(2)),
+                ("初回sceneの入口", q(6)),
                 ("次に起きそうなこと", q(5)),
-                ("次にユーザーへ渡す行動余地", "- Q2の出会いとQ3の具体物に、ユーザーが自由入力でどう触れるかを見る。"),
+                ("次にユーザーへ渡す行動余地", "- Q6の出会いとQ3の具体物に、ユーザーが自由入力でどう触れるかを見る。"),
             ],
         ),
         "current/hotset.md": render_document(
@@ -2868,13 +3047,13 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "hotsetは正本ではなく、次の1ターンに効く温度だけを置きます。",
             [
                 ("会話の温度", q(4)),
-                ("呼び方 / 距離のアンカー", q(6) + "\n- 注: ここはechoであり、正本は `lilia/main/voice.md` と `lilia/main/relationship.md`。"),
+                ("呼び方 / 距離のアンカー", q(7) + "\n- 注: ここはechoであり、正本は `lilia/main/voice.md` と `lilia/main/relationship.md`。"),
                 ("次に会った時の第一反応", q(4)),
                 ("未消化の感情", q(5)),
                 ("言い残し / まだ言っていないこと", "- Q5由来の過去の傷は初回sceneで急に全部説明しない。"),
                 ("親密scene後の余韻", "- 次回1ターンに効くaftercare: 未発生\n- 第一反応: 未発生\n- 呼び方 / 距離の変化: 未発生\n- まだ触れないこと: 初期親密は未確認"),
                 ("最新scene後のecho", "- 次の1ターンに響くこと: 初回scene前のため未発生\n- 第一反応の方向: Q1/Q3由来の表と内の差を声と沈黙に残す\n- まだ触れない方がいいこと: Q3由来の傷や制約を初回で全部説明しない"),
-                ("現在のイベント要約", q(2)),
+                ("現在のイベント要約", q(6)),
                 ("次の小さな出来事", q(5)),
                 ("未確定の余白", "- 初回scene後の会話と選択で確定する。"),
                 ("次にユーザーへ向き合う時の空気", q(4)),
@@ -2884,42 +3063,42 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "Event Card",
             "今動いているストーリーイベントを、LILIAの内面と関係の変化に結びつけて記録します。",
             [
-                ("表の出来事", q(2)),
-                ("Visible Problem", f"- 誰が困っているか: Q2の出会いに関わるLILIAまたはユーザー\n- 何が止まりそうか: 初回の会話、距離、または小さな約束\n- 何に触れると入口になるか: {q_line(2)}"),
-                ("First Concrete Action", "- 誰に / 何に: LILIA、またはQ2の出会いで見える具体物\n- どう触るか: ユーザーの自由入力で触れる\n- 初回sceneで重すぎない一手: Q2を事件処理ではなく関係の入口として扱う"),
+                ("表の出来事", q(6)),
+                ("Visible Problem", f"- 誰が困っているか: Q6の出会いに関わるLILIAまたはユーザー\n- 何が止まりそうか: 初回の会話、距離、または小さな約束\n- 何に触れると入口になるか: {q_line(6)}"),
+                ("First Concrete Action", "- 誰に / 何に: LILIA、またはQ6の出会いで見える具体物\n- どう触るか: ユーザーの自由入力で触れる\n- 初回sceneで重すぎない一手: Q6を事件処理ではなく関係の入口として扱う"),
                 ("Handles 2-4", "- handle 1: 声をかける\n- handle 2: 近づきすぎず待つ\n- handle 3 optional: 小さく手伝う\n- handle 4 optional: 理由を聞く\n- 注: handlesは選択肢ではなく行動余地。"),
                 ("Relationship Stake", q(4)),
-                ("Crisis / Ability Check", "- crisis pressure: 初回では重い危機にしない\n- possible responses: 逃げる / 守る / 交渉する / 隠す / 耐える / 助けを呼ぶ / 能力を使う / あえて戦わない\n- ability constraint: can / cannot / condition / cost / trace / risk は能力が出た時だけ埋める\n- relationship risk: Q3の制約とQ4の距離を壊さない\n- post-crisis residue: 危機が発生した時だけ更新"),
-                ("If Ignored", "- Q2の出会いで見えた入口が、沈黙、遠慮、または言い残しとして残る。"),
-                ("Next Visible Change", "- Q2に触れた後、声 / 沈黙 / 呼び方 / 距離のどれかに小さく出る。"),
+                ("Crisis / Ability Check", "- crisis pressure: 初回では重い危機にしない\n- possible responses: 逃げる / 守る / 交渉する / 隠す / 耐える / 助けを呼ぶ / 能力を使う / あえて戦わない\n- ability constraint: can / cannot / condition / cost / trace / risk は能力が出た時だけ埋める\n- relationship risk: Q3の制約とQ6の距離を壊さない\n- post-crisis residue: 危機が発生した時だけ更新"),
+                ("If Ignored", "- Q6の出会いで見えた入口が、沈黙、遠慮、または言い残しとして残る。"),
+                ("Next Visible Change", "- Q6に触れた後、声 / 沈黙 / 呼び方 / 距離のどれかに小さく出る。"),
                 ("進行状態", "- status: 継続\n- 触れられたhandle: 未着手\n- relationship stakeの変化: 未着手\n- if ignoredの発火: 未発火\n- 次に更新するvisible change: 初回scene後に確認\n- story_deckへ落とす未回収札: Q3由来の余白"),
-                ("Story Residue", "- memoryに残るもの: Q2から実際に起きたことだけ\n- relationshipに残るもの: Q4の表と内の差がどう動いたか\n- beliefsに残るもの: LILIA側の仮説として残ったこと\n- voiceに残るもの: Q1 / Q6由来の第一反応\n- story_deckへ戻す未回収札: Q5の傷や言えないこと\n- NPC / Contact note optional: 初回では必要時だけ"),
-                ("Truth Hiding Boundary", "- 隠してよい真相: Q5由来の傷や理由\n- 見せる入口: Q2の出会いとQ3の具体物"),
+                ("Story Residue", "- memoryに残るもの: Q6から実際に起きたことだけ\n- relationshipに残るもの: Q4の表と内の差がどう動いたか\n- beliefsに残るもの: LILIA側の仮説として残ったこと\n- voiceに残るもの: Q1 / Q7由来の第一反応\n- story_deckへ戻す未回収札: Q5の傷や言えないこと\n- NPC / Contact note optional: 初回では必要時だけ"),
+                ("Truth Hiding Boundary", "- 隠してよい真相: Q5由来の傷や理由\n- 見せる入口: Q6の出会いとQ3の具体物"),
                 ("Intimacy / Boundary Check", f"- 親密sceneの場合だけ確認: 初回では原則未発生\n{not_intimate}\n- 成人 / 合意 / 相互性 / 境界線 / 止まれる余地: 未確認、止まれる余地を維持\n- aftercareまたは翌朝の第一声: 未発生\n- 雑な乱入になっていないか: 初回eventは小さく扱う"),
                 ("揺れるLILIA", q(4)),
                 ("その出来事がLILIAに刺さる理由", q(3)),
-                ("ユーザーへの問い", "- 選択肢ではなく、行動余地として書く: Q2の入口にどう触れるか\n- 必要なら自然な候補: 声をかける / 待つ / 手伝う / 理由を聞く\n- 自由入力の余白: あり"),
-                ("関係に残る変化", "- Q1/Q3の表と内の差、Q3の傷や制約がどう動いたかを見る。\n- 親密scene後に保存するもの: 未発生"),
+                ("ユーザーへの問い", "- 選択肢ではなく、行動余地として書く: Q6の入口にどう触れるか\n- 必要なら自然な候補: 声をかける / 待つ / 手伝う / 理由を聞く\n- 自由入力の余白: あり"),
+                ("関係に残る変化", "- Q1/Q4の表と内の差、Q3の制約がどう動いたかを見る。\n- 親密scene後に保存するもの: 未発生"),
             ],
         ),
         "current/relationship_overview.md": render_document(
             "Relationship Overview",
             "詳細ログではなく、再開時に関係の現在形を掴むための補助要約です。",
             [
-                ("現在の関係全体の要約", q(2)),
-                ("距離感", q(2)),
-                ("呼び方 / 声のアンカー", q(6)),
+                ("現在の関係全体の要約", q(6)),
+                ("距離感", q(6)),
+                ("呼び方 / 声のアンカー", q(7)),
                 ("親密さの初期扱い", "- 未確認 / 関心段階 / 明示的親密なし"),
                 ("intimacy / consent / boundary", not_intimate + "\n- 現在形の一言: 初回scene前"),
-                ("信頼", q(2)),
-                ("警戒", q(8)),
+                ("信頼", q(6)),
+                ("警戒", q(9)),
                 ("興味", q(1)),
                 ("甘え", "- 未確認"),
                 ("衝突", "- 未発生"),
                 ("誤解や思い込み", "- 初回scene後に `beliefs.md` へLILIA側仮説として保存する。"),
                 ("保留", q(5)),
-                ("境界線", q(8)),
-                ("resume時に無かったことにしないもの", "- Q2の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の過去の傷の種\n- Q6の呼ばれ方"),
+                ("境界線", q(9)),
+                ("resume時に無かったことにしないもの", "- Q6の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の過去の傷の種\n- Q7の呼ばれ方"),
                 ("次に変化しそうな点", "- 初回sceneで、声、沈黙、距離、信頼、警戒のどれが動くかを見る。"),
                 ("最新チェックポイント", "- イベント名: 初回scene前\n- LILIAの空気: Q3の質感とQ4の表裏を持ったまま、初回sceneでまだ様子を見る。\n- 核（このsceneで何がLILIAに残ったか）: まだ実際のsceneは始まっていない。質感が変わった時だけSave Modeで上書きする。"),
             ],
@@ -2933,7 +3112,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("守っているもの", "- 初回scene後、短期scene都合で消してはいけないと確認されたものだけを残す。"),
                 ("避けているもの", "- Q5の一時的な保留や恐れは `state.md` / `beliefs.md` / `profile.md` を優先する。\n- core fixedとして確定したものだけここへ残す。"),
                 ("弱さ", "- 初期時点では固定しすぎない。\n- 初回scene後、関係で繰り返し確認された場合だけcoreへ昇格する。"),
-                ("譲れないもの", "- Q3の自由欄から、境界線として変えてはいけないものだけを残す。"),
+                ("譲れないもの", "- Q3の描写の縛りとQ9の制約から、境界線として変えてはいけないものだけを残す。"),
                 ("変わってはいけない核", "- character YAML / profile.md から抽出された最小核だけを残す。\n- profile.mdの生活、職能、反応、矛盾、禁忌を丸ごとコピーしない。"),
                 ("まだ決めない余白", "- 初回sceneと記憶の積み重ねで確定する。\n- 育った後は `memory.md` / `relationship.md` / `beliefs.md` / `voice.md` を優先する。"),
             ],
@@ -2942,10 +3121,10 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "LILIA Voice",
             "固定台詞集ではなく、声の方向と継続性を保存します。",
             [
-                ("Voice Fixed", q(6)),
+                ("Voice Fixed", q(7)),
                 ("変わってよい揺れ", q(4)),
-                ("口調", q(6)),
-                ("呼び方", q(6)),
+                ("口調", q(7)),
+                ("呼び方", q(7)),
                 ("沈黙 / 言い淀み", q(4)),
                 ("第一反応", q(1)),
                 ("言わない言葉", q(5)),
@@ -2953,8 +3132,8 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("親密scene後の声の変化", "- 呼び方: 未発生\n- 沈黙: 未発生\n- 第一反応: 未発生\n- 継続的に変わったこと: 未発生"),
                 ("怒り方", "- 未確定。Q3の譲れないものを踏まえる。"),
                 ("甘え方", "- 未確定。初回では確定しない。"),
-                ("距離を置く時の出方", q(8)),
-                ("重要場面前のVoice Check", "- 今ユーザーをどう呼ぶか: Q6由来\n- 前回から変えてはいけない声: Q1の基本とQ3の質感\n- 今だけ変わってよい温度: Q4の表裏\n- 言うと壊れること: Q5の傷を説明しすぎること"),
+                ("距離を置く時の出方", q(9)),
+                ("重要場面前のVoice Check", "- 今ユーザーをどう呼ぶか: Q7由来\n- 前回から変えてはいけない声: Q1の基本とQ3の質感\n- 今だけ変わってよい温度: Q4の表裏\n- 言うと壊れること: Q5の傷を説明しすぎること"),
             ],
         ),
         "lilia/main/state.md": render_document(
@@ -2962,11 +3141,11 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "ここは volatile / echo の置き場であり、人格核、長期関係、実際に起きた出来事は入れません。",
             [
                 ("現在の感情", q(4)),
-                ("初回scene前の温度", q(2)),
+                ("初回scene前の温度", q(6)),
                 ("直近scene後に更新する点", "- 初回scene後に更新する。"),
                 ("表の気分", q(1)),
                 ("裏の気分", q(4)),
-                ("警戒", q(8)),
+                ("警戒", q(9)),
                 ("照れ", "- 未確定"),
                 ("Crisis / Ability Condition", "- fatigue: 未発生\n- injury or pain: 未発生\n- fear / agitation: Q5由来の傷が必要時だけ出る\n- concentration: 初回scene前\n- recovery: 未発生\n- visible trace: 未発生\n- note: 初回では重い危機にしない"),
                 ("親密scene後の一時状態", "- 安心: 未発生\n- 照れ: 未発生\n- 怖さ: 未発生\n- 保留: 未発生\n- 疲労: 未発生"),
@@ -2979,18 +3158,18 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "LILIA Relationship",
             "好感度数値ではなく、距離、信頼、境界線、相互性が何で動いたかを残します。",
             [
-                ("ユーザーとの関係", q(2)),
-                ("信頼", q(2)),
-                ("安心感", "- 初回scene前。Q2の出会い方から始める。"),
+                ("ユーザーとの関係", q(6)),
+                ("信頼", q(6)),
+                ("安心感", "- 初回scene前。Q6の出会い方から始める。"),
                 ("開示度", "- 未確認。Q5は急に開示しきらない。"),
-                ("距離感", q(2)),
-                ("距離感の根拠", "- Q2の出会い方"),
-                ("境界線", q(8)),
+                ("距離感", q(6)),
+                ("距離感の根拠", "- Q6の出会い方"),
+                ("境界線", q(9)),
                 ("親密さの初期扱い", "- 未確認 / 関心段階 / 明示的親密なし"),
                 ("intimacy / consent / boundary", not_intimate + "\n- いまその状態である理由: 初回scene前で、関係はまだ未確定\n- 何が起きたら変わるか: 会話、選択、境界線の尊重、aftercareが実際に起きた時"),
                 ("相互性", "- 初回sceneで確認する。"),
                 ("合意 / 止まれる余地", "- 初回から親密成立にしない。止まれる余地を維持する。"),
-                ("未確定の期待", q(2)),
+                ("未確定の期待", q(6)),
                 ("嫉妬", "- 未発生"),
                 ("愛着", "- 未発生"),
                 ("摩擦", q(4)),
@@ -3006,7 +3185,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("Q&A由来の初期要約", render_newgame_answer_summary(answers)),
                 ("mid_term", "- 初回scene後に更新する。"),
                 ("long_term", "- 初回scene後、関係に残る節目だけ保存する。"),
-                ("historical_fixed", "- 実際に起きた出来事: Q&A完了\n- 約束 / 拒否 / 保留: 未発生\n- 無かったことにしない節目: Q2の出会い方、Q3の描写の縛り、Q4の表と内の差"),
+                ("historical_fixed", "- 実際に起きた出来事: Q&A完了\n- 約束 / 拒否 / 保留: 未発生\n- 無かったことにしない節目: Q6の出会い方、Q3の描写の縛り、Q4の表と内の差"),
                 ("emotional_beats", "- 初回scene後に更新する。"),
                 ("aftercare_memory", "- 終わった後にLILIAが覚えていること: 未発生\n- 次に会った時の第一声: 未発生\n- 呼び方や距離感の変化: 未発生\n- 安心 / 照れ / 怖さ / 保留 / 言い残し: 未発生\n- 確認 / 拒否 / 保留 / 止まれたこと: 未発生"),
                 ("echo", "- 直近scene後の余韻: 初回scene前\n- 気まずさ / 照れ / 距離の揺れ: 未発生\n- 言い残したこと: Q5由来の傷を初回で全部説明しない\n- 次に響く小さな傷: 未発生\n- 次に会った時の出方: 初回sceneで確認する"),
@@ -3020,8 +3199,8 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "LILIA Beliefs",
             "beliefsは正解ではなく、LILIA側の仮説として更新されます。",
             [
-                ("LILIAがユーザーをどう見ているか", "- 初回scene前のため未確定。Q4 / Q5から外形的な仮説だけ持つ。"),
-                ("ユーザーについての仮説", q(7)),
+                ("LILIAがユーザーをどう見ているか", "- 初回scene前のため未確定。Q6 / Q8から外形的な仮説だけ持つ。"),
+                ("ユーザーについての仮説", q(8)),
                 ("自分自身をどう見ているか", q(1)),
                 ("世界や関係について信じていること", q(5)),
                 ("誤解や思い込み", "- 初回scene後に必要なら更新する。"),
@@ -3043,9 +3222,9 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("LILIAが避けるもの", bullet_lines([str(story_fields["avoid"])])),
                 ("LILIA側の課題", bullet_lines([f"{story_fields['secret']}を抱えたまま、{story_fields['emotion']}をどう扱うか。"])),
                 ("ユーザー側に問うこと", bullet_lines([str(story_fields["relationship_question"])])),
-                ("関係が変化する方向", "- Q2を通じて、声、距離、信頼、警戒、沈黙のどれが少し動くかを見る。"),
+                ("関係が変化する方向", "- Q6を通じて、声、距離、信頼、警戒、沈黙のどれが少し動くかを見る。"),
                 ("固定しないこと", "- これはfull plotではない: はい\n- 事前に決めない展開: 初回scene後の反応と選択\n- LILIAの反応とユーザーの選択で変わる余地: あり"),
-                ("次に変わりうる点", "- 声: Q1 / Q6由来\n- 距離感: Q4由来\n- 呼び方: Q6由来\n- 信頼 / 警戒: Q3 / Q4由来\n- 境界線: Q3由来\n- beliefs: 初回scene後に更新\n- 危機後の頼り方 / 頼られ方: 初回では重くしない\n- 能力使用後の信頼 / 警戒: 未発生"),
+                ("次に変わりうる点", "- 声: Q1 / Q7由来\n- 距離感: Q6由来\n- 呼び方: Q7由来\n- 信頼 / 警戒: Q3 / Q4 / Q9由来\n- 境界線: Q3 / Q9由来\n- beliefs: 初回scene後に更新\n- 危機後の頼り方 / 頼られ方: 初回では重くしない\n- 能力使用後の信頼 / 警戒: 未発生"),
             ],
         ),
         "current/story_spine.md": render_story_spine_document(
@@ -3068,8 +3247,8 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "Story Deck",
             "例文集ではなく、次イベント判断に必要なものだけを置きます。",
             [
-                ("現在使えるstory素材", "- Q2の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の過去の傷の種"),
-                ("初回sceneで使う小さな出来事", f"- 素材名 / 未回収札: {q_line(2)}\n- 現在sceneで触る内容は `current/event_card.md` に置く"),
+                ("現在使えるstory素材", "- Q6の出会い方\n- Q3の描写の縛り\n- Q4の表と内の差\n- Q5の過去の傷の種"),
+                ("初回sceneで使う小さな出来事", f"- 素材名 / 未回収札: {q_line(6)}\n- 現在sceneで触る内容は `current/event_card.md` に置く"),
                 ("関係を揺らす圧", q(4)),
                 ("未回収札", "- Q5由来のまだ言えない理由\n- Q3由来の物的な印が試される場面"),
                 ("背景化したevent_card", "- 現在sceneから外れた出来事: 未発生\n- 後で戻す条件: 初回scene後に必要なら更新\n- 関係に残った圧: 未発生"),
@@ -3077,7 +3256,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("Crisis / Ability Echo", "- unresolved trace: 未発生\n- delayed cost: 未発生\n- returning pressure: Q3由来の保留だけ小さく戻す\n- relationship risk still active: Q3の制約を壊さない\n- LILIAがまだ言えていないこと: Q3由来\n- 1-3 scene後に戻る形: 小さな沈黙、避け方、確認"),
                 ("NPC / Contact Notes", "- name or label: 未設定\n- tier: 0\n- current role: 初回では保存しない\n- promotion trigger: LILIAのmemory / relationship / beliefsに影響した時\n- storage destination: 必要時のみ `story_deck.md`\n- known: 未設定\n- suspected: 未設定\n- unknown: 未設定\n- LILIAの記憶 / 関係 / beliefsへの影響: 未発生"),
                 ("まだ使わない未回収札", "- Q5の深い理由"),
-                ("次に使うなら", "- Q2の結果がLILIAの声、距離、沈黙にどう戻るかを見る。"),
+                ("次に使うなら", "- Q6の結果がLILIAの声、距離、沈黙にどう戻るかを見る。"),
             ],
         ),
         "style/reference.md": render_document(
@@ -3086,12 +3265,12 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             [
                 ("Source Hints", "- 未設定。参照作品名は本文に出さない。"),
                 ("Selected Defaults", "- Q1 / Q2 / Q4の温度に合わせて必要時だけ選ぶ。"),
-                ("Light Story Reference Pass Output", f"- 基本: {q_line(1)}\n- 出会い: {q_line(2)}\n- 描写の縛り: {q_line(3)}"),
+                ("Light Story Reference Pass Output", f"- 基本: {q_line(1)}\n- 出会い: {q_line(6)}\n- 描写の縛り: {q_line(3)}"),
                 ("抽出した表現軸", "- Q3の描写の縛りを、固定台詞ではなく視線、沈黙、距離、第一反応へ変換する。"),
                 ("場面温度", q(4)),
                 ("視点距離", "- 近すぎず、LILIAの反応とユーザーの行動余地が見える距離。"),
                 ("描写密度", "- 初回sceneでは短く、触れられるものを具体的に置く。"),
-                ("台詞と沈黙", q(6)),
+                ("台詞と沈黙", q(7)),
                 ("余韻", "- Q5の言い残しを残す。"),
                 ("LILIAへの変換", "- Q&Aの語彙を固定設定にせず、LILIAの声、距離、沈黙へ変換する。"),
                 ("Avoid Direct Imitation", "- 参照本文、台詞、人物配置、固有文体は使わない"),
@@ -3102,7 +3281,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
             "通常resume 1ターン目の必読ではなく、文体調整が必要な時だけ参照します。",
             [
                 ("基本ルール", "- LILIAの内面は、説明ではなく声、沈黙、手元、視線、距離に出す\n- ユーザーの内面を断定しない\n- 場所、距離、触れられるものを短く置く\n- 同じ感情表現を繰り返さない\n- 例文や参照作品の語彙を本文へ流用しない\n- 官能・親密場面では、成人・合意・相互性・境界線を守りつつ、清潔すぎて無害なだけの文体に逃げない"),
-                ("感覚チャンネル", "- 視覚: Q3の描写の縛りが見える\n- 聴覚: Q6の呼び方が声に出る\n- 触覚: 初回では必要時だけ\n- 嗅覚: 必要時だけ\n- 体感: Q2の距離感\n- 時間感覚: 初回scene前"),
+                ("感覚チャンネル", "- 視覚: Q3の描写の縛りが見える\n- 聴覚: Q7の呼び方が声に出る\n- 触覚: 初回では必要時だけ\n- 嗅覚: 必要時だけ\n- 体感: Q6の距離感\n- 時間感覚: 初回scene前"),
                 ("LILIA固有の反応の出方", "- 沈黙: Q1 / Q3由来\n- 照れ: 未確定\n- 警戒: Q3由来\n- 甘え: 未確定\n- 怒り: Q3の譲れないもの由来\n- 距離を置く時: Q3由来"),
                 ("Intimacy / Boundary", "- 成人: 未確認\n- 合意: 未確認\n- 相互性: 未確認\n- 関係段階: 初回scene前\n- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q3由来の制約を尊重\n- 止まれる余地: 維持する\n- aftercare: 未発生\n- 官能を薄めすぎないための表現軸: 条件が揃った時だけ扱う"),
                 ("禁止表現・避けたい癖", "- Q&Aの語彙をそのまま固定台詞化しない\n- 初回から恋愛成立済みにしない\n- Q3の制約をイベント都合で消さない"),
@@ -3303,7 +3482,7 @@ def build_codex_new_prompt_bundle(session_path: Path) -> str:
         f"session: {session_path.relative_to(ROOT)}\n"
         "mode: codex interactive new\n"
         "instruction: This bundle is for playing LILIA inside Codex interactive mode. "
-        "Ask Newgame Q1-Q6, then run ./lilia apply-newgame so the launcher generates character YAML when an LLM CLI is available, "
+        "Ask Newgame Q1-Q9, then run ./lilia apply-newgame so the launcher generates character YAML when an LLM CLI is available, "
         "convert it into lilia/main/profile.md, read that profile, update the session scaffold, "
         "then write the first scene. Do not stop at first_scene_pending/first_scene_ready unless the user asks to pause. "
         "After the first scene begins, normal play is Play Mode: do not edit story/state files or run git checks after every user turn. "
@@ -3364,7 +3543,7 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
         return (
             f"Read {prompt_path} and follow it for LILIA. "
             "Do not start AI Harness or autoplay. "
-            "Ask Newgame Q1-Q6, run ./lilia apply-newgame to generate lilia/main/profile.md, current/protagonist.md, and current/knowledge_state.md, then start the first scene. "
+            "Ask Newgame Q1-Q9, run ./lilia apply-newgame to generate lilia/main/profile.md, current/protagonist.md, and current/knowledge_state.md, then start the first scene. "
             "Do not stop at first_scene_pending/first_scene_ready. "
             "During normal play after the first scene starts, do not edit story/state files or run git checks after every user turn. "
             "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
@@ -3609,9 +3788,9 @@ def render_style_documents(answers: dict[int | str, str]) -> dict[str, str]:
     heroine = qa_basic(answers).replace("\n", " / ") or UNCONFIRMED
     meeting = qa_encounter(answers).replace("\n", " / ") or UNCONFIRMED
     descriptive = qa_visual_or_anchor(answers).replace("\n", " / ") or UNCONFIRMED
-    gap = (qa_freeform(answers) or q1_components(qa_basic(answers)).get("personality", "")).replace("\n", " / ") or UNCONFIRMED
+    gap = (qa_gap(answers) or q1_components(qa_basic(answers)).get("personality", "")).replace("\n", " / ") or UNCONFIRMED
     avoid = newgame_forbidden_text(answers).replace("\n", " / ") or UNCONFIRMED
-    wound = qa_freeform(answers).replace("\n", " / ") or UNCONFIRMED
+    wound = qa_wound(answers).replace("\n", " / ") or UNCONFIRMED
     return {
         "style/reference.md": render_document(
             "Style Reference",
@@ -3619,7 +3798,7 @@ def render_style_documents(answers: dict[int | str, str]) -> dict[str, str]:
             [
                 ("Source Hints", "- 未設定。参照作品名は本文に出さない。"),
                 ("Selected Defaults", "- Q1 / Q2 / Q4の温度に合わせて必要時だけ選ぶ。"),
-                ("Light Story Reference Pass Output", f"- ヒロインの基本: {heroine}\n- ヒロインの見た目/描写: {descriptive}\n- その他のこだわり: {wound}\n- 最初の出会い: {meeting}"),
+                ("Light Story Reference Pass Output", f"- ヒロインの基本: {heroine}\n- ヒロインの見た目/描写: {descriptive}\n- 表と内の差: {gap}\n- 過去の傷の種: {wound}\n- 最初の出会い: {meeting}"),
                 ("抽出した表現軸", "- Q2/Q3の描写素材を、固定台詞ではなく視線、沈黙、距離、第一反応へ変換する。"),
                 ("場面温度", bullet_lines([gap, meeting])),
                 ("視点距離", "- 近すぎず、LILIAの反応とユーザーの行動余地が見える距離。"),
@@ -3752,7 +3931,7 @@ def command_apply_newgame(args: list[str]) -> None:
     logger.write("inputs", answers_path=answers_path, requested_engine=requested_engine)
     answers = parse_newgame_answers(answers_path)
     logger.section("Q&A")
-    question_count = 6 if is_wave10_answers(answers) else 8
+    question_count = 9 if is_wave101_answers(answers) else (6 if is_wave10_answers(answers) else 8)
     for number in range(1, question_count + 1):
         logger.write("answer", question=f"Q{number}", value=answer(answers, number).replace("\n", " / "))
     logger.section("LLM Calls")
