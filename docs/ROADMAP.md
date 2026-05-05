@@ -26,7 +26,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み / scene-tick MVP実装済み
-- Story / Relationship Accumulation Loop: docs正本化完了 / テンプレート最小接続完了 / profile由来のcurrent/story/lilia main初期生成コード接続済み / 実プレイ検証待ち
+- Story / Relationship Accumulation Loop: docs正本化完了 / event/story_deck/profile初期生成コード接続済み / story_spine・relationship_spine は Wave 11 でAI駆動化済み / ましろ・つむぎ・全Qおまかせ smoke 通過
 - Story Reference Engine 強制導線: prompt 接続済み
 - 5層 self-understanding 参照導線: prompt 接続済み
 - Deepening Tags 評価基準: GROWTH_UPDATE_LOOP + relationship template 接続済み
@@ -51,6 +51,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 10.2（Main Question Template Flexibility）: 実装済み
 - Wave 10.3（Fallback Field Quality + Knowledge Boundary Meta HIDDEN）: 実装済み
 - Wave 10.4（Protagonist Inner Monologue Boundary）: 実装済み
+- Wave 11（AI-driven Story / Relationship Spine Generation）: 実装済み
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -63,8 +64,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ### Wave 5: Story Spine [完了]
 
-- `templates/session/story/story_spine.md` を追加。
-- newgameで `current/story_spine.md` を初期生成。
+- `templates/session/story/story_spine.md` を追加した（Wave 11で削除済み）。
+- newgameで `current/story_spine.md` を初期生成した（Wave 11以降はAI駆動）。
 - Story Spine Awareness（prompt/core.md）を追加。
 - Event Creation Procedureと連携。
 - save / apply-turn連携。
@@ -136,14 +137,23 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - `./lilia format-input` でプレイヤー入力を同じ境界形式へ整形できるようにした。
 - `docs/PLAYER_INPUT.md` を追加し、行動、内心、補足括弧の書き分けをユーザー向けに説明した。
 
+## Wave 11: AI-driven Story / Relationship Spine Generation [完了]
+- `tools/story/spine_generator.py` と `tools/story/spine_validator.py` を追加し、`./lilia apply-newgame` の `current/story_spine.md` / `story/relationship_spine.md` 生成をAI駆動へ移行した。
+- generator は Q1-Q9 と生成済み character YAML を読み、`references/story_pattern_stock.md` から1-2パターン、`references/story_structure_stock.md` から1構造を選んで両spineを書く。
+- prompt投入前に参照棚から観察作品行や具体例を取り除き、validatorで作品名literal混入、必須セクション欠落、空欄回避、文崩壊、同一フレーズ反復、Q1丸写しを検査する。
+- invalid時は最大2回再生成し、3回失敗したら `apply-newgame` を失敗させる。壊れたspineは保存しない。
+- `templates/session/story/story_spine.md` と `templates/session/story/relationship_spine.md` は削除した。既存セッションへのretrofitはしない。
+- `current/knowledge_state.md` の story_spine 由来項目は、最終AI生成された story_spine から同期する。
+- ましろ、つむぎ、全Qおまかせの新規smokeで生成と validator pass を確認した。
+
 ## 候補（優先度順、未確定）
 
-- Wave 11: 能力（内面の発露）。
-- Wave 12: 異界。
-- Wave 13: 組織。
-- Wave 14: 複数ヒロイン。
-- Wave 15: 共同体・生活・ビジネス。
-- Wave 16: NPC 知識管理（knowledge_state 拡張）。
+- Wave 12: 能力（内面の発露）。
+- Wave 13: 異界。
+- Wave 14: 組織。
+- Wave 15: 複数ヒロイン。
+- Wave 16: 共同体・生活・ビジネス。
+- Wave 17: NPC 知識管理（knowledge_state 拡張）。
 
 ## 3. Completed Foundation
 
@@ -262,7 +272,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - ability cost、trace、relationship risk、condition、direct pressureを扱う。
    - 逃げる、守る、交渉する、隠す、耐える、助けを呼ぶ、能力を使う、代償を払う、を同じ重さで扱う。
    - 旧LIRIA / inner-galge の `combat.md` を参考にするが、LILIAではHP、部位管理、重い数値戦闘を初期MVP必須にしない。
-   - `templates/session/current/event_card.md` の `Crisis / Ability Check`、`templates/session/story/story_deck.md` の `Crisis / Ability Echo`、`templates/session/lilia/main/state.md` の `Crisis / Ability Condition`、`templates/session/story/relationship_spine.md` の危機後の頼り方 / 頼られ方、能力使用後の信頼 / 警戒、`prompt/newgame.md` / `prompt/save_resume.md` の正本参照へテンプレート最小接続を反映済み。
+   - `templates/session/current/event_card.md` の `Crisis / Ability Check`、`templates/session/story/story_deck.md` の `Crisis / Ability Echo`、`templates/session/lilia/main/state.md` の `Crisis / Ability Condition`、`prompt/newgame.md` / `prompt/save_resume.md` の正本参照へテンプレート最小接続を反映済み。危機後の頼り方 / 頼られ方、能力使用後の信頼 / 警戒は Wave 11以降の関係spine AI生成・更新で扱う。
    - Status: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
 
 10. Technical + Gameplay Integrity Checks

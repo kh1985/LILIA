@@ -1738,270 +1738,6 @@ def story_fragment(value: str, limit: int = 70) -> str:
     return story_short_clause(value, limit).rstrip("。.!！?？")
 
 
-def story_role_phrase(name: str, q1: str, profile_role: str = "") -> str:
-    base = story_clean_answer(q1)
-    role = ""
-    if base:
-        parsed = q1_components(base)
-        if parsed["role"]:
-            return f"{parsed['role']}・{name}" if name else parsed["role"]
-        parts = [part.strip() for part in re.split(r"[、,/／。]+", base) if part.strip()]
-        role_parts: list[str] = []
-        for part in parts:
-            clean = re.sub(r"\d{1,3}\s*歳", "", part).strip()
-            if not clean or is_non_specific_literal(clean) or q1_name_is_omakase(clean):
-                continue
-            if name and (clean == name or clean.replace(" ", "") == name.replace(" ", "")):
-                continue
-            if any(word in clean for word in ["巨乳", "胸", "カップ", "色気", "エロ", "主人公にだけ"]):
-                continue
-            role_parts.append(clean)
-        role = "、".join(role_parts[:2])
-    if not role:
-        role = story_clean_answer(profile_role, "日常の場にいる人")
-    return f"{role}・{name}" if role else name
-
-
-def story_inferred_wound(name: str, q1: str, q4: str) -> str:
-    context = story_short_clause(q1, 48) or name
-    gap = story_short_clause(q4, 58) or "表の顔と内側の温度差"
-    return f"{context}として過ごす中で、{gap}につながる内面の核がある。詳細は未確定: 進行で決める。"
-
-
-HEALING_KEYWORDS = [
-    "亡く",
-    "死",
-    "喪失",
-    "後悔",
-    "裏切",
-    "挫折",
-    "諦め",
-    "解散",
-    "失った",
-    "言いそびれ",
-    "最後の会話",
-]
-
-CHOICE_ROLE_KEYWORDS = [
-    "殺し屋",
-    "暗殺",
-    "スパイ",
-    "諜報",
-    "組織",
-    "傭兵",
-    "工作員",
-    "特殊職",
-]
-
-DISCOVERY_KEYWORDS = [
-    "理由",
-    "意味",
-    "わから",
-    "分から",
-    "知らない",
-    "なぜ",
-    "癖",
-    "必ず",
-    "残る",
-    "覚え",
-]
-
-CONFLICT_KEYWORDS = [
-    "やめたい",
-    "やめられ",
-    "抜けた",
-    "足を洗",
-    "連絡",
-    "依存",
-    "月一",
-    "続けたい",
-    "負担",
-    "切れていない",
-    "戻れ",
-    "降りられ",
-]
-
-
-def choose_main_question_pattern(q1: str, q5: str) -> str:
-    text = f"{q1} {q5}"
-    if any(keyword in q5 for keyword in HEALING_KEYWORDS):
-        return "healing"
-    if any(keyword in q5 for keyword in CONFLICT_KEYWORDS):
-        return "conflict"
-    if any(keyword in q1 for keyword in CHOICE_ROLE_KEYWORDS) or any(keyword in text for keyword in ["続けるか", "降りるか", "選ぶ"]):
-        return "choice"
-    if any(keyword in q5 for keyword in DISCOVERY_KEYWORDS):
-        return "discovery"
-    return "change"
-
-
-def story_pattern_label(pattern: str) -> str:
-    return {
-        "healing": "パターン1（傷の治癒）",
-        "choice": "パターン2（選択）",
-        "discovery": "パターン3（発見）",
-        "change": "パターン4（変化）",
-        "conflict": "パターン5（葛藤）",
-    }.get(pattern, "パターン4（変化）")
-
-
-def story_anchor_from_context(q3: str, objects: str, q1: str, q2: str, place: str) -> str:
-    direct = story_clean_answer(q3)
-    if direct:
-        return direct
-    from_profile = story_clean_answer(objects)
-    if from_profile:
-        return profile_short_items(from_profile, 2)
-    del q1, q2, place
-    return "[未確定: profile.appearance から導出]"
-
-
-def story_environment_object(q1: str, q2: str, place: str) -> str:
-    for candidate in [place, q2, q1]:
-        value = story_fragment(candidate, 48)
-        if value:
-            return value
-    return "[未確定: profile.context から導出]"
-
-
-def story_role_object(q1: str, q2: str, place: str) -> str:
-    for candidate in [q1, place, q2]:
-        value = story_fragment(candidate, 48)
-        if value:
-            return value
-    return "[未確定: profile.occupation から導出]"
-
-
-def build_story_generation_fields(
-    *,
-    name: str,
-    q1: str,
-    q2: str,
-    q3: str,
-    q4: str,
-    q5: str,
-    q8: str,
-    profile_role: str = "",
-    place: str = "",
-    objects: str = "",
-) -> dict[str, object]:
-    basic = story_clean_answer(q1, name)
-    encounter = story_clean_answer(q2, "初回sceneの出会い")
-    gap = story_clean_answer(q4, "表に出している顔と内側の差")
-    inner_direct = story_clean_answer(q5)
-    inner_matter = inner_direct or story_inferred_wound(name, basic, gap)
-    boundary = story_clean_answer(q8) or f"{gap}を急に言い当てられること"
-    role = story_role_phrase(name, basic, profile_role)
-    anchor = story_fragment(story_anchor_from_context(q3, objects, basic, encounter, place), 90)
-    env_object = story_environment_object(basic, encounter, place)
-    role_object = story_role_object(basic, encounter, place)
-    inner_focus = story_fragment(inner_matter, 72) or "まだ言葉にしていない内面の核"
-    inner_topic = f"「{inner_focus}」"
-    gap_focus = story_fragment(gap, 72) or "表と内の差"
-    inner_fact = f"{inner_focus}という内面の核"
-    gap_matter = f"{gap_focus}という表と内の差"
-    pattern = choose_main_question_pattern(basic, inner_direct or inner_matter)
-    pattern_label = story_pattern_label(pattern)
-    relationship_entry = story_fragment(encounter, 48) or "最初の出会い"
-
-    if pattern == "healing":
-        main_question = f"{pattern_label}: {role}は、{inner_topic}を自分の言葉で扱い直せるか。"
-        visible = f"{anchor}が、まだ語られていない傷の存在を小さく滲ませる。"
-        near_reveal = f"{gap_focus}の奥に、{inner_focus}の輪郭が見え始める。"
-        deep_reveal = f"{inner_focus}の核心に、関係の中で触れる。"
-        background_note = "これは傷の真相として扱う。何が起き、なぜ今も残っているかはReveal Ladderで段階的に出す。"
-        pressure_items = [
-            f"{inner_focus}に触れる場面が、{name}の生活へ小さく戻ってくる",
-            f"{name}が{gap_matter}の表側だけでやり過ごそうとする",
-            f"{env_object}が、避けた記憶をもう一度場へ戻す",
-        ]
-        prize = f"{name}が{inner_focus}を自分のタイミングで語れること"
-    elif pattern == "choice":
-        main_question = f"{pattern_label}: {role}は、今の生き方を続けるか、降りるかを自分の意思で選べるか。"
-        visible = f"{anchor}が、今の道と別の道の存在を最初に匂わせる。"
-        near_reveal = f"{gap_focus}を保つために払っているコストが見え始める。"
-        deep_reveal = f"{inner_focus}が、選択の瞬間を近づける。"
-        background_note = "これは選択の本質として扱う。なぜ続けるのか、なぜ変えたいのかを固定しすぎず段階的に出す。"
-        pressure_items = [
-            f"{role}としての用事が進み、選ばないままではいられない場面が近づく",
-            f"{name}が{inner_fact}を職業的なものとして処理しようとする",
-            f"{env_object}が、続ける道と降りる道の両方を場へ持ち込む",
-        ]
-        prize = f"{name}が今の生き方を自分の意思で選び直せること"
-    elif pattern == "discovery":
-        main_question = f"{pattern_label}: {role}は、{inner_topic}の意味を見つけられるか。"
-        visible = f"{anchor}が、意味のわからない印として提示される。"
-        near_reveal = f"{gap_focus}の中に、意味へ向かう手がかりが集まり始める。"
-        deep_reveal = f"{inner_focus}の意味が言語化される、または保留として確定する。"
-        background_note = "これは意味の手がかりとして扱う。傷と断定せず、なぜそれが残るのかを探る。"
-        pressure_items = [
-            f"{inner_focus}を説明できないまま、似た反応が別の場面でも起きる",
-            f"{name}が{gap_matter}をいつもの態度で隠そうとする",
-            f"{env_object}が、意味を探るための手がかりを増やす",
-        ]
-        prize = f"{name}が{inner_focus}を自分の言葉で意味づけられること"
-    elif pattern == "conflict":
-        main_question = f"{pattern_label}: {role}は、{inner_topic}を抱えながら、なお今の生活を続けられるか。"
-        visible = f"{anchor}が、続けたいものと降りたいものの摩擦を見せる。"
-        near_reveal = f"{gap_focus}の奥に、葛藤の深さが見え始める。"
-        deep_reveal = f"{inner_focus}を続ける覚悟、または降りる選択が問われる。"
-        background_note = "これは葛藤の構造として扱う。なぜ抱えながら続けるのか、降りられない理由を段階的に出す。"
-        pressure_items = [
-            f"{inner_focus}が、やめる/続けるの判断を先送りできない形で戻ってくる",
-            f"{name}が{gap_matter}の片側だけで葛藤を保とうとする",
-            f"{env_object}が、今の生活を続けるための代償を見せる",
-        ]
-        prize = f"{name}が葛藤を他人に奪われず、自分の続け方を選べること"
-    else:
-        main_question = f"{pattern_label}: {role}とユーザーが{relationship_entry}で出会って、二人の距離と日常はどう変わるか。"
-        visible = f"{anchor}が、関係の最初の温度を決める。"
-        near_reveal = f"{gap_focus}が、関係が変化する瞬間に少しだけ動く。"
-        deep_reveal = f"{inner_focus}を含めて、関係の変化の方向が見え始める。"
-        background_note = "これは関係の核として扱う。明確な傷より、出会いによって何が変わるかを段階的に見る。"
-        pressure_items = [
-            f"{relationship_entry}から生まれた小さな接点が、次の距離を要求する",
-            f"{name}が{gap_matter}を保ったまま、関係の温度だけが少し動く",
-            f"{env_object}が、二人の日常を少しだけ変える入口になる",
-        ]
-        prize = f"{name}とユーザーが、関係の変化を急がず自分たちの速度で選べること"
-
-    if inner_direct:
-        background_truth = "\n".join([inner_direct, background_note, "詳細は未確定: 進行で決める。"])
-    else:
-        background_truth = "\n".join([inner_matter, background_note])
-
-    return {
-        "role": role,
-        "anchor": anchor,
-        "main_question": main_question,
-        "visible": visible,
-        "near_reveal": near_reveal,
-        "deep_reveal": deep_reveal,
-        "background_truth": background_truth,
-        "pressure_items": pressure_items,
-        "prize": prize,
-        "life": f"{basic} / {encounter}",
-        "secret": inner_matter,
-        "boundary": boundary,
-        "emotion": gap,
-        "ignored_items": [
-            f"{name}は{role}の場に戻り、物的アンカーへの触れ方だけが記憶に残る",
-            f"{inner_fact}が言葉にならないまま、次の沈黙や反応の遅れとして戻る",
-            f"{gap_focus}の表側だけが強まり、関係の入口が狭くなる",
-        ],
-        "drift_items": [
-            f"{anchor} — {inner_focus}",
-            f"{env_object} — {gap_focus}",
-            f"{role_object} — {role}としての時間と、{inner_focus}",
-        ],
-        "relationship_theme": f"{gap_focus}。{inner_fact}を急いで説明させず、{name}が話すことと黙ることを自分で選べる関係。",
-        "relationship_question": f"物的アンカーや{encounter}に触れる時、{name}の沈黙を奪わずにどう関わるか。",
-        "first_friction": gap,
-        "guard": f"{name}が{inner_fact}を自分のタイミングで扱えること",
-        "avoid": boundary,
-    }
-
-
 def infer_scene_time(text: str) -> str:
     value = story_fragment(text, 60)
     if value:
@@ -2022,71 +1758,6 @@ def infer_scene_exit_beats(text: str, name: str) -> list[str]:
         if beat not in deduped:
             deduped.append(beat)
     return deduped[:5]
-
-
-def render_story_spine_document(
-    *,
-    name: str,
-    main_question: str,
-    visible: str,
-    near_reveal: str,
-    deep_reveal: str,
-    background_truth: str,
-    pressure_items: list[str],
-    prize: str,
-    life: str,
-    secret: str,
-    boundary: str,
-    emotion: str,
-    ignored_items: list[str],
-    drift_items: list[str],
-) -> str:
-    return render_document(
-        "Story Spine",
-        (
-            "物語の固めの背骨。relationship_spine.md（関係の方向・温度）とは別に、"
-            "この話が何の話で、どう進むかを保持するGM内部資料です。"
-        ),
-        [
-            ("Main Question", main_question),
-            (
-                "Reveal Ladder",
-                "\n".join(
-                    [
-                        f"1. [pending] {visible}",
-                        f"2. [pending] {near_reveal}",
-                        f"3. [pending] {deep_reveal}",
-                    ]
-                ),
-            ),
-            ("Background Truth (GM only)", background_truth),
-            ("Pressure Direction", bullet_lines([f"[standing] {item}" for item in pressure_items])),
-            ("Prize（任意）", prize),
-            (
-                "Heroine Tie",
-                "\n".join(
-                    [
-                        f"- 生活: {life}",
-                        f"- 秘密: {secret}",
-                        f"- 境界: {boundary}",
-                        f"- 感情: {emotion}",
-                    ]
-                ),
-            ),
-            ("if ignored", bullet_lines(ignored_items[:3])),
-            ("Drift Guard", bullet_lines(drift_items[:3])),
-            (
-                "運用メモ",
-                "\n".join(
-                    [
-                        f"- {name}本人の認知として本文に直接出さない。",
-                        "- Reveal Ladderは一気に2段進めない。",
-                        "- Background TruthはReveal Ladder経由でだけ表に出す。",
-                    ]
-                ),
-            ),
-        ],
-    )
 
 
 def answer_or_default(answers: dict[int | str, str], number: int, default: str) -> str:
@@ -2466,6 +2137,33 @@ def render_knowledge_state_document(
     )
 
 
+def story_fields_from_story_spine_markdown(markdown: str) -> dict[str, object]:
+    sections = markdown_sections(markdown)
+    reveal_items = [
+        re.sub(r"^\s*(?:[-*]|\d+[.)])\s*", "", line).strip()
+        for line in sections.get("reveal ladder", "").splitlines()
+        if re.match(r"^\s*(?:[-*]|\d+[.)])\s+", line)
+    ]
+    reveal_items = [item for item in reveal_items if item]
+    return {
+        "background_truth": sections.get("background truth", "") or sections.get("background truth gm only", ""),
+        "visible": reveal_items[0] if len(reveal_items) > 0 else "",
+        "near_reveal": reveal_items[1] if len(reveal_items) > 1 else "",
+        "deep_reveal": reveal_items[2] if len(reveal_items) > 2 else "",
+    }
+
+
+def markdown_sections(markdown: str) -> dict[str, str]:
+    matches = list(re.finditer(r"^##\s+(.+?)\s*$", markdown, re.MULTILINE))
+    sections: dict[str, str] = {}
+    for index, match in enumerate(matches):
+        heading = re.sub(r"[\(\（].*?[\)\）]", "", match.group(1)).strip().lower()
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(markdown)
+        sections[heading] = markdown[start:end].strip()
+    return sections
+
+
 def render_profile_initialized_documents(profile: str, answers: Optional[dict[int | str, str]] = None) -> dict[str, str]:
     answers = answers or {}
     sections = profile_sections(profile)
@@ -2522,20 +2220,6 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     guard = values[0] if values else "[未確定: profile.values から導出]"
     avoid = forbidden[0] if forbidden else "[未確定: profile.forbidden から導出]"
     role = profile_value(sections, ["基礎情報"], ["occupation", "role"], q1_components(q_basic).get("role") or "初回scene前にprofileから読む")
-    story_anchor = q_anchor or objects or q_visual
-    story_fields = build_story_generation_fields(
-        name=name,
-        q1=q_basic if q1_components(q_basic).get("role") else role,
-        q2=q_encounter or entry or distance,
-        q3=story_anchor,
-        q4=q_gap or friction,
-        q5=q_wound or pressure,
-        q8=q_constraints or avoid,
-        profile_role=role,
-        place=place,
-        objects=objects,
-    )
-    theme = str(story_fields["relationship_theme"])
     place_phrase = profile_place_focus(place)
     object_phrase = profile_phrase(objects)
     object_focus = profile_short_items(objects)
@@ -2609,34 +2293,6 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
                 ("Next Hook候補", bullet_lines(next_hooks)),
             ],
         ),
-        "story/relationship_spine.md": render_document(
-            "Relationship Spine",
-            "初回sceneを固定ルートにせず、関係の変化方向だけを保持します。",
-            [
-                ("この関係で育てたいテーマ", bullet_lines([theme])),
-                ("最初の摩擦", bullet_lines([str(story_fields["first_friction"])])),
-                ("LILIAが守るもの", bullet_lines([str(story_fields["guard"])])),
-                ("LILIAが避けるもの", bullet_lines([str(story_fields["avoid"])])),
-                ("ユーザー側に問うこと", bullet_lines([str(story_fields["relationship_question"])])),
-                ("関係が変化する方向", bullet_lines(["名乗る、待つ、確認する、別れる/一緒に歩くのどれを選ぶかで、信頼と警戒の出方が変わる。"])),
-            ],
-        ),
-        "current/story_spine.md": render_story_spine_document(
-            name=name,
-            main_question=str(story_fields["main_question"]),
-            visible=str(story_fields["visible"]),
-            near_reveal=str(story_fields["near_reveal"]),
-            deep_reveal=str(story_fields["deep_reveal"]),
-            background_truth=str(story_fields["background_truth"]),
-            pressure_items=list(story_fields["pressure_items"]),
-            prize=str(story_fields["prize"]),
-            life=str(story_fields["life"]),
-            secret=str(story_fields["secret"]),
-            boundary=str(story_fields["boundary"]),
-            emotion=str(story_fields["emotion"]),
-            ignored_items=list(story_fields["ignored_items"]),
-            drift_items=list(story_fields["drift_items"]),
-        ),
         "current/hotset.md": render_document(
             "Hotset",
             "hotsetは正本ではなく、次の1ターンに効く温度と現在イベント要約だけを置きます。",
@@ -2682,7 +2338,7 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
             ],
         ),
         "current/protagonist.md": render_protagonist_document(answers),
-        "current/knowledge_state.md": render_knowledge_state_document(profile, answers, name, story_fields),
+        "current/knowledge_state.md": render_knowledge_state_document(profile, answers, name),
         "lilia/main/core.md": render_document(
             "LILIA Core",
             "profile.md から抽出した最小核だけを置きます。profileの丸ごとコピーではありません。",
@@ -2805,7 +2461,7 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
     inner_gap = gap_text if gap_text else infer_fallback_inner_state(q1.get("personality", ""), wound_answer)
     avoid = newgame_forbidden_text(answers).replace("\n", " / ") or "初回から恋愛成立や親密成立を確定しない"
     occupation = q1.get("role") or "日常の場にいる人"
-    wound = wound_answer if wound_answer and not is_non_specific_literal(wound_answer) else "まだ言葉にしていない内面の核がある。詳細は未確定: 進行で決める"
+    wound = wound_answer if wound_answer and not is_non_specific_literal(wound_answer) else "まだ言葉にしていない内面の核があり、初回sceneでは説明しすぎない"
     touchable_object = (
         anchor
         if anchor and not is_non_specific_literal(anchor)
@@ -3296,19 +2952,6 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
     not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q3由来の制約とQ6の初期距離を尊重"
     lilia_name = generated_lilia_name(answers, session_name)
     profile = render_persona_profile_document(answers, lilia_name)
-    story_fields = build_story_generation_fields(
-        name=lilia_name,
-        q1=q_line(1),
-        q2=q_line(6),
-        q3=q_line(3),
-        q4=q_line(4),
-        q5=q_line(5),
-        q8=q_line(9),
-        profile_role=q_line(1),
-        place=q_line(6),
-        objects=q_line(3),
-    )
-
     documents = {
         "lilia/main/profile.md": profile,
         "current/scene.md": render_document(
@@ -3496,37 +3139,6 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
                 ("重要場面前に確認するbeliefs", "- 親密scene: Q3の制約を確認する\n- 衝突scene: Q1/Q3の表裏と傷を確認する\n- 境界線scene: ユーザーの内面を断定せず、LILIA側仮説として扱う"),
             ],
         ),
-        "story/relationship_spine.md": render_document(
-            "Relationship Spine",
-            "この関係で育てたいテーマと、変化の方向を記録します。",
-            [
-                ("この関係で育てたいテーマ", bullet_lines([str(story_fields["relationship_theme"])])),
-                ("最初の摩擦", bullet_lines([str(story_fields["first_friction"])])),
-                ("LILIAが守るもの", bullet_lines([str(story_fields["guard"])])),
-                ("LILIAが避けるもの", bullet_lines([str(story_fields["avoid"])])),
-                ("LILIA側の課題", bullet_lines([f"{story_fields['secret']}を抱えたまま、{story_fields['emotion']}をどう扱うか。"])),
-                ("ユーザー側に問うこと", bullet_lines([str(story_fields["relationship_question"])])),
-                ("関係が変化する方向", "- Q6を通じて、声、距離、信頼、警戒、沈黙のどれが少し動くかを見る。"),
-                ("固定しないこと", "- これはfull plotではない: はい\n- 事前に決めない展開: 初回scene後の反応と選択\n- LILIAの反応とユーザーの選択で変わる余地: あり"),
-                ("次に変わりうる点", "- 声: Q1 / Q7由来\n- 距離感: Q6由来\n- 呼び方: Q7由来\n- 信頼 / 警戒: Q3 / Q4 / Q9由来\n- 境界線: Q3 / Q9由来\n- beliefs: 初回scene後に更新\n- 危機後の頼り方 / 頼られ方: 初回では重くしない\n- 能力使用後の信頼 / 警戒: 未発生"),
-            ],
-        ),
-        "current/story_spine.md": render_story_spine_document(
-            name=lilia_name,
-            main_question=str(story_fields["main_question"]),
-            visible=str(story_fields["visible"]),
-            near_reveal=str(story_fields["near_reveal"]),
-            deep_reveal=str(story_fields["deep_reveal"]),
-            background_truth=str(story_fields["background_truth"]),
-            pressure_items=list(story_fields["pressure_items"]),
-            prize=str(story_fields["prize"]),
-            life=str(story_fields["life"]),
-            secret=str(story_fields["secret"]),
-            boundary=str(story_fields["boundary"]),
-            emotion=str(story_fields["emotion"]),
-            ignored_items=list(story_fields["ignored_items"]),
-            drift_items=list(story_fields["drift_items"]),
-        ),
         "story/story_deck.md": render_document(
             "Story Deck",
             "例文集ではなく、次イベント判断に必要なものだけを置きます。",
@@ -3599,10 +3211,6 @@ def create_session(name: Optional[str]) -> Path:
         die(f"session already exists: {dest.relative_to(ROOT)}")
 
     shutil.copytree(TEMPLATE_DIR, dest)
-    story_spine_template = dest / "story" / "story_spine.md"
-    if story_spine_template.exists():
-        write_session_file(dest, "current/story_spine.md", story_spine_template.read_text(encoding="utf-8"))
-        story_spine_template.unlink()
     protagonist_template = dest / "protagonist.md"
     if protagonist_template.exists():
         write_session_file(dest, "current/protagonist.md", protagonist_template.read_text(encoding="utf-8"))
@@ -3970,7 +3578,7 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
         return (
             f"Read {prompt_path} and follow it for LILIA. "
             "Do not start AI Harness or autoplay. "
-            "Ask Newgame Q1-Q9, run ./lilia apply-newgame to generate lilia/main/profile.md, current/protagonist.md, and current/knowledge_state.md, then start the first scene. "
+            "Ask Newgame Q1-Q9, run ./lilia apply-newgame to generate lilia/main/profile.md, current/protagonist.md, current/story_spine.md, story/relationship_spine.md, and current/knowledge_state.md, then start the first scene. "
             "Do not stop at first_scene_pending/first_scene_ready. "
             "During normal play after the first scene starts, do not edit story/state files or run git checks after every user turn. "
             "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
@@ -4336,19 +3944,20 @@ def render_documents_from_character_yaml(character: object, answers: dict[int | 
 def generate_character_documents(
     answers: dict[int | str, str],
     requested_engine: str,
-) -> tuple[dict[str, str], Optional[str], str]:
+) -> tuple[dict[str, str], Optional[str], str, Optional[dict[str, object]]]:
     engine = choose_engine(requested_engine)
     if engine is None:
-        return render_newgame_documents(answers), None, f"{requested_engine} engine unavailable"
+        return render_newgame_documents(answers), None, f"{requested_engine} engine unavailable", None
 
     instruction = build_character_instruction_from_answers(answers)
     try:
         from tools.character.core.master import generate_character
 
         character = generate_character(instruction, engine=engine)
-        return render_documents_from_character_yaml(character, answers), engine, f"generated via {engine}"
+        character_data = character.model_dump(exclude_none=True)
+        return render_documents_from_character_yaml(character, answers), engine, f"generated via {engine}", character_data
     except Exception as exc:
-        return render_newgame_documents(answers), None, f"{engine} CLI failed: {exc}"
+        return render_newgame_documents(answers), None, f"{engine} CLI failed: {exc}", None
 
 
 def command_apply_newgame(args: list[str]) -> None:
@@ -4368,7 +3977,7 @@ def command_apply_newgame(args: list[str]) -> None:
     for number in range(1, question_count + 1):
         logger.write("answer", question=f"Q{number}", value=answer(answers, number).replace("\n", " / "))
     logger.section("LLM Calls")
-    documents, selected_engine, generation_status = generate_character_documents(answers, requested_engine)
+    documents, selected_engine, generation_status, character_data = generate_character_documents(answers, requested_engine)
     logger.write(
         "profile generation",
         selected_engine=selected_engine or "",
@@ -4398,6 +4007,50 @@ def command_apply_newgame(args: list[str]) -> None:
         )
     else:
         logger.write("name_resolution", source="layer_a_profile", placeholder=False)
+
+    logger.section("Story Spine")
+    if character_data is None:
+        logger.write(
+            "[story_spine] failed",
+            reason="character_yaml_unavailable",
+            requested_engine=requested_engine,
+            profile_generation_status=generation_status,
+        )
+        print(
+            f"Error: ストーリー生成に失敗しました: character YAML が生成されていません ({generation_status})",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    try:
+        from tools.story.spine_generator import SpineGenerationError, generate_story_and_relationship_spine
+
+        spine_engine = requested_engine
+        spine_result = generate_story_and_relationship_spine(
+            answers=answers,
+            character_yaml=character_data,
+            engine=spine_engine,
+        )
+        documents["current/story_spine.md"] = spine_result["story_spine_md"]
+        documents["story/relationship_spine.md"] = spine_result["relationship_spine_md"]
+        documents["current/knowledge_state.md"] = render_knowledge_state_document(
+            documents["lilia/main/profile.md"],
+            answers,
+            profile_name,
+            story_fields=story_fields_from_story_spine_markdown(spine_result["story_spine_md"]),
+        )
+        logger.write("[story_spine] generated via", engine=spine_result.get("engine_used", spine_engine))
+        logger.write("[story_spine] selected_structure", name=spine_result.get("selected_structure", ""))
+        logger.write("[story_spine] selected_pattern", ids=spine_result.get("selected_pattern", []))
+        logger.write("[story_spine] selection_reason", reason=spine_result.get("selection_reason", ""))
+        logger.write(
+            "[story_spine] validation",
+            status="pass",
+            retry_count=spine_result.get("validation_retry_count", 0),
+        )
+    except SpineGenerationError as exc:
+        logger.write("[story_spine] validation", status="failed", error=str(exc))
+        print(f"Error: ストーリー生成に失敗しました: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     logger.section("Generated Files")
     logger.write("generated_files", files=list(documents))
