@@ -139,6 +139,7 @@ def validate_session_documents(
         errors,
         original_knowledge_state_md=original_knowledge_state_md,
     )
+    _check_event_card_playability(documents, errors)
 
     return not errors, errors
 
@@ -393,6 +394,100 @@ def _check_knowledge_state(
                     errors.append(f"current/knowledge_state.md: heroine/reveal key changed unexpectedly: {key}")
 
 
+def _check_event_card_playability(documents: dict[str, str], errors: list[str]) -> None:
+    """current/event_card.md のプレイ可能性ゲートを検査する。
+
+    `docs/EVENT_CARD_PLAYABILITY.md` の §4 Required Fields と §5 Gate Conditions に基づく。
+    """
+
+    content = documents.get("current/event_card.md", "")
+    if not content.strip():
+        return
+
+    sections = _markdown_sections(content)
+    unfilled_marker_sections = [
+        "表の出来事",
+        "Relationship Stake",
+        "If Ignored",
+        "Next Visible Change",
+        "揺れるLILIA",
+        "その出来事がLILIAに刺さる理由",
+        "関係に残る変化",
+    ]
+    for heading in unfilled_marker_sections:
+        body = sections.get(heading.lower(), "")
+        if re.search(r"^[ \t]*-[ \t]*未設定[ \t]*$", body, flags=re.MULTILINE):
+            errors.append(f"current/event_card.md: 未設定 が ## {heading} に残存している")
+
+    visible_problem = sections.get("visible problem", "")
+    _check_event_card_subline_group(
+        visible_problem,
+        [
+            "誰が困っているか",
+            "何が止まりそうか",
+            "何に触れると入口になるか",
+        ],
+        "Visible Problem",
+        errors,
+    )
+
+    first_action = sections.get("first concrete action", "")
+    _check_event_card_subline_group(
+        first_action,
+        [
+            "誰に / 何に",
+            "どう触るか",
+            "初回sceneで重すぎない一手",
+        ],
+        "First Concrete Action",
+        errors,
+    )
+
+    handles = sections.get("handles 2-4", "")
+    handle_labels = [
+        "handle 1",
+        "handle 2",
+        "handle 3 optional",
+        "handle 4 optional",
+    ]
+    handle_values = [
+        _extract_subline_value(handles, re.escape(label))
+        for label in handle_labels
+        if _event_card_subline_present(handles, re.escape(label))
+    ]
+    if handle_values:
+        handle_count = sum(1 for value in handle_values if value is not None)
+    else:
+        handle_count = _count_freeform_handles(handles)
+    if handle_count < 2:
+        errors.append("current/event_card.md: Handles 2-4 が 2 個未満しか埋まっていない")
+
+    next_visible_change = sections.get("next visible change", "")
+    _check_event_card_subline_group(
+        next_visible_change,
+        ["声 / 沈黙 / 呼び方 / 距離に出る変化"],
+        "Next Visible Change",
+        errors,
+    )
+
+    story_residue = sections.get("story residue", "")
+    residue_labels = [
+        "memoryに残るもの",
+        "relationshipに残るもの",
+        "beliefsに残るもの",
+        "voiceに残るもの",
+    ]
+    residue_values = [
+        _extract_subline_value(story_residue, re.escape(label))
+        for label in residue_labels
+        if _event_card_subline_present(story_residue, re.escape(label))
+    ]
+    if residue_values and not any(value is not None for value in residue_values):
+        errors.append("current/event_card.md: Story Residue の memory/relationship/beliefs/voice すべてが空である")
+    elif not residue_values and not _has_event_card_freeform_content(story_residue):
+        errors.append("current/event_card.md: Story Residue の memory/relationship/beliefs/voice すべてが空である")
+
+
 def _items_block_before_knowledge_state(content: str) -> bool:
     marker = re.search(r"^##\s+knowledge_state\s*$", content, flags=re.MULTILINE | re.IGNORECASE)
     if not marker:
@@ -445,3 +540,64 @@ def _parse_knowledge_yaml_minimal(block: str) -> dict[str, Any] | None:
         if field_match and current is not None:
             current[field_match.group(1)] = field_match.group(2).strip().strip('"')
     return {"items": items} if items else None
+
+
+def _check_event_card_subline_group(
+    section_body: str,
+    labels: list[str],
+    section_name: str,
+    errors: list[str],
+) -> None:
+    present_labels = [
+        label
+        for label in labels
+        if _event_card_subline_present(section_body, re.escape(label))
+    ]
+    if present_labels:
+        labels_to_check = labels
+    elif _has_event_card_freeform_content(section_body):
+        return
+    else:
+        labels_to_check = labels
+    for label in labels_to_check:
+        if _extract_subline_value(section_body, re.escape(label)) is None:
+            errors.append(f"current/event_card.md: {section_name} の '{label}' が空である")
+
+
+def _extract_subline_value(section_body: str, key_pattern: str) -> str | None:
+    match = re.search(rf"^[ \t]*-[ \t]*{key_pattern}[ \t]*:[ \t]*(.*)$", section_body, flags=re.MULTILINE)
+    if not match:
+        return None
+    value = match.group(1).strip()
+    return value or None
+
+
+def _event_card_subline_present(section_body: str, key_pattern: str) -> bool:
+    return bool(re.search(rf"^[ \t]*-[ \t]*{key_pattern}[ \t]*:", section_body, flags=re.MULTILINE))
+
+
+def _has_event_card_freeform_content(section_body: str) -> bool:
+    for raw_line in section_body.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if re.match(r"^-\s*未設定\s*$", line):
+            continue
+        if re.match(r"^-\s*[^:：]+[:：]\s*$", line):
+            continue
+        if line == "- 注: handlesは選択肢ではなく行動余地。":
+            continue
+        return True
+    return False
+
+
+def _count_freeform_handles(section_body: str) -> int:
+    count = 0
+    for raw_line in section_body.splitlines():
+        line = raw_line.strip()
+        if not line or line == "- 注: handlesは選択肢ではなく行動余地。":
+            continue
+        if re.match(r"^-\s*[^:：]+[:：]\s*$", line):
+            continue
+        count += 1
+    return count
