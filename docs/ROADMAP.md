@@ -21,8 +21,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - style reference scaffold: 完了
 - Style Defaults / Intimacy Defaults Completion: 完了
 - New Session Initialization: 設計仕様完了 / Wave 12.1 / 12.2 で実生成コード接続済み（character YAML → AI profile → spines → 13 downstream docs）
-- Case / Event Card Playability Gate: 設計仕様完了 / テンプレート構造接続済み / Wave 14 で playability validator 実装予定
-- Relationship / Character Voice Continuity Gate: 設計仕様完了 / Wave 13 で resume gate validator 実装予定
+- Case / Event Card Playability Gate: 設計仕様完了 / テンプレート構造接続済み / Wave 14 で `tools/session/document_validator.py` に playability validator 実装済み（Visible Problem サブ項目、First Concrete Action サブ項目、Handles 2-4 個数、Next Visible Change サブ項目、Story Residue、未設定残存検出）
+- Relationship / Character Voice Continuity Gate: 設計仕様完了 / Wave 13 で `tools/session/voice_continuity_validator.py` に resume gate validator 実装済み（必須ファイル存在、呼び方根拠、core/voice 空検出、約束継続、relationship 進行語彙、GM only 漏洩）。第 1 版は soft fail（print 出力のみ、hard fail なし）
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / session_002b で実プレイ動作確認済み
@@ -54,9 +54,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 11（AI-driven Story / Relationship Spine Generation）: 実装済み
 - Wave 12.1（AI-driven LILIA Persona Profile Generation）: 実装済み。apply-newgame は character YAML 生成後に `tools.character.profile_generator.generate_profile_document` を呼び、AI 駆動で `lilia/main/profile.md` を生成する。`tools/character/profile_validator.py` が必須セクション、Q&A 丸写し、テンプレ語彙、フィールド充足を検証する。失敗時は `ProfileGenerationError` で hard-fail。
 - Wave 12.2（AI-driven Downstream Session Documents）: 実装済み。apply-newgame は spines 生成後に `tools/session/document_generator.py` を呼び、13 downstream files をAI生成する。`tools/session/document_validator.py` がテンプレ見出し、文崩壊、テンプレ表現、重複、Q丸写し、GM only漏洩、knowledge_state YAMLを検証する。
+- Wave 13（Voice Continuity Gate Validator）: 実装済み。`tools/session/voice_continuity_validator.py` を追加し、resume 入口と apply-turn 書き込み完了後に呼び出す。第 1 版は soft fail。pytest 3 件全 pass。session_002b 単独実行で error 0。
+- Wave 14（Event Card Playability Gate Validator）: 実装済み。`tools/session/document_validator.py` に `_check_event_card_playability` を追加。pytest 4 件追加で全 pass。session_002b 単独実行で error 0。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。次は Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) の実装。
+- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) は実装済み。次は Wave 15 (GM 応答末尾の「→ どうする？」prompt 改修)。
 
 ### Wave 4: Reference Libraries [完了]
 
@@ -166,11 +168,25 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - 旧穴埋め関数 (`render_profile_initialized_documents`, `render_protagonist_document`, `render_knowledge_state_document`, `render_newgame_documents`) を削除。
 - session_002b の apply-newgame で 13 ファイル全部の AI 生成と validator pass を確認した。
 
+## Wave 13: Voice Continuity Gate Validator [完了]
+- `tools/session/voice_continuity_validator.py` を新規追加。`docs/VOICE_CONTINUITY.md` の §6 Resume Gate と §9 Gate Failure Conditions に基づく弱い機械チェックを実装した。
+- 公開関数 `validate_voice_continuity(session_root: Path) -> list[str]` が 6 種類のチェックを実行する: 必須ファイル存在、呼び方の根拠（voice.md と hotset.md）、core fixed の存在（core.md / voice.md が空でないこと）、約束継続（decision_index.md と hotset.md の連動）、relationship 進行語彙の暫定検査、GM only 漏洩の継続検査。
+- `lilia` の resume 入口と apply-turn 書き込み完了後で呼び出す。第 1 版は soft fail（print 出力のみ）で、既存セッションの想定外失敗を避ける。hard fail への切り替えは将来の Wave で別途検討する。
+- `tests/test_voice_continuity_validator.py` に 3 ケース (`test_validator_reports_missing_required_file`, `test_validator_reports_empty_voice_md`, `test_validator_pass_for_minimal_valid_session`) を追加。pytest 全 pass。
+- session_002b に対する単独実行で error 0 を確認。
+- 未確定事項として、呼び方の厳密文字列比較、relationship 進行語彙リストの正本化、decision_index と hotset の詳細マッチ、core fixed と volatile の意味的矛盾検出が残置されている（LLM judgment 領域として保留）。
+
+## Wave 14: Event Card Playability Gate Validator [完了]
+- `tools/session/document_validator.py` に `_check_event_card_playability` を新規追加。`docs/EVENT_CARD_PLAYABILITY.md` の §4 Required Fields と §5 Gate Conditions に基づく検査を実装した。
+- 6 種類のチェック: 必須セクション (`## 表の出来事` / `## Relationship Stake` / `## If Ignored` / `## Next Visible Change` / `## 揺れるLILIA` / `## その出来事がLILIAに刺さる理由` / `## 関係に残る変化`) の `- 未設定` 残存検出、Visible Problem サブ項目 3 個の充足、First Concrete Action サブ項目 3 個の充足、Handles 2-4 が 2 個未満なら error、Next Visible Change のサブ項目充足、Story Residue 4 項目のうち 1 個以上の充足。
+- `validate_session_documents` の末尾で呼び出す。既存 checker (`_check_required_sections` 等) のロジックは変更せず、新規 checker の追加のみ。
+- `tests/test_session_document_validator.py` に 4 ケース (`test_validator_rejects_event_card_with_unfilled_visible_problem`, `test_validator_rejects_event_card_with_only_one_handle`, `test_validator_rejects_event_card_with_remnant_unfilled_marker`, `test_validator_pass_for_session_002b_event_card`) を追加。pytest 全 pass。
+- session_002b に対する単独実行で error 0 を確認。
+- 本 Wave では `Crisis / Ability Check`, `Intimacy / Boundary Check`, `Truth Hiding Boundary` のサブ項目は検査対象外。それぞれ専用 Wave で別途扱う。
+
 ## 候補（優先度順、確定）
 
-- Wave 13: Voice Continuity Gate Validator 実装（resume 時の声/呼び方/距離感/信頼/誤解/境界線の継続性検査）。`docs/VOICE_CONTINUITY.md` を正本にする。
-- Wave 14: Event Card Playability Gate Validator 強化（必須サブ項目の充足、Handles 2-4 個数チェック、`未設定` 残存検出など）。`docs/EVENT_CARD_PLAYABILITY.md` を正本にする。
-- Wave 15: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。
+- Wave 15: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
 
 ## 候補（中期、優先度順、未確定）
 
@@ -361,15 +377,13 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は、以下を並行で進める。
-
-1. Wave 13: Voice Continuity Gate Validator の実装。`docs/VOICE_CONTINUITY.md` の Resume Gate (§6) と Gate Failure Conditions (§9) を実コードに落とす。
-2. Wave 14: Event Card Playability Gate Validator の強化。`docs/EVENT_CARD_PLAYABILITY.md` の Required Fields (§4) と Gate Conditions (§5) を実コードに落とす。
-3. Wave 15: GM 応答末尾の「→ どうする？」prompt 改修。
+次の実作業は Wave 15: GM 応答末尾の「→ どうする？」prompt 改修。`prompt/core.md` または `prompt/save_resume.md` に、ターン末尾でユーザーに行動余地を一行示す指示を追加する。選択肢を 3 つ並べる UI は本 Wave では実装せず、別 Wave で扱う。
 
 完了済みの確認:
 - Wave 12.1 / 12.2 の AI driven generation は session_002b で品質確認済み。
 - 10 ターン到達時の autosave_required フラグは session_002b で実プレイ動作確認済み。
+- Wave 13 (Voice Continuity Gate Validator) は session_002b で error 0 を確認、pytest 全 pass。第 1 版は soft fail。
+- Wave 14 (Event Card Playability Gate Validator) は session_002b で error 0 を確認、pytest 全 pass。
 - MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を 1 周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
 - 整合性監査は `docs/INTEGRITY_AUDIT_20260505.md` に記録済み。
 
@@ -391,7 +405,7 @@ AI Harness 本実行、大量ログ分析、自動プレイ生成、production C
 
 PENDING 10 件のうち:
 - 2 件は実態として完了 (New Session Initialization, apply-turn 自動保存) → Current Position に反映済み。
-- 2 件は次 Wave で実装 (Voice Continuity Gate, Event Card Playability Gate) → 候補セクションに Wave 13 / 14 として明記済み。
+- 2 件は本日中に実装完了 (Voice Continuity Gate → Wave 13, Event Card Playability Gate → Wave 14) → Current Position および独立 Wave セクションに反映済み。
 - 6 件は中期 PENDING として候補セクションに残置 (Romance/Intimacy Growth, Crisis/Combat/Ability, Resume Smoke 自動化, Story Accumulation 動的生成, など)。
 
 ## 6. Update Rules
