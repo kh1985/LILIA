@@ -56,6 +56,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 12.2（AI-driven Downstream Session Documents）: 実装済み。apply-newgame は spines 生成後に `tools/session/document_generator.py` を呼び、13 downstream files をAI生成する。`tools/session/document_validator.py` がテンプレ見出し、文崩壊、テンプレ表現、重複、Q丸写し、GM only漏洩、knowledge_state YAMLを検証する。
 - Wave 13（Voice Continuity Gate Validator）: 実装済み。`tools/session/voice_continuity_validator.py` を追加し、resume 入口と apply-turn 書き込み完了後に呼び出す。第 1 版は soft fail。pytest 3 件全 pass。session_002b 単独実行で error 0。
 - Wave 14（Event Card Playability Gate Validator）: 実装済み。`tools/session/document_validator.py` に `_check_event_card_playability` を追加。pytest 4 件追加で全 pass。session_002b 単独実行で error 0。
+- 文豪シーン (literary scene situations): `style/defaults/scene_situations.md` を新規追加し、`prompt/core.md` から参照する形で接続済み。荷風 / 谷崎 / 川端 / 堀 / 鏡花 / 中島 / 賢治 + 路地裏 / 季節時間境界の 9 シチュエーション。Intimacy Stage との対応表あり。
+- Emotional Design Principles (8 原則): `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本として新規追加。`prompt/core.md` および `tools/character/profile_generator.py` / `tools/session/document_generator.py` / `tools/story/spine_generator.py` の生成 prompt に参照済み。
+- Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。0-5 数値運用ロジックは未確定として `docs/ROMANCE_INTIMACY_GROWTH.md` に記録。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) は実装済み。次は Wave 15 (GM 応答末尾の「→ どうする？」prompt 改修)。
@@ -199,6 +202,23 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - NPC 知識管理 (knowledge_state 拡張)。
 - ステータス可視化 (HP / 残回数等の概念導入)。先に「LILIA における役割と HP の概念」を docs に追加する必要がある。
 - 行動選択肢 3 つ提示の基準設計。
+- Hidden 深化ベクトル運用ロジック確定: `templates/session/lilia/main/relationship.md` の 6 軸に枠と更新ルール、閾値が記述済みだが、0-5 の各値の定義、Intimacy Stage との連動、開放条件、上がり方の目安リスト、AFFINITY 5 相当との接続が未確定。`docs/ROMANCE_INTIMACY_GROWTH.md` の「未確定事項」セクションに記録済み。
+- Deepening Tags（深化タグ）実装: inner-galge にあるデフォルト 14 タグ（初夜、秘密の共有、個人ストーリー解決、能力共鳴、同行宣言、摩擦の処理、共同体合意、役割確立、他者の席の承認、情報共有合意、不在時連携、離脱自由の確認、裏切りと復縁、新たな秘密）と、ヒロインごとの追加機構の実装。LILIA の relationship.md に枠は記述済みだが、デフォルトリストとヒロイン追加機構は未実装。
+- Intimacy Stage / Consent Stage / Boundary State の機械チェック: `tools/session/voice_continuity_validator.py` に Intimacy Stage 名値検査を追加する。Wave 13 の保留事項として記録済み。
+- 軽量 Integrity Audit Tool: `INTEGRITY_AUDIT_20260505.md` を生成した手順を `tools/audit/integrity_audit.py` として定型化し、コマンド一発で再実行できる状態にする。GraphRAG はオーバースペックと判定済み（中期再検討）。
+- プレイヤー宣言応答ルール: inner-galge `prompt/runtime.md` line 376 の「プレイヤーが所持品 / 能力 / 行動を宣言したら世界の事実として結果を返せ」を LILIA に持ち込むかの設計判断。範囲限定（主人公の所持品 / 能力 / 行動のみ、ヒロインの内面 / 態度 / 好意は対象外）にすれば CORE_CONCEPT と両立可能との見立て。要設計詰め。
+- ダイス機構（世界事象のみ）: TRPG 的なランダム性を導入する。実装は `tools/session/dice.py` 等で Python `random` を使った軽量処理。適用対象は世界事象（白衣が間に合うか、雨が降るか、客が来るかなど）のみ。ヒロインの態度 / 好意 / 内面は対象外（CORE_CONCEPT 違反）。何面ダイス、確率の塩梅、適用シーンの基準、結果の物語反映方法は未確定。
+- GraphRAG（中期再検討）: 複数ヒロイン Wave 実装後、または 1 セッションが 30+ チャプターに伸びた後に再検討。現状は LILIA のスケール（13 ファイル ~数千トークン）に対してオーバースペック。代替として軽量 Integrity Audit Tool を先に整備する。
+
+## 設計保留事項 (Pending Decisions)
+
+以下は実装の前に設計判断が必要な項目である。中期候補とは別に、判断が必要な議題として記録する。
+
+- Hidden 深化ベクトル: 0-5 数値運用 vs 自然言語運用 vs ハイブリッドの選択。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項。
+- プレイヤー宣言応答ルール: 範囲限定（主人公の所持品 / 能力 / 行動のみ）の境界設計。
+- ダイス機構: 何面ダイス、確率の塩梅、適用シーンの基準、結果の物語反映方法。
+- GraphRAG: 導入タイミング（複数ヒロイン Wave 後、長期セッション運用後）。
+- 行動選択肢 3 つ提示の基準: 番号メニュー禁止（inner-galge 採用）と矛盾する可能性あり。設計が要る。
 
 ## 3. Completed Foundation
 
