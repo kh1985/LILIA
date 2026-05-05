@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shlex
 import shutil
@@ -14,6 +15,7 @@ from typing import Optional
 
 from tools.common.engine_runner import (
     EngineRunnerError,
+    EngineTimeoutError,
     engine_timeout_seconds,
     resolve_engine,
     run_engine as run_engine_cli,
@@ -262,6 +264,15 @@ def safe_log_id(value: str) -> str:
     return clean or "session"
 
 
+def exception_caused_by(exc: BaseException, expected_type: type[BaseException]) -> bool:
+    current: BaseException | None = exc
+    while current is not None:
+        if isinstance(current, expected_type):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 class OperationLogger:
     def __init__(self, operation: str, session_id: str):
         logs_dir = ROOT / "logs"
@@ -280,10 +291,14 @@ class OperationLogger:
             parts.append(f"{key}={rendered}")
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(" | ".join(parts) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
 
     def section(self, title: str) -> None:
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(f"\n=== {title} ===\n")
+            handle.flush()
+            os.fsync(handle.fileno())
 
 
 def ensure_autosave(data: dict) -> dict:
@@ -3043,13 +3058,23 @@ def load_character_yaml_document(text: str) -> dict[str, object]:
                 temp_file.write(text)
                 temp_path = Path(temp_file.name)
             character = load_simple_character_yaml(temp_path)
-            parsed = character.model_dump(exclude_none=True)
+            parsed = character.model_dump(exclude_none=True) if hasattr(character, "model_dump") else character
         finally:
             if temp_path and temp_path.exists():
                 temp_path.unlink()
     if not isinstance(parsed, dict):
         raise RuntimeError("character.yaml did not contain a mapping")
     return parsed
+
+
+def load_character_sheet_document(text: str) -> object:
+    raw = load_character_yaml_document(text)
+    try:
+        from tools.character.core.master import CharacterSheet
+
+        return CharacterSheet.from_dict(raw)
+    except Exception as exc:
+        raise RuntimeError(f"character.yaml schema invalid: {exc}") from exc
 
 
 def generate_character_yaml_data(
@@ -3148,7 +3173,8 @@ def command_apply_newgame(args: list[str]) -> None:
     else:
         documents["lilia/main/character.yaml"] = read_required_session_file(session_path, "lilia/main/character.yaml")
         try:
-            character_data = load_character_yaml_document(documents["lilia/main/character.yaml"])
+            character = load_character_sheet_document(documents["lilia/main/character.yaml"])
+            character_data = character.model_dump(exclude_none=True)
         except Exception as exc:
             logger.write("[character_yaml] checkpoint_invalid", error=str(exc))
             print(f"Error: character.yaml の読み込みに失敗しました: {exc}", file=sys.stderr)
@@ -3161,6 +3187,13 @@ def command_apply_newgame(args: list[str]) -> None:
             documents["lilia/main/profile.md"] = profile
         except Exception as exc:
             if exc.__class__.__name__ == "ProfileGenerationError":
+                if exception_caused_by(exc, EngineTimeoutError):
+                    logger.write(
+                        "[profile] llm_timeout",
+                        engine=requested_engine,
+                        timeout=engine_timeout_seconds(),
+                        error=str(exc),
+                    )
                 logger.write("[profile] validation", status="failed", error=str(exc))
                 print(f"Error: profile.md 生成に失敗しました: {exc}", file=sys.stderr)
                 sys.exit(1)

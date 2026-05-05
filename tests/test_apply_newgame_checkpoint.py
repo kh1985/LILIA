@@ -45,6 +45,23 @@ def write_answers(tmp_path: Path) -> Path:
     return answers
 
 
+def valid_character_data() -> dict[str, Any]:
+    return {
+        "name": "テスト",
+        "age": 24,
+        "occupation": "検証係",
+        "appearance": {"hair_style": "短め", "hair_color": "黒", "notes": "小さな手帳を持つ"},
+        "tone": {
+            "rule": "短く確かめてから返す",
+            "examples": [{"user": "最近どう？", "char": "少し忙しいけど、大丈夫。"}],
+        },
+        "personality": ["困るとまず手元の手帳を閉じてから返事をする"],
+        "reactions": {"褒められたとき": "少し間を置いて礼を言う"},
+        "forbidden": ["初対面で好意を確定しない"],
+        "context": {"backstory": "検証用の生活背景。", "current_situation": "資料を確認している。"},
+    }
+
+
 def install_common_stubs(monkeypatch: pytest.MonkeyPatch, lilia: ModuleType) -> dict[str, int]:
     calls = {"character": 0, "profile": 0, "spines": 0, "documents": 0}
 
@@ -54,7 +71,7 @@ def install_common_stubs(monkeypatch: pytest.MonkeyPatch, lilia: ModuleType) -> 
         "generate_character_yaml_data",
         lambda answers, requested_engine: (
             calls.__setitem__("character", calls["character"] + 1)
-            or {"name": "テスト", "age": 24, "occupation": "検証係"},
+            or valid_character_data(),
             "claude",
             "generated via claude",
         ),
@@ -123,7 +140,7 @@ def test_apply_newgame_resumes_from_each_phase(
     monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path)
     session = write_session(tmp_path, phase)
     if phase in {"character_yaml_generated", "profile_generated", "spines_generated"}:
-        lilia.write_session_file(session, "lilia/main/character.yaml", lilia.dump_character_yaml({"name": "テスト", "age": 24}))
+        lilia.write_session_file(session, "lilia/main/character.yaml", lilia.dump_character_yaml(valid_character_data()))
     if phase in {"profile_generated", "spines_generated"}:
         lilia.write_session_file(session, "lilia/main/profile.md", "# LILIA Persona Profile\n\n## 基礎情報\nname: テスト\n")
     if phase == "spines_generated":
@@ -137,6 +154,41 @@ def test_apply_newgame_resumes_from_each_phase(
     assert {key: calls[key] for key in expected_calls} == expected_calls
     assert lilia.read_session_json(session)["apply_newgame_phase"] == "complete"
     assert (session / "current" / "scene.md").exists()
+    assert "phase: first_scene_ready" in capsys.readouterr().out
+
+
+def test_apply_newgame_resume_loads_character_yaml_as_model_from_disk(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path)
+    session = write_session(tmp_path, "character_yaml_generated")
+    answers = write_answers(tmp_path)
+    character_yaml = lilia.dump_character_yaml(valid_character_data())
+    lilia.write_session_file(session, "lilia/main/character.yaml", character_yaml)
+    seen: dict[str, object] = {}
+    calls = install_common_stubs(monkeypatch, lilia)
+
+    def profile_stub(answers: dict[int | str, str], character_data: dict[str, object], engine: str) -> tuple[str, dict[str, object]]:
+        calls["profile"] += 1
+        seen["character_data"] = character_data
+        return (
+            "# LILIA Persona Profile\n\n## 基礎情報\nname: テスト\n",
+            {"engine": "claude", "validation_pass": True, "retry_count": 0, "sections_count": 1},
+        )
+
+    monkeypatch.setattr(lilia, "generate_profile_from_character_data", profile_stub)
+
+    lilia.command_apply_newgame(["checkpoint_case", str(answers), "--engine", "auto"])
+
+    assert calls["character"] == 0
+    assert calls["profile"] == 1
+    assert isinstance(seen["character_data"], dict)
+    assert seen["character_data"]["name"] == "テスト"
+    assert lilia.read_session_json(session)["apply_newgame_phase"] == "complete"
     assert "phase: first_scene_ready" in capsys.readouterr().out
 
 
