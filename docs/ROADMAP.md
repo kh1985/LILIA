@@ -20,12 +20,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - state scaffold: 完了
 - style reference scaffold: 完了
 - Style Defaults / Intimacy Defaults Completion: 完了
-- New Session Initialization: 設計仕様完了 / 実生成コード未実装
-- Case / Event Card Playability Gate: 設計仕様完了 / 実生成コード未実装
-- Relationship / Character Voice Continuity Gate: 設計仕様完了 / 実生成コード未実装
+- New Session Initialization: 設計仕様完了 / Wave 12.1 / 12.2 で実生成コード接続済み（character YAML → AI profile → spines → 13 downstream docs）
+- Case / Event Card Playability Gate: 設計仕様完了 / テンプレート構造接続済み / Wave 14 で playability validator 実装予定
+- Relationship / Character Voice Continuity Gate: 設計仕様完了 / Wave 13 で resume gate validator 実装予定
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
-- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み / scene-tick MVP実装済み
+- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / session_002b で実プレイ動作確認済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / event/story_deck/profile初期生成コード接続済み / story_spine・relationship_spine は Wave 11 でAI駆動化済み / ましろ・つむぎ・全Qおまかせ smoke 通過
 - Story Reference Engine 強制導線: prompt 接続済み
 - 5層 self-understanding 参照導線: prompt 接続済み
@@ -52,10 +52,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 10.3（Fallback Field Quality + Knowledge Boundary Meta HIDDEN）: 実装済み
 - Wave 10.4（Protagonist Inner Monologue Boundary）: 実装済み
 - Wave 11（AI-driven Story / Relationship Spine Generation）: 実装済み
+- Wave 12.1（AI-driven LILIA Persona Profile Generation）: 実装済み。apply-newgame は character YAML 生成後に `tools.character.profile_generator.generate_profile_document` を呼び、AI 駆動で `lilia/main/profile.md` を生成する。`tools/character/profile_validator.py` が必須セクション、Q&A 丸写し、テンプレ語彙、フィールド充足を検証する。失敗時は `ProfileGenerationError` で hard-fail。
 - Wave 12.2（AI-driven Downstream Session Documents）: 実装済み。apply-newgame は spines 生成後に `tools/session/document_generator.py` を呼び、13 downstream files をAI生成する。`tools/session/document_validator.py` がテンプレ見出し、文崩壊、テンプレ表現、重複、Q丸写し、GM only漏洩、knowledge_state YAMLを検証する。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
+- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。次は Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) の実装。
 
 ### Wave 4: Reference Libraries [完了]
 
@@ -147,14 +148,41 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - `current/knowledge_state.md` の story_spine 由来項目は、最終AI生成された story_spine から同期する。
 - ましろ、つむぎ、全Qおまかせの新規smokeで生成と validator pass を確認した。
 
-## 候補（優先度順、未確定）
+## Wave 12.1: AI-driven LILIA Persona Profile Generation [完了]
+- `tools/character/profile_generator.py` と `tools/character/profile_validator.py` を追加し、`./lilia apply-newgame` の `lilia/main/profile.md` 生成をAI駆動へ移行した。
+- generator は Q1-Q9 の回答と生成済み character YAML を入力にして、必須セクション (基礎情報、appearance、tone、personality、values、everyday anchors、memories、contradictions、unspoken、Layer構造、relationship progression 等) を埋めた `profile.md` を生成する。
+- validator は必須セクション欠落、Q&A 丸写し、テンプレ語彙混入、フィールド充足を検査する。
+- invalid 時は最大 2 回再生成し、3 回失敗したら `apply-newgame` を失敗させる。壊れた profile は保存しない。
+- `scripts/lilia_character_to_profile.py` (1415 行) を削除。pydantic 不在 fallback を `tools/character/core/simple_schema.py` に退避。
+- session_010 / session_011 / 全 Q おまかせの apply-newgame smoke で生成と validator pass を確認した。
 
-- Wave 12: 能力（内面の発露）。
-- Wave 13: 異界。
-- Wave 14: 組織。
-- Wave 15: 複数ヒロイン。
-- Wave 16: 共同体・生活・ビジネス。
-- Wave 17: NPC 知識管理（knowledge_state 拡張）。
+## Wave 12.2: AI-driven Downstream Session Documents [完了]
+- `tools/session/document_generator.py` と `tools/session/document_validator.py` を追加し、`./lilia apply-newgame` の 13 downstream files (Group A/B/C) 生成を AI 駆動へ移行した。
+- Group A (5 files): `current/scene.md`, `current/event_card.md`, `current/hotset.md`, `current/relationship_overview.md`, `story/story_deck.md`
+- Group B (6 files): `lilia/main/core.md`, `lilia/main/voice.md`, `lilia/main/state.md`, `lilia/main/relationship.md`, `lilia/main/memory.md`, `lilia/main/beliefs.md`
+- Group C (2 files): `current/protagonist.md`, `current/knowledge_state.md`
+- generator は profile / character YAML / 両 spine / Q&A を入力にして 13 ファイルを生成する。
+- validator はテンプレ見出し、文崩壊、テンプレ表現、重複、Q&A 丸写し、GM only 漏洩、knowledge_state YAML を検査する。
+- 旧穴埋め関数 (`render_profile_initialized_documents`, `render_protagonist_document`, `render_knowledge_state_document`, `render_newgame_documents`) を削除。
+- session_002b の apply-newgame で 13 ファイル全部の AI 生成と validator pass を確認した。
+
+## 候補（優先度順、確定）
+
+- Wave 13: Voice Continuity Gate Validator 実装（resume 時の声/呼び方/距離感/信頼/誤解/境界線の継続性検査）。`docs/VOICE_CONTINUITY.md` を正本にする。
+- Wave 14: Event Card Playability Gate Validator 強化（必須サブ項目の充足、Handles 2-4 個数チェック、`未設定` 残存検出など）。`docs/EVENT_CARD_PLAYABILITY.md` を正本にする。
+- Wave 15: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。
+
+## 候補（中期、優先度順、未確定）
+
+- 漫画化 (1 枚絵)。
+- 能力 / 異界 / 組織。Crisis / Combat / Ability Constraint Loop の実生成コード接続。
+- Romance / Intimacy Growth Loop の実生成コード接続。
+- Story / Relationship Accumulation Loop の動的生成（現在は静的接続のみ）。
+- 複数ヒロイン。
+- 共同体 / 生活 / ビジネス。
+- NPC 知識管理 (knowledge_state 拡張)。
+- ステータス可視化 (HP / 残回数等の概念導入)。先に「LILIA における役割と HP の概念」を docs に追加する必要がある。
+- 行動選択肢 3 つ提示の基準設計。
 
 ## 3. Completed Foundation
 
@@ -333,19 +361,38 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は、実プレイで10ターン到達時の保存提案UXを確認すること、`apply-turn` の実プレイ検証、または改造した `./lilia apply-newgame` で新しいセッションを作って実プレイ検証すること。
+次の実作業は、以下を並行で進める。
 
-MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を1周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
-minor follow-upとして `templates/session/session.json` の `source_prompt_versions` 補正も完了している。
+1. Wave 13: Voice Continuity Gate Validator の実装。`docs/VOICE_CONTINUITY.md` の Resume Gate (§6) と Gate Failure Conditions (§9) を実コードに落とす。
+2. Wave 14: Event Card Playability Gate Validator の強化。`docs/EVENT_CARD_PLAYABILITY.md` の Required Fields (§4) と Gate Conditions (§5) を実コードに落とす。
+3. Wave 15: GM 応答末尾の「→ どうする？」prompt 改修。
 
-`./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線を実装済みである。
-最小運用確認では、最新session表示とprompt-only案内を小修正済みである。
-`--run` と `--engine codex|claude|auto` によりAI CLI接続も追加済みである。
-Newgame Q&A は Q1-Q9 で、ヒロインの基本、見た目、描写の縛り、表と内の差、内面に持っているもの、最初の出会い、呼ばれ方、主人公の身体・格好・仕事、避けたい展開を聞く。Q3/Q4/Q5はそれぞれ profile / story_spine の特定フィールドへ直接写像する。
-Persona Profile導線では、first scene前に `lilia/main/profile.md` を作り、profileの具体物、職能、生活、反応、矛盾、禁忌を使って初回sceneを書く。
-次は、scene中のテンポを壊さずに `scene-tick` が10ターン到達を知らせられるか、改造した `./lilia apply-newgame` で profile.md が LLM CLI 経由で具体化されているか、first scene の蓋然性が play_003 より上がっているかを実プレイで確認する。
-engine ごとの生成品質の差(codex vs claude)も確認する。
-AI Harness本実行、大量ログ分析、自動プレイ生成、production CIはまだ入れない。
+完了済みの確認:
+- Wave 12.1 / 12.2 の AI driven generation は session_002b で品質確認済み。
+- 10 ターン到達時の autosave_required フラグは session_002b で実プレイ動作確認済み。
+- MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を 1 周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
+- 整合性監査は `docs/INTEGRITY_AUDIT_20260505.md` に記録済み。
+
+`./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線、および `--run` / `--engine codex|claude|auto` による AI CLI 接続も実装済みである。
+Newgame Q&A は Q1-Q9 で、ヒロインの基本、見た目、描写の縛り、表と内の差、内面に持っているもの、最初の出会い、呼ばれ方、主人公の身体・格好・仕事、避けたい展開を聞く。Q3/Q4/Q5 はそれぞれ profile / story_spine の特定フィールドへ直接写像する。
+Persona Profile 導線では、first scene 前に AI 駆動で `lilia/main/profile.md` を生成し、その profile から 13 downstream files を AI 駆動で生成する流れに接続済みである。
+AI Harness 本実行、大量ログ分析、自動プレイ生成、production CI はまだ入れない。
+
+## 5.1 Integrity Audit (2026-05-05)
+
+整合性監査を `docs/INTEGRITY_AUDIT_20260505.md` に記録済み。HEAD: `628d6db5`（その後 `1a89d08` でレポートをコミット）。
+
+主要な結論:
+- 孤児モジュール検出 (3 件) は false positive。`lilia` (3446 行 Python スクリプト) が `tools/character/profile_generator.py` と `tools/session/document_generator.py` を import しているが、Codex の静的解析が `lilia` を Python モジュールとして認識しなかったための検出漏れ。
+- 循環依存検出 (2 件) は false positive。`tools/story/__init__.py` の正常な再エクスポート構造を循環として誤検出。
+- pytest は 3 件全 PASS。
+- TODO/FIXME 97 行は大半が docs 内の過去メモであり、即対応必須なものはない。
+- CORE_CONCEPT の 33 原則のうち、prompt / コードに同一文字列で該当するものは半数に満たない。これは prompt が docs を参照する設計のため必ずしも不整合を意味しないが、Wave 13 / 14 の Gate Validator 実装で間接的に補強される。
+
+PENDING 10 件のうち:
+- 2 件は実態として完了 (New Session Initialization, apply-turn 自動保存) → Current Position に反映済み。
+- 2 件は次 Wave で実装 (Voice Continuity Gate, Event Card Playability Gate) → 候補セクションに Wave 13 / 14 として明記済み。
+- 6 件は中期 PENDING として候補セクションに残置 (Romance/Intimacy Growth, Crisis/Combat/Ability, Resume Smoke 自動化, Story Accumulation 動的生成, など)。
 
 ## 6. Update Rules
 
