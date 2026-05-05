@@ -165,6 +165,15 @@ LILIAは、ユーザーとの会話・選択・物語を記憶し、関係性と
 - AFFINITY、bond、好感度、ルートという語彙を出さない。`攻略トリガー` と `ハーレム展開の強制` は固定リスト内だけで使う。
 - 初回から恋愛成立、親密成立、好意確定、能力反応の即時発火を確定しない。
 
+## 感情設計の原則
+
+profile の contradictions, unspoken, Layer 構造, relationship progression は、
+`docs/EMOTIONAL_DESIGN_PRINCIPLES.md` の以下の原則に従う:
+
+- 原則6: LILIA の核（Layer の深層）は、平時には半分しか見えない設計にする。
+- 原則7: Q1-Q9 でプレイヤーが指定した要素を、profile に統合する。
+- 原則8: relationship progression に「成功にもコストがある」余白を残す。
+
 ## 入力: Q&A answers
 
 ```json

@@ -268,6 +268,18 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 - 作品名、参照作品の固有名詞、台詞、人物配置、展開順を出力に入れない。
 - pattern / structure はGM内部の選択情報としてだけ使う。作中本文ではない。
 
+## 感情設計の原則
+
+story_spine / relationship_spine は `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` の8原則を参照して構成する。
+特に以下を意識する:
+
+- 原則1: Main Question / Reveal Ladder に「失わせる対象」を置く場合、その対象が先に「大事なもの」として機能している前提で書く。
+- 原則4: story_spine 全体に1つのピークを設計する。
+- 原則5: 終わりは強い引きで切る。完了で締めない。
+- 原則7: プレイヤーが Q1-Q9 で書いた要素を、story の中で世界の側から返す。
+
+8原則の詳細は `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を参照する。
+
 ## 参照棚の扱い
 
 下のreferenceは、作品名の観察行と具体例を取り除いたサニタイズ済み抽象メモです。

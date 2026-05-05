@@ -742,6 +742,9 @@ def _build_group_a_prompt(context: dict[str, Any]) -> str:
 5. story_spine の Background Truth と [pending] の Reveal Ladder は GM only として隠す。
    scene/event_card/hotset/relationship_overview/story_deck へ直接書かない。
 6. event_card の handles は選択肢UIではなく、このヒロイン固有の現在状況へ触れる入口にする。
+7. current/event_card.md は原則1, 3, 4, 5を意識し、Visible Problem / Relationship Stake / Next Visible Change に感情の圧と未完了を残す。
+8. current/scene.md は原則2, 3, 5を意識し、感情名ではなく身体反応、環境、予想との差、未解決の要素で初回sceneを始める。
+9. current/hotset.md は原則5を意識し、再開時に戻す未完了の余白を短く残す。
 """,
     )
 
@@ -760,6 +763,8 @@ def _build_group_b_prompt(context: dict[str, Any]) -> str:
 6. memory.md の short_term は初回 scene 前なので、未発生または初回 scene 前の状況だけにする。
 7. beliefs.md は正解ではなく LILIA 側の仮説を書く。ユーザーの内面を断定しない。
 8. 文を途中で切らない。「...」「…」で終わらせない。
+9. relationship.md は原則6, 7, 8を意識し、圧力下で見える核、Q1-Q9由来の要素、成功にも残るコストを関係の余白として扱う。
+10. memory.md は原則5, 7を意識し、未完了の言葉、約束、プレイヤーが持ち込んだ要素を後で返せる形にする。
 """,
     )
 
@@ -844,6 +849,11 @@ LILIAは、ユーザーとの会話・選択・物語を記憶し、関係性と
 6. 同じ30文字以上の文を3ファイル以上に出さない。
 7. 各ファイルの `##` 見出しは、下のセクション構造と同じ文言・順序・数で出す。
 8. 前置き、説明、後書き、コードフェンス外の余計な注釈を出さない。
+
+## 感情設計の原則
+
+以下の生成は `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` の8原則を参照する。
+Docsの文をそのまま貼らず、各ファイルの責務に合わせて story / scene / event_card / relationship / memory / hotset に反映する。
 
 ## このグループ固有の制約
 
