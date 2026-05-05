@@ -36,7 +36,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Full Loop Manual Smoke: checklist追加済み
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
 - Newgame Q&A Q1-Q9: ヒロイン基本（性格含む）/ 見た目 / 描写の縛り / 表と内の差 / 内面に持っているもの / 出会い + 関係起点 / 呼ばれ方 / 主人公の身体・格好・仕事 / 避けたい展開へ更新済み。interactive 1問ずつ表示と補足質問 flow は維持。
-- LILIA Persona Profile: character YAML 素材生成と AI-driven profile.md 生成導線を追加済み。apply-newgame は character YAML 生成後に `generate_profile_document` を呼び、`render_profile_initialized_documents` で初期反映する。profile validation失敗は `ProfileGenerationError` で hard-fail。Q&A は Q1-Q9。First Scene Quality Gate に2項目追加済み。
+- LILIA Persona Profile: character YAML 素材生成と AI-driven profile.md 生成導線を追加済み。Wave 12.2 で apply-newgame は character YAML 生成後に `generate_profile_document` を呼び、`current/story_spine.md` / `story/relationship_spine.md` をAI生成してから、`tools.session.document_generator.generate_session_documents` で13 downstream filesを生成する流れへ接続した。profile validation失敗は `ProfileGenerationError` で hard-fail。Q&A は Q1-Q9。First Scene Quality Gate に2項目追加済み。
 - Wave 1（散文層・キャラ会議変換）: 実装済み
 - Wave 2（echo拡張・decision_index）: 実装済み
 - Wave 3（50作品参考カタログ）: 実装済み
@@ -52,6 +52,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 10.3（Fallback Field Quality + Knowledge Boundary Meta HIDDEN）: 実装済み
 - Wave 10.4（Protagonist Inner Monologue Boundary）: 実装済み
 - Wave 11（AI-driven Story / Relationship Spine Generation）: 実装済み
+- Wave 12.2（AI-driven Downstream Session Documents）: 実装済み。apply-newgame は spines 生成後に `tools/session/document_generator.py` を呼び、13 downstream files をAI生成する。`tools/session/document_validator.py` がテンプレ見出し、文崩壊、テンプレ表現、重複、Q丸写し、GM only漏洩、knowledge_state YAMLを検証する。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 次は実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証
@@ -202,11 +203,13 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - `--engine codex|claude|auto` フラグで engine を選択可能(default auto)。`tools/character/core/master.py` の `generate_characters` も engine 引数対応。
    - `scripts/lilia_generate_character_yaml.py` も `--engine` 対応。
    - 2026-05-05 Wave 12.1: `./lilia apply-newgame` は character YAML 生成後に `tools.character.profile_generator.generate_profile_document(answers=..., character_yaml=..., engine=...)` を呼び、AI-driven `profile.md` を生成する。
-   - `render_profile_initialized_documents` は維持し、生成済み `profile.md` から `current/*`、`story/*`、`lilia/main/*` の初期反映を行う。
+   - 2026-05-05 Wave 12.2: `apply-newgame` は profile validation後に `tools/story/spine_generator.py` で `current/story_spine.md` / `story/relationship_spine.md` を生成し、その後 `tools.session.document_generator.generate_session_documents` へ profile / character YAML / 両spine / Q&A を渡して13 downstream filesを生成する。
+   - `tools/session/document_generator.py` と `tools/session/document_validator.py` を追加した。downstream docsは3グループでAI生成し、validator失敗時は各グループ最大2回再試行する。
+   - `render_profile_initialized_documents` / `render_protagonist_document` / `render_knowledge_state_document` / `render_newgame_documents` は削除済み。新規初期反映のPython穴埋め経路は廃止した。
    - profile generator の検証失敗は `ProfileGenerationError` で hard-fail し、logに `[profile] generated via`、validation pass/retry_count、sections_countを残す。
    - Q&A は Q1-Q9。
    - First Scene Quality Gate に「LILIA側からの重い開示禁止」「ユーザー側の存在理由」を追加。
-   - Status: 実装済み / AI-driven profile生成導線追加済み / profile-to-current初期反映維持 / session_010・session_011・全Qおまかせ apply-newgame smoke通過
+   - Status: 実装済み / AI-driven profile生成導線追加済み / spine-before-docs順序へ変更 / downstream docs generator実装済み / session_010・session_011・全Qおまかせ apply-newgame smokeはWave 12.1時点の結果
 
 3. Case / Event Card Playability Gate
    - 旧LIRIAの Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate を、LILIAの `current/event_card.md` 向けに再設計する。

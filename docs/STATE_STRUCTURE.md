@@ -104,6 +104,10 @@ archive/
   beats/
 ```
 
+Wave 12.2以降の `./lilia apply-newgame` では、`lilia/main/profile.md` と `lilia/main/character.yaml` を生成した後、先に `current/story_spine.md` と `story/relationship_spine.md` をAI生成する。
+その後、`tools.session.document_generator.generate_session_documents` が13 downstream files（`current/scene.md`、`current/hotset.md`、`current/event_card.md`、`current/relationship_overview.md`、`current/protagonist.md`、`current/knowledge_state.md`、`lilia/main/core.md`、`lilia/main/voice.md`、`lilia/main/state.md`、`lilia/main/relationship.md`、`lilia/main/memory.md`、`lilia/main/beliefs.md`、`story/story_deck.md`）を生成する。
+`render_profile_initialized_documents` / `render_protagonist_document` / `render_knowledge_state_document` / `render_newgame_documents` は削除済みで、この新規初期反映順ではPython穴埋め経路を使わない。
+
 空ディレクトリ維持のためだけの `.gitkeep` は初期MVPでは採用しない。
 `archive/logs/` と `archive/beats/` は、実体のあるログや節目が生まれた時にファイルとして保存する。
 
