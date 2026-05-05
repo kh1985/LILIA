@@ -36,7 +36,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Full Loop Manual Smoke: checklist追加済み
 - Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
 - Newgame Q&A Q1-Q9: ヒロイン基本（性格含む）/ 見た目 / 描写の縛り / 表と内の差 / 内面に持っているもの / 出会い + 関係起点 / 呼ばれ方 / 主人公の身体・格好・仕事 / 避けたい展開へ更新済み。interactive 1問ずつ表示と補足質問 flow は維持。
-- LILIA Persona Profile: character YAML 素材生成と profile.md 変換導線を追加済み。apply-newgame が LLM CLI(codex / claude)経由を default にし、fallback は最小経路へ簡素化。Q&A は Q1-Q9。First Scene Quality Gate に2項目追加済み。
+- LILIA Persona Profile: character YAML 素材生成と AI-driven profile.md 生成導線を追加済み。apply-newgame は character YAML 生成後に `generate_profile_document` を呼び、`render_profile_initialized_documents` で初期反映する。profile validation失敗は `ProfileGenerationError` で hard-fail。Q&A は Q1-Q9。First Scene Quality Gate に2項目追加済み。
 - Wave 1（散文層・キャラ会議変換）: 実装済み
 - Wave 2（echo拡張・decision_index）: 実装済み
 - Wave 3（50作品参考カタログ）: 実装済み
@@ -201,9 +201,12 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - 2026-05-02: `./lilia apply-newgame` を改造し、LLM CLI(codex / claude)経由の character YAML 生成を default 経路にした。
    - `--engine codex|claude|auto` フラグで engine を選択可能(default auto)。`tools/character/core/master.py` の `generate_characters` も engine 引数対応。
    - `scripts/lilia_generate_character_yaml.py` も `--engine` 対応。
-   - fallback は LLM CLI 不在時のみ実行される最小経路に簡素化。Q&A は Q1-Q8 へ再設計済み。
+   - 2026-05-05 Wave 12.1: `./lilia apply-newgame` は character YAML 生成後に `tools.character.profile_generator.generate_profile_document(answers=..., character_yaml=..., engine=...)` を呼び、AI-driven `profile.md` を生成する。
+   - `render_profile_initialized_documents` は維持し、生成済み `profile.md` から `current/*`、`story/*`、`lilia/main/*` の初期反映を行う。
+   - profile generator の検証失敗は `ProfileGenerationError` で hard-fail し、logに `[profile] generated via`、validation pass/retry_count、sections_countを残す。
+   - Q&A は Q1-Q9。
    - First Scene Quality Gate に「LILIA側からの重い開示禁止」「ユーザー側の存在理由」を追加。
-   - Status: 実装済み / profile-to-current初期反映追加済み / LLM CLI default経路追加済み / prompt-only smoke完了
+   - Status: 実装済み / AI-driven profile生成導線追加済み / profile-to-current初期反映維持 / session_010・session_011・全Qおまかせ apply-newgame smoke通過
 
 3. Case / Event Card Playability Gate
    - 旧LIRIAの Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate を、LILIAの `current/event_card.md` 向けに再設計する。

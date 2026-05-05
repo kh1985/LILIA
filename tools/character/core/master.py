@@ -32,7 +32,7 @@ try:
 except ModuleNotFoundError as exc:  # pragma: no cover - depends on local environment
     if exc.name != "pydantic":
         raise
-    from scripts.lilia_character_to_profile import CharacterSheet, load_simple_character_yaml
+    from tools.character.core.simple_schema import CharacterSheet, load_simple_character_yaml
 
     SIMPLE_YAML_LOADER = load_simple_character_yaml
 
@@ -119,7 +119,7 @@ def build_engine_command(engine: str, prompt: str) -> tuple[list[str], str | Non
 
 def generate_characters(instruction: str, engine: str = "claude") -> list[CharacterSheet]:
     full_prompt = f"{MASTER_SYSTEM_PROMPT}\n\n---\n\n{instruction.strip()}"
-    env = {key: value for key, value in os.environ.items() if key != "CLAUDECODE"}
+    env = os.environ.copy()
     command, stdin_text = build_engine_command(engine, full_prompt)
 
     try:

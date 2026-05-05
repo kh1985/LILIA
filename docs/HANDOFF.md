@@ -63,10 +63,13 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `./lilia apply-newgame` を改造し、LLM CLI(codex / claude)経由の character YAML 生成を default 経路にした。`--engine codex|claude|auto` フラグで engine を選択可能。default は auto(codex 優先、claude fallback)。内部で `tools/character/core/master.py` の `generate_characters(instruction, engine)` を呼ぶ。character YAML が生成できない場合、Wave 11 の spine生成もできないため `apply-newgame` は失敗する。
 - `tools/character/core/master.py` の `generate_characters` を engine 引数対応にした(default `claude` で後方互換)。
 - `scripts/lilia_generate_character_yaml.py` も `--engine codex|claude|auto` フラグに対応した standalone wrapper として残す。
-- `scripts/lilia_character_to_profile.py` を追加済み。character YAMLから `lilia/main/profile.md` を生成し、必要ならsource/debug用に `lilia/main/profile.yaml` も保存できる。
-- `templates/session/lilia/main/profile.md` を追加済み。`./lilia apply-newgame` は LLM CLI 経由で `character.yaml` と `profile.md` を生成し、LLM CLI が使えない場合だけ最小fallbackとして `profile.md` を生成する。
+- Wave 12.1 で `./lilia apply-newgame` の profile生成を `tools.character.profile_generator.generate_profile_document(answers=..., character_yaml=..., engine=...)` へ切り替えた。流れは character YAML生成 -> AI-driven `profile.md` 生成 -> `render_profile_initialized_documents` による current/story/lilia 初期反映。
+- profile generator が `ProfileGenerationError` を投げた場合、`apply-newgame` は hard-fail する。ログには `[profile] generated via`、`[profile] validation`、`retry_count`、`sections_count` を残す。
+- `./lilia` は `scripts/lilia_character_to_profile.py` を import しない。pydantic 不在fallbackは `tools/character/core/simple_schema.py` に移し、旧 `scripts/lilia_character_to_profile.py` は削除済み。
+- Wave 12.1 smoke は `wave12_sakura`(session_010)、`wave12_akari`(session_011)、`wave12_omakase`(全Qおまかせ)で実施済み。いずれも profile validator pass、24セクション生成、旧 `profile/answers から再推論` 残骸なし。
+- `templates/session/lilia/main/profile.md` を追加済み。`profile.md` はAI-driven生成を正本にし、launcher内の旧Python変換fallbackを正本にしない。
 - `session.json` に `lilia_name` / `lilia_display_name` を追加済み。LILIAは作品名・存在カテゴリであり、作中の名乗りはPersona Profile / character YAML由来の個体名を使う。
-- `apply-newgame` と `scripts/lilia_character_to_profile.py` は、生成した `profile.md` の Initial Scene Anchors / context / unspoken / everyday anchors を `current/scene.md`、`current/event_card.md`、`story/story_deck.md`、`current/hotset.md`、`lilia/main/*` へ初期反映する。`current/story_spine.md` と `story/relationship_spine.md` は Wave 11 のAI spine生成結果を使う。
+- `apply-newgame` は、生成した `profile.md` の Initial Scene Anchors / context / unspoken / everyday anchors を `current/scene.md`、`current/event_card.md`、`story/story_deck.md`、`current/hotset.md`、`lilia/main/*` へ初期反映する。`current/story_spine.md` と `story/relationship_spine.md` は Wave 11 のAI spine生成結果を使う。
 - 初回 `current/event_card.md` には Scene Exit / Next Beat を置き、雨宿りや立ち話だけで停滞せず、3-5ターン以内に次beatへ進める入口を持たせる。
 - Persona Profile導線の最小確認として、既存character YAMLから `/tmp/lilia_profile_session/lilia/main/profile.md` を生成し、`./lilia prompt-only new test_persona_profile` のprompt bundleに Persona Profile Generation Pass と first scene前 profile必読指示が入ることを確認済み。
 - `prompt/newgame.md` に `First Scene Quality Gate` を追加済み。初回sceneが助け待ち一本道、明白な正解行動、信頼上昇だけの処理、LILIA側からの重い開示、ユーザー側の存在理由欠落、欠けた台詞や壊れた引用符を含む出力にならないよう軽く確認する。

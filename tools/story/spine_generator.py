@@ -120,7 +120,7 @@ def _build_engine_command(engine: str, prompt: str) -> tuple[list[str], str | No
 
 def _run_engine(engine: str, prompt: str) -> str:
     command, stdin_text = _build_engine_command(engine, prompt)
-    env = {key: value for key, value in os.environ.items() if key != "CLAUDECODE"}
+    env = os.environ.copy()
 
     try:
         result = subprocess.run(

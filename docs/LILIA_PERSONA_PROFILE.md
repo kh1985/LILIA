@@ -34,7 +34,7 @@ character YAMLは素材であり、LILIAの最終正本ではない。
 YAMLから `lilia/main/profile.md` を生成し、first scene前に読む。
 `./lilia apply-newgame` は LLM CLI(codex または claude)が利用可能な場合、内部で character YAML を生成して `profile.md` へ変換する default 経路を持つ。
 `--engine codex|claude|auto` フラグで engine を選べる(default は auto: codex 優先、claude fallback)。
-LLM CLI が無い、または生成失敗時は、未確定欄を明示する最小fallbackで `profile.md` を作る。
+LLM CLI が無い、または生成失敗時は hard-fail し、壊れた `profile.md` は保存しない。
 `scripts/lilia_generate_character_yaml.py` は同じ engine フラグに対応した standalone wrapper として手動実行もできる。
 
 ## Character YAML 生成の経路
@@ -45,25 +45,28 @@ LLM CLI が無い、または生成失敗時は、未確定欄を明示する最
 1. `tools/character/core/master.py` の `generate_characters(instruction, engine)` を呼ぶ。
 2. engine は `--engine codex|claude|auto` で指定。default は auto(codex 優先、claude fallback)。
 3. 返ってきた YAML を `CharacterSheet` schema でバリデーションする。
-4. `scripts/lilia_character_to_profile.py` の変換ロジックで profile.md を作る。
-5. profile.md の Initial Scene Anchors から current/* と story/* を初期化する。
+4. `tools.character.profile_generator.generate_profile_document(...)` が Q&A と character YAML を解釈して `profile.md` を作る。
+5. profile validator が必須セクション、placeholder残骸、Q1丸写し、Deepening Tags / Do Not Predefine 固定項目を検査する。
+6. profile.md の Initial Scene Anchors から current/* と story/* を初期化する。
 
-LLM CLI が無い・失敗した時は fallback に落ち、profile.md は未確定欄が多くなる。
-fallback は LLM CLI 不在環境での最小動作保証であり、本番運用では LLM CLI 経由を前提とする。
+LLM CLI が無い・profile生成が3回失敗した時は fallback に落とさず `ProfileGenerationError` で停止する。
 
 ## 4. File Responsibility
 
 `profile.md` に置くもの:
 
 - 基礎情報。`name:` は作中で名乗る個体名であり、作品名・存在カテゴリとしての `LILIA` ではない。
+- appearanceの具体情報。
 - toneの基準。
 - 行動で見えるpersonality。
 - values、everyday anchors、memories、contradictions、unspoken。
 - reactions、forbidden、context。
+- sensuality / body distance の初期距離と合意境界。
 - 描写の縛り（場面に必ず入れる質感、1-2個）。
 - fixed memoryの初期分類。
 - 5層構造 / Self-Understanding。
 - voice by relationship stage。
+- 人格設計（骨 / 壁 / 育つ部分）。
 - Relationship Progressionの軽量分類。
 - Multi-Relationship / Jealousy Profile の latent slot。
 - Ability / Intimacy Resonance の dormant slot。

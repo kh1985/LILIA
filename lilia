@@ -19,7 +19,7 @@ SAVES_DIR = ROOT / "saves"
 SESSION_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 UNCONFIRMED = "未確定(LLM CLI で再生成推奨)"
 PLACEHOLDER_LILIA_NAME = "作中名未確定"
-PLACEHOLDER_PROFILE_VALUE = "未確定: profile/answers から再推論"
+PLACEHOLDER_PROFILE_VALUE = "未確定"
 
 
 NEW_PROMPT_FILES = [
@@ -1477,23 +1477,48 @@ def sanitize_generated_documents(documents: dict[str, str]) -> dict[str, str]:
     return {path: sanitize_omakase_literals(content) for path, content in documents.items()}
 
 
-def generated_document_issues(documents: dict[str, str]) -> list[dict[str, str]]:
+def generated_document_issues(
+    documents: dict[str, str],
+    answers: Optional[dict[int | str, str]] = None,
+) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
+    answer_source = "\n".join(str(value) for value in (answers or {}).values())
     for path, content in documents.items():
+        if path == "lilia/main/profile.md":
+            continue
         if LEAK_LITERAL_RE.search(content):
             issues.append({"path": path, "kind": "omakase_literal", "literal": "omakase"})
         for literal in FORBIDDEN_GENERATED_LITERALS:
-            if literal in content:
+            if literal in content and not literal_supported_by_answers(literal, answer_source):
                 issues.append({"path": path, "kind": "hardcoded_literal", "literal": literal})
     return issues
 
 
-def repair_generated_documents_with_placeholders(documents: dict[str, str]) -> dict[str, str]:
+def literal_supported_by_answers(literal: str, answer_source: str) -> bool:
+    if not answer_source:
+        return False
+    if literal in answer_source:
+        return True
+    variants = {literal}
+    for suffix in ("前", "音", "の紐", "用の鋏"):
+        if literal.endswith(suffix):
+            variants.add(literal[: -len(suffix)])
+    return any(variant and variant in answer_source for variant in variants)
+
+
+def repair_generated_documents_with_placeholders(
+    documents: dict[str, str],
+    answers: Optional[dict[int | str, str]] = None,
+) -> dict[str, str]:
     repaired = {path: sanitize_omakase_literals(content) for path, content in documents.items()}
+    answer_source = "\n".join(str(value) for value in (answers or {}).values())
     for path, content in repaired.items():
+        if path == "lilia/main/profile.md":
+            continue
         updated = content
         for literal in FORBIDDEN_GENERATED_LITERALS:
-            updated = updated.replace(literal, PLACEHOLDER_PROFILE_VALUE)
+            if not literal_supported_by_answers(literal, answer_source):
+                updated = updated.replace(literal, PLACEHOLDER_PROFILE_VALUE)
         repaired[path] = updated
     return repaired
 
@@ -1531,11 +1556,20 @@ def validator_reinfer_documents(
         from tools.character.core.master import generate_character
 
         character = generate_character(instruction, engine=engine)
-        docs = render_documents_from_character_yaml(character, answers)
+        profile_engine = requested_engine if requested_engine == "auto" else engine
+        docs, profile_meta = render_documents_from_character_yaml(character, answers, profile_engine)
         if logger is not None:
             logger.write("validator_reinfer_success", engine=engine, generated_files=list(docs))
+            logger.write(
+                "[profile] validation",
+                status="pass" if profile_meta.get("validation_pass", True) else "failed",
+                retry_count=profile_meta.get("retry_count", 0),
+                sections_count=profile_meta.get("sections_count", 0),
+            )
         return docs, engine, f"validator re-inferred via {engine}"
     except Exception as exc:
+        if exc.__class__.__name__ == "ProfileGenerationError":
+            raise
         if logger is not None:
             logger.write("validator_reinfer_failed", engine=engine, error=type(exc).__name__)
         return None, engine, f"{engine} validator re-inference failed: {exc}"
@@ -1547,7 +1581,7 @@ def validate_apply_newgame_documents(
     requested_engine: str,
     logger: Optional[OperationLogger] = None,
 ) -> tuple[dict[str, str], dict[str, object]]:
-    initial_issues = generated_document_issues(documents)
+    initial_issues = generated_document_issues(documents, answers)
     result: dict[str, object] = {
         "initial_issues": len(initial_issues),
         "initial_summary": issue_summary(initial_issues),
@@ -1565,15 +1599,15 @@ def validate_apply_newgame_documents(
     result["reinference_engine"] = engine or ""
     result["reinference_status"] = status
     if reinferred is not None:
-        reinferred_issues = generated_document_issues(reinferred)
+        reinferred_issues = generated_document_issues(reinferred, answers)
         if logger is not None:
             logger.write("validator_reinferred", issues=len(reinferred_issues), summary=issue_summary(reinferred_issues))
         if not reinferred_issues:
             result["repair_path"] = "ai_reinfer"
             return reinferred, result
 
-    repaired = repair_generated_documents_with_placeholders(documents)
-    final_issues = generated_document_issues(repaired)
+    repaired = repair_generated_documents_with_placeholders(documents, answers)
+    final_issues = generated_document_issues(repaired, answers)
     result["repair_path"] = "placeholder"
     result["final_issues"] = len(final_issues)
     result["final_summary"] = issue_summary(final_issues)
@@ -2448,35 +2482,13 @@ def render_profile_initialized_documents(profile: str, answers: Optional[dict[in
     }
 
 
-def render_persona_profile_document(answers: dict[int | str, str], lilia_name: str) -> str:
-    q1 = q1_components(qa_basic(answers))
-    visual = qa_visual(answers)
-    visual_fields = visual_components(visual)
-    appearance = visual if visual and not is_non_specific_literal(visual) else q1.get("appearance") or UNCONFIRMED
-    relationship = qa_encounter(answers) if qa_encounter(answers) and not is_non_specific_literal(qa_encounter(answers)) else "互いをまだ深く知らない距離"
-    anchor = qa_anchor(answers)
-    gap = qa_gap(answers)
-    wound_answer = qa_wound(answers)
-    outward, inward, gap_text = split_gap_answer(gap)
-    inner_gap = gap_text if gap_text else infer_fallback_inner_state(q1.get("personality", ""), wound_answer)
-    avoid = newgame_forbidden_text(answers).replace("\n", " / ") or "初回から恋愛成立や親密成立を確定しない"
-    occupation = q1.get("role") or "日常の場にいる人"
-    wound = wound_answer if wound_answer and not is_non_specific_literal(wound_answer) else "まだ言葉にしていない内面の核があり、初回sceneでは説明しすぎない"
-    touchable_object = (
-        anchor
-        if anchor and not is_non_specific_literal(anchor)
-        else infer_fallback_touchable_object(visual_fields.get("notes", ""), appearance)
-    )
-    descriptive_constraint = anchor if anchor and not is_non_specific_literal(anchor) else touchable_object
-    u = UNCONFIRMED
-
+def render_profile_generation_required_document(answers: dict[int | str, str], lilia_name: str) -> str:
     return "\n".join(
         [
             "# LILIA Persona Profile",
             "",
-            "> 注意: この profile は LLM CLI を経由せずに生成された fallback です。",
-            "> 多くの欄が「未確定」になっています。",
-            "> codex または claude CLI が利用可能な環境で `./lilia apply-newgame <session> <answers.md>` を再実行すると、より具体的な profile が生成されます。",
+            "> 注意: この profile は AI profile generator 未実行時の最小placeholderです。",
+            "> `./lilia apply-newgame <session> <answers.md> --engine codex|claude|auto` で character YAML と AI-driven profile.md を生成してください。",
             "",
             render_applied_header(),
             "",
@@ -2486,451 +2498,23 @@ def render_persona_profile_document(answers: dict[int | str, str], lilia_name: s
             "",
             "## 基礎情報",
             f"name: {lilia_name}",
-            "age: 成人",
-            f"occupation: {occupation}",
-            f"role: {u}",
-            f"appearance: {appearance}",
-            f"body: {visual_fields.get('body') or u}",
-            f"outfit: {visual_fields.get('outfit') or u}",
-            "",
-            "## appearance",
-            f"hair_style: {visual_fields.get('hair_style') or u}",
-            f"hair_color: {visual_fields.get('hair_color') or u}",
-            f"eye_color: {visual_fields.get('eye_color') or u}",
-            f"body: {visual_fields.get('body') or u}",
-            f"outfit: {visual_fields.get('outfit') or u}",
-            f"notes: {visual_fields.get('notes') or appearance}",
-            "",
-            "## tone",
-            f"rule: {u}",
-            "examples:",
-            f"  - {u}",
-            "",
-            "## personality",
-            f"- 行動で見える性格: {u}",
-            f"- 困った時の出方: {u}",
-            f"- 褒められた時の反応: {u}",
-            f"- 怒った時の反応: {u}",
-            f"- 頼る / 断る / 待つ の傾向: {u}",
-            "",
-            "## values",
-            f"- 何を大事にしているか: {u}",
-            f"- 何は雑に扱わないか: {u}",
-            "",
-            "## everyday anchors",
-            f"- 生活の場所: {u}",
-            f"- 仕事 / 用事 / 習慣: {occupation}",
-            f"- よく触る物: {touchable_object}",
-            f"- 初回sceneで使える具体物: {touchable_object}",
-            "",
-            "## memories",
-            f"- 初期時点で既にある生活上の記憶: {wound}",
-            "- 実際に過去として固定してよいものだけ",
-            "",
-            "## contradictions",
-            f"- 表の態度: {outward or u}",
-            f"- 内側の反応: {inward or inner_gap}",
-            f"- 表の態度と内側の矛盾: {inner_gap}",
-            f"- 頼りたい / 頼れない: {u}",
-            f"- 近づきたい / 距離を守りたい: {u}",
-            "",
-            "## unspoken",
-            f"- まだ言わないこと: {wound}",
-            f"- すぐには開示しない理由: {u}",
-            "",
-            "## reactions",
-            f"能力や異常性に触れた相手には: {u}",
-            f"弱っている相手には: {u}",
-            f"急かされたとき: {u}",
-            f"感謝されたとき: {u}",
-            f"踏み込まれたとき: {u}",
-            f"待ってもらえたとき: {u}",
-            f"助けられすぎたとき: {u}",
-            f"軽く扱われたとき: {u}",
-            "",
-            "## forbidden",
-            f"- {avoid}",
-            "- 初回から恋愛成立、親密成立、攻略トリガーを確定しない",
-            "- 例文由来の語彙を固定人格にしない",
-            "",
-            "## context [GM-internal pre-play assumption]",
-            "",
-            "⚠️ このセクションは **GM の事前想定**である。",
-            "- プレイ中はプレイヤーの入力で塗り替わる",
-            "- 主人公側の事実（持ち物、状況、行動）を**確定として扱わない**",
-            "- knowledge_state.md の fictional_status を優先して判断する",
-            "- 実プレイで成立した事実は scene.md / hotset / knowledge_state へ書く",
-            "",
-            f"- 初回scene開始時点の状況: {u}",
-            f"- ユーザーとの関係位置: {relationship}",
-            f"- 表と内の差: {inner_gap}",
-            f"- 内面に持っているもの: {wound}",
-            f"- 今日なぜそこにいるか: {u}",
-            f"- 初回sceneの生活上の用事: {u}",
-            "",
-            "## 描写の縛り",
-            "",
-            "場面ごとにLILIAが出る時、必ず1-2個入れる質感。",
-            "五感のいずれか（視覚/聴覚/嗅覚/触覚/体感）に絞る。",
-            "事件中心の場面でも、これがあると場にキャラが残る。",
-            "",
-            f"- 必ず入れる質感1: {descriptive_constraint}",
-            f"- 必ず入れる質感2 (optional): {u}",
-            "",
-            "注: 抽象語（優しい、強い）ではなく、具体物（持ち物、香り、声の質、視線の癖）で書く。",
-            "fallbackではQ1から取れる場合だけ控えめに入れる。具体化はLLM CLIで再生成推奨。",
+            "age: 未確定",
+            f"occupation: {q1_components(qa_basic(answers)).get('role') or UNCONFIRMED}",
+            "role: AI profile generator で生成する",
+            f"appearance: {qa_visual(answers) or UNCONFIRMED}",
             "",
             "## Initial Scene Anchors",
-            f"- 場所と状況: {u}",
-            f"- 手元の具体物: {descriptive_constraint}",
-            f"- 最初の距離: {relationship}",
-            f"- 会話の入口: {u}",
-            "",
-            "## fixed memory",
-            "core fixed:",
-            f"  - {u}",
-            "historical fixed:",
-            f"  - {u}",
-            "",
-            "## 5層構造 / Self-Understanding",
-            f"Layer 1（自己物語）: {u}",
-            f"Layer 2（心の核）: {u}",
-            "Layer 3（防壁マップ）:",
-            f"  Say/Do Gap: {u}",
-            f"  逃げ方: {u}",
-            f"  強がり方: {u}",
-            "Layer 4（心の扉マップ）:",
-            "  CHINKトリガー:",
-            f"    - {u}",
-            "  BARRIER強化:",
-            f"    - {u}",
-            "Layer 5（段階的な開き方）:",
-            "  Stage 1: 初回scene。観察と境界線。",
-            "  Stage 2: 小さな約束や待つことが記憶に残る。",
-            "  Stage 3: 摩擦や誤解を処理しても関係が消えない。",
-            "  Stage 4: 明示的な合意と相互性がある時だけ親密さが進む。",
-            "  Stage 5: 深化。呼び方、沈黙、aftercareが記憶に残る。",
-            "",
-            "## voice by relationship stage",
-            "Stage 1:",
-            f"  - {u}",
-            "Stage 2:",
-            f"  - {u}",
-            "Stage 3:",
-            f"  - {u}",
-            "Stage 4:",
-            f"  - {u}",
-            "Stage 5:",
-            f"  - {u}",
-            "",
-            "## 人格設計",
-            "骨:",
-            f"  境遇: {u}",
-            f"  価値観: {u}",
-            f"  欠点: {u}",
-            f"  口調: {u}",
-            "",
-            "壁:",
-            f"  秘密: {u}",
-            f"  開示条件: {u}",
-            f"  拒否トリガー: {u}",
-            "",
-            "育つ部分:",
-            "  性格の発見: 初回sceneと実際の選択で確認する。",
-            "  ユーザーとの関係変化: relationship / memory / beliefsへ保存する。",
-            "  個人ストーリーの種: LLM CLIで再生成するまで固定しない。",
-            "",
-            "## Relationship Progression",
-            "rapport:",
-            "  stage: 初期 / 未確認",
-            f"  note: {relationship}",
-            "",
-            "intimacy:",
-            "  stage: 未確認",
-            "  note: 初回から恋愛成立や親密成立を確定しない。",
-            "",
-            "consent:",
-            "  stage: 未確認",
-            "  note: 初回から合意済みにしない。",
-            "",
-            "boundary:",
-            "  state: 確認する / 待つ",
-            f"  note: {u}",
-            "",
-            "self-understanding:",
-            "  stage: 初期",
-            "  note: 本人もまだ言語化しきっていない部分を残す。",
-            "",
-            "## Multi-Relationship / Jealousy Profile",
-            "status: latent",
-            "",
-            "揺れやすい条件:",
-            f"- {u}",
-            "",
-            "揺れにくい条件:",
-            f"- {u}",
-            "",
-            "表に出る反応:",
-            f"- {u}",
-            "",
-            "禁止:",
-            "- 初期から嫉妬イベントを強制しない",
-            "- 嫉妬を好感度ペナルティとして扱わない",
-            "- 他者との関係をLILIAへの否定として自動処理しない",
-            "",
-            "## Ability / Intimacy Resonance",
-            "status: dormant",
-            "",
-            "能力が導入された場合に見ること:",
-            "- LILIAの体質や感覚がどう反応するか",
-            "- その反応が本人の境界線とどう衝突するか",
-            "- 合意なしに能力で親密さを進めないための制約",
-            "- 能力使用後に memory / relationship / beliefs へ何を残すか",
-            "",
-            "初期sceneでは使わない。",
-            "能力が導入された時だけ有効化する。",
-            "",
-            "## Deepening Tags",
-            "- [ ] 境界線を尊重された",
-            "- [ ] 自分から頼った",
-            "- [ ] 自分から断った",
-            "- [ ] 呼び方が変わった",
-            "- [ ] 沈黙を共有した",
-            "- [ ] 小さな約束が残った",
-            "- [ ] 誤解を修正した",
-            "- [ ] 摩擦を処理した",
-            "- [ ] 秘密の一部を共有した",
-            "- [ ] 親密後のaftercareが残った",
-            "- [ ] 他者との関係について確認した",
-            "- [ ] 離れる自由を確認した",
-            "- [ ] 能力との相互作用を確認した",
+            f"- 場所と状況: {qa_encounter(answers) or UNCONFIRMED}",
+            f"- 手元の具体物: {qa_anchor(answers) or UNCONFIRMED}",
+            "- 最初の距離: AI profile generator で生成する",
+            "- 会話の入口: AI profile generator で生成する",
             "",
             "## Do Not Predefine",
             "- 完成された恋愛感情",
             "- ユーザーへの好意",
             "- 攻略トリガー",
             "- 親密成立",
-            "- 重い過去を説明で全部出すこと",
             "- 固定台詞集",
-            "- ハーレム展開の強制",
-            "- 能力反応の即時発火",
-        ]
-    ) + "\n"
-
-    q_line = lambda number: answer(answers, number).replace("\n", " / ")
-    q = lambda number: bullet_block(answer(answers, number))
-    forbidden_line = newgame_forbidden_text(answers).replace("\n", " / ")
-    not_intimate = "  stage: 未確認\n  note: 初回から恋愛成立や親密成立を確定しない。"
-
-    return "\n".join(
-        [
-            "# LILIA Persona Profile",
-            "",
-            render_applied_header(),
-            "",
-            "このファイルは、初回からLILIAを安定して演じるための人格正本である。",
-            "ただし、完成済み攻略キャラカードではない。",
-            "関係で育った内容は core / voice / relationship / memory / beliefs へ分解して保存する。",
-            "",
-            "## 基礎情報",
-            f"name: {lilia_name}",
-            "age: 成人",
-            f"role: {q_line(1)}",
-            f"appearance: {q_line(3)}",
-            "",
-            "## tone",
-            f"rule: {q_line(4)}",
-            "examples:",
-            "  - 固定台詞ではなく、声の方向として扱う",
-            "",
-            "## personality",
-            f"- 行動で見える性格: {q_line(4)}",
-            f"- 困った時の出方: {q_line(4)}",
-            "- 褒められた時の反応: すぐ好意に変換せず、受け取り方をsceneで観察する",
-            "- 怒った時の反応: Q3の自由欄にある制約を踏まえ、声や距離に出す",
-            f"- 頼る / 断る / 待つ の傾向: {q_line(5)}",
-            "",
-            "## values",
-            "- 何を大事にしているか: 未確定。character YAML / GM fallbackで生活や反応から補いすぎず抽出する。",
-            f"- 何は雑に扱わないか: {forbidden_line}",
-            "",
-            "## everyday anchors",
-            f"- 生活の場所: {q_line(2)}",
-            f"- 仕事 / 用事 / 習慣: {q_line(1)}",
-            f"- よく触る物: {q_line(3)}",
-            f"- 初回sceneで使える具体物: {q_line(3)}",
-            "",
-            "## memories",
-            "- 初期時点で既にある生活上の記憶",
-            f"- {q_line(2)}",
-            "- 実際に過去として固定してよいものだけ",
-            "",
-            "## contradictions",
-            f"- 表の態度と内側の矛盾: {q_line(4)}",
-            f"- 頼りたい / 頼れない: {q_line(5)}",
-            "- 近づきたい / 距離を守りたい: 初回sceneで観察する",
-            "",
-            "## unspoken",
-            f"- まだ言わないこと: {q_line(5)}",
-            "- すぐには開示しない理由: 初回で全部説明せず、関係で育つ余白を残す",
-            "",
-            "## reactions",
-            "能力や異常性に触れた相手には: 初期sceneでは発火させず、境界線と安全を確認する",
-            "弱っている相手には: 助け待ち一本道にせず、相手の主体性も見る",
-            f"急かされたとき: {q_line(4)}",
-            "感謝されたとき: 少し受け取るが、好意確定にはしない",
-            f"踏み込まれたとき: {q_line(8)}",
-            "待ってもらえたとき: 言葉か沈黙が少し変わる",
-            "助けられすぎたとき: ありがたさと、自分で決めたい気持ちがぶつかる",
-            "軽く扱われたとき: 声か距離が硬くなる",
-            "",
-            "## forbidden",
-            f"- {forbidden_line}",
-            "- 初回から恋愛成立、親密成立、攻略トリガーを確定しない",
-            "- 例文由来の語彙を固定人格にしない",
-            "",
-            "## context [GM-internal pre-play assumption]",
-            "",
-            "⚠️ このセクションは **GM の事前想定**である。",
-            "- プレイ中はプレイヤーの入力で塗り替わる",
-            "- 主人公側の事実（持ち物、状況、行動）を**確定として扱わない**",
-            "- knowledge_state.md の fictional_status を優先して判断する",
-            "- 実プレイで成立した事実は scene.md / hotset / knowledge_state へ書く",
-            "",
-            f"- 初回scene開始時点の状況: {q_line(2)}",
-            f"- ユーザーとの関係位置: {q_line(2)}",
-            f"- 今日なぜそこにいるか: {q_line(1)}",
-            f"- 初回sceneの生活上の用事: {q_line(2)}",
-            "",
-            "## fixed memory",
-            "core fixed:",
-            f"  - {q_line(1)}",
-            "  - 価値観はfirst sceneで行動として確認し、core.mdへは最小核だけ昇格する",
-            "historical fixed:",
-            f"  - {q_line(2)}",
-            "",
-            "## 5層構造 / Self-Understanding",
-            f"Layer 1（自己物語）: {q_line(1)}",
-            f"Layer 2（心の核）: {q_line(4)}",
-            "Layer 3（防壁マップ）:",
-            f"  Say/Do Gap: {q_line(4)}",
-            f"  逃げ方: {q_line(5)}",
-            "  強がり方: first sceneで行動として出す",
-            "Layer 4（心の扉マップ）:",
-            "  CHINKトリガー:",
-            "    - 境界線を尊重される",
-            "    - 待ってもらえる",
-            "  BARRIER強化:",
-            "    - 急かされる",
-            "    - 軽く扱われる",
-            "Layer 5（段階的な開き方）:",
-            "  Stage 1: 初回scene。観察と境界線。",
-            "  Stage 2: 小さな約束や待つことが記憶に残る。",
-            "  Stage 3: 摩擦や誤解を処理しても関係が消えない。",
-            "  Stage 4: 明示的な合意と相互性がある時だけ親密さが進む。",
-            "  Stage 5: 深化。呼び方、沈黙、aftercareが記憶に残る。",
-            "",
-            "## voice by relationship stage",
-            "Stage 1:",
-            f"  - {q_line(6)}",
-            "Stage 2:",
-            "  - 少しだけ説明より反応が増える。",
-            "Stage 3:",
-            "  - 摩擦や保留を無かったことにしない。",
-            "Stage 4:",
-            "  - 確認、待つ、止まる余地を声に残す。",
-            "Stage 5:",
-            "  - 共有した記憶から呼び方や沈黙が変わる。",
-            "",
-            "## 人格設計",
-            "骨:",
-            f"  境遇: {q_line(1)} / {q_line(2)}",
-            "  価値観: 未確定。profile生成時に補いすぎない。",
-            f"  欠点: {q_line(4)}",
-            f"  口調: {q_line(6)}",
-            "",
-            "壁:",
-            f"  秘密: {q_line(5)}",
-            "  開示条件: 数値ではなく、会話、記憶、境界線の尊重で変化する。",
-            f"  拒否トリガー: {q_line(8)}",
-            "",
-            "育つ部分:",
-            "  性格の発見: 初回sceneでユーザーの触れ方に反応して見える。",
-            "  ユーザーとの関係変化: relationship / memory / beliefsへ保存する。",
-            "  個人ストーリーの種: everyday anchorsとunspokenから小さく戻す。",
-            "",
-            "## Relationship Progression",
-            "rapport:",
-            "  stage: 初期 / 未確認",
-            f"  note: {q_line(2)}",
-            "",
-            "intimacy:",
-            not_intimate,
-            "",
-            "consent:",
-            not_intimate,
-            "",
-            "boundary:",
-            "  state: 確認する / 待つ",
-            f"  note: {q_line(8)}",
-            "",
-            "self-understanding:",
-            "  stage: 初期",
-            "  note: 本人もまだ言語化しきっていない部分を残す。",
-            "",
-            "## Multi-Relationship / Jealousy Profile",
-            "status: latent",
-            "",
-            "揺れやすい条件:",
-            "- 境界線を確認せず他者との関係を否定された時",
-            "",
-            "揺れにくい条件:",
-            "- 他者との関係をLILIAへの否定として扱わず、確認してもらえた時",
-            "",
-            "表に出る反応:",
-            "- すぐ嫉妬イベント化せず、声、沈黙、距離の小さな変化として出る。",
-            "",
-            "禁止:",
-            "- 初期から嫉妬イベントを強制しない",
-            "- 嫉妬を好感度ペナルティとして扱わない",
-            "- 他者との関係をLILIAへの否定として自動処理しない",
-            "",
-            "## Ability / Intimacy Resonance",
-            "status: dormant",
-            "",
-            "能力が導入された場合に見ること:",
-            "- LILIAの体質や感覚がどう反応するか",
-            "- その反応が本人の境界線とどう衝突するか",
-            "- 合意なしに能力で親密さを進めないための制約",
-            "- 能力使用後に memory / relationship / beliefs へ何を残すか",
-            "",
-            "初期sceneでは使わない。",
-            "能力が導入された時だけ有効化する。",
-            "",
-            "## Deepening Tags",
-            "- [ ] 境界線を尊重された",
-            "- [ ] 自分から頼った",
-            "- [ ] 自分から断った",
-            "- [ ] 呼び方が変わった",
-            "- [ ] 沈黙を共有した",
-            "- [ ] 小さな約束が残った",
-            "- [ ] 誤解を修正した",
-            "- [ ] 摩擦を処理した",
-            "- [ ] 秘密の一部を共有した",
-            "- [ ] 親密後のaftercareが残った",
-            "- [ ] 他者との関係について確認した",
-            "- [ ] 離れる自由を確認した",
-            "- [ ] 能力との相互作用を確認した",
-            "",
-            "## Do Not Predefine",
-            "- 完成された恋愛感情",
-            "- ユーザーへの好意",
-            "- 攻略トリガー",
-            "- 親密成立",
-            "- 重い過去を説明で全部出すこと",
-            "- 固定台詞集",
-            "- ハーレム展開の強制",
-            "- 能力反応の即時発火",
         ]
     ) + "\n"
 
@@ -2951,7 +2535,7 @@ def render_newgame_documents(answers: dict[int | str, str], session_name: str = 
     q_line = lambda number: str(semantic.get(number, "")).replace("\n", " / ")
     not_intimate = "- intimacy stage: 未確認\n- consent stage: 未確認\n- boundary state: Q3由来の制約とQ6の初期距離を尊重"
     lilia_name = generated_lilia_name(answers, session_name)
-    profile = render_persona_profile_document(answers, lilia_name)
+    profile = render_profile_generation_required_document(answers, lilia_name)
     documents = {
         "lilia/main/profile.md": profile,
         "current/scene.md": render_document(
@@ -3919,16 +3503,47 @@ def dump_character_yaml(data: dict) -> str:
         return "\n".join(lines) + "\n"
 
 
-def render_documents_from_character_yaml(character: object, answers: dict[int | str, str]) -> dict[str, str]:
+def result_value(result: object, key: str, default: object = None) -> object:
+    if isinstance(result, dict):
+        return result.get(key, default)
+    return getattr(result, key, default)
+
+
+def profile_sections_count(profile: str) -> int:
+    return len(re.findall(r"^##\s+", profile, re.MULTILINE))
+
+
+def render_documents_from_character_yaml(
+    character: object,
+    answers: dict[int | str, str],
+    engine: str,
+) -> tuple[dict[str, str], dict[str, object]]:
     try:
-        from scripts.lilia_character_to_profile import render_profile
+        from tools.character.profile_generator import ProfileGenerationError, generate_profile_document
     except Exception as exc:  # pragma: no cover - depends on local environment
-        raise RuntimeError(f"failed to import character profile converter: {exc}") from exc
+        raise RuntimeError(f"failed to import AI profile generator: {exc}") from exc
 
     if not hasattr(character, "model_dump"):
         raise TypeError("character object must provide model_dump()")
     character_data = character.model_dump(exclude_none=True)
-    profile = render_profile(character, answers)
+
+    try:
+        profile_result = generate_profile_document(
+            answers=answers,
+            character_yaml=character_data,
+            engine=engine,
+        )
+    except ProfileGenerationError:
+        raise
+
+    profile = str(result_value(profile_result, "profile_md", "") or "")
+    if not profile.strip():
+        raise RuntimeError("AI profile generator returned an empty profile_md")
+
+    validation_pass = result_value(profile_result, "validation_pass", True)
+    if validation_pass is False:
+        raise RuntimeError("AI profile generator returned validation_pass=false without ProfileGenerationError")
+
     profile_name = clean_lilia_name(str(character_data.get("name") or "")) or extract_profile_name(profile)
     if profile_name:
         profile = replace_profile_name(profile, profile_name)
@@ -3938,16 +3553,26 @@ def render_documents_from_character_yaml(character: object, answers: dict[int | 
     }
     documents.update(render_profile_initialized_documents(profile, answers))
     documents.update(render_style_documents(answers))
-    return documents
+    profile_meta = {
+        "engine": result_value(profile_result, "engine_used", engine),
+        "validation_pass": validation_pass,
+        "retry_count": result_value(
+            profile_result,
+            "validation_retry_count",
+            result_value(profile_result, "retry_count", 0),
+        ),
+        "sections_count": result_value(profile_result, "sections_count", profile_sections_count(profile)),
+    }
+    return documents, profile_meta
 
 
 def generate_character_documents(
     answers: dict[int | str, str],
     requested_engine: str,
-) -> tuple[dict[str, str], Optional[str], str, Optional[dict[str, object]]]:
+) -> tuple[dict[str, str], Optional[str], str, Optional[dict[str, object]], dict[str, object]]:
     engine = choose_engine(requested_engine)
     if engine is None:
-        return render_newgame_documents(answers), None, f"{requested_engine} engine unavailable", None
+        return {}, None, f"{requested_engine} engine unavailable", None, {}
 
     instruction = build_character_instruction_from_answers(answers)
     try:
@@ -3955,9 +3580,13 @@ def generate_character_documents(
 
         character = generate_character(instruction, engine=engine)
         character_data = character.model_dump(exclude_none=True)
-        return render_documents_from_character_yaml(character, answers), engine, f"generated via {engine}", character_data
+        profile_engine = requested_engine if requested_engine == "auto" else engine
+        documents, profile_meta = render_documents_from_character_yaml(character, answers, profile_engine)
+        return documents, engine, f"generated via {engine}", character_data, profile_meta
     except Exception as exc:
-        return render_newgame_documents(answers), None, f"{engine} CLI failed: {exc}", None
+        if exc.__class__.__name__ == "ProfileGenerationError":
+            raise
+        return {}, None, f"{engine} CLI failed: {exc}", None, {}
 
 
 def command_apply_newgame(args: list[str]) -> None:
@@ -3977,7 +3606,17 @@ def command_apply_newgame(args: list[str]) -> None:
     for number in range(1, question_count + 1):
         logger.write("answer", question=f"Q{number}", value=answer(answers, number).replace("\n", " / "))
     logger.section("LLM Calls")
-    documents, selected_engine, generation_status, character_data = generate_character_documents(answers, requested_engine)
+    try:
+        documents, selected_engine, generation_status, character_data, profile_meta = generate_character_documents(
+            answers,
+            requested_engine,
+        )
+    except Exception as exc:
+        if exc.__class__.__name__ == "ProfileGenerationError":
+            logger.write("[profile] validation", status="failed", error=str(exc))
+            print(f"Error: profile.md 生成に失敗しました: {exc}", file=sys.stderr)
+            sys.exit(1)
+        raise
     logger.write(
         "profile generation",
         selected_engine=selected_engine or "",
@@ -3985,8 +3624,42 @@ def command_apply_newgame(args: list[str]) -> None:
         fallback_path=not bool(selected_engine),
         generated_files=list(documents),
     )
+    if not selected_engine or not documents:
+        logger.write("[profile] failed", error=generation_status)
+        print(f"Error: profile.md 生成に失敗しました: {generation_status}", file=sys.stderr)
+        sys.exit(1)
+    if profile_meta:
+        logger.write("[profile] generated via", engine=profile_meta.get("engine", selected_engine or ""))
+        logger.write(
+            "[profile] validation",
+            status="pass" if profile_meta.get("validation_pass", True) else "failed",
+            retry_count=profile_meta.get("retry_count", 0),
+            sections_count=profile_meta.get("sections_count", 0),
+        )
     logger.section("Validator")
-    documents, validator_result = validate_apply_newgame_documents(documents, answers, requested_engine, logger)
+    try:
+        documents, validator_result = validate_apply_newgame_documents(documents, answers, requested_engine, logger)
+    except Exception as exc:
+        if exc.__class__.__name__ == "ProfileGenerationError":
+            logger.write("[profile] validation", status="failed", error=str(exc))
+            print(f"Error: profile.md 生成に失敗しました: {exc}", file=sys.stderr)
+            sys.exit(1)
+        raise
+    try:
+        from tools.character.profile_validator import validate_profile_output
+
+        profile_valid, profile_errors = validate_profile_output(
+            documents.get("lilia/main/profile.md", ""),
+            answers,
+            character_data or {},
+        )
+    except Exception as exc:
+        profile_valid = False
+        profile_errors = [f"profile validator failed: {exc}"]
+    if not profile_valid:
+        logger.write("[profile] validation", status="failed", error="; ".join(profile_errors[:5]))
+        print(f"Error: profile.md 生成に失敗しました: {'; '.join(profile_errors[:5])}", file=sys.stderr)
+        sys.exit(1)
     logger.section("Fallback Triggered")
     logger.write(
         "fallback_summary",
@@ -4078,16 +3751,10 @@ def command_apply_newgame(args: list[str]) -> None:
     logger.write("end", status="success")
 
     print(f"session: {session_path.relative_to(ROOT)}")
-    if selected_engine:
-        engine_note = "auto-selected" if requested_engine == "auto" else "requested"
-        print(f"engine: {selected_engine} ({engine_note})")
-        print(f"character.yaml: {generation_status}")
-        print("profile.md: generated from character.yaml")
-    else:
-        print(f"engine: {requested_engine} (fallback)")
-        print(f"character.yaml: {generation_status}, using fallback")
-        print("profile.md: generated by fallback (many unconfirmed fields)")
-        print("warning: profile.md has many unconfirmed fields. Re-run with a working LLM CLI for higher quality.")
+    engine_note = "auto-selected" if requested_engine == "auto" else "requested"
+    print(f"engine: {selected_engine} ({engine_note})")
+    print(f"character.yaml: {generation_status}")
+    print("profile.md: generated by AI from character.yaml")
     print(f"applied: {answers_path}")
     print("phase: first_scene_ready")
     if validator_result.get("warning"):
