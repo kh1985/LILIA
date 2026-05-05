@@ -1664,6 +1664,21 @@ def render_hotset_update(timestamp: str, body: str) -> str:
     )
 
 
+def print_voice_continuity_report(session_path: Path) -> None:
+    from tools.session.voice_continuity_validator import validate_voice_continuity
+
+    errors = validate_voice_continuity(session_path)
+    warnings_only = [error for error in errors if error.startswith("voice_continuity: warning:")]
+    hard_errors = [error for error in errors if not error.startswith("voice_continuity: warning:")]
+
+    for warning in warnings_only:
+        print(warning)
+
+    if hard_errors:
+        for error in hard_errors:
+            print(error)
+
+
 def profile_sections(profile: str) -> dict[str, str]:
     sections: dict[str, list[str]] = {}
     current: Optional[str] = None
@@ -2760,6 +2775,7 @@ def command_resume(args: list[str]) -> None:
     if len(args) > 1:
         die("resume accepts at most one session_name")
     session_path = resolve_session(args[0] if args else None)
+    print_voice_continuity_report(session_path)
     if run:
         run_engine(engine, session_path, build_resume_prompt_bundle(session_path))
     else:
@@ -3344,6 +3360,8 @@ def command_apply_turn(args: list[str]) -> None:
         mark_updated("session.json")
     logger.section("Updates")
     logger.write("write_complete", dry_run=dry_run, updated=updated, skipped=skipped)
+    if not dry_run:
+        print_voice_continuity_report(session_path)
     logger.section("apply-turn END")
     logger.write("end", status="dry_run" if dry_run else "success")
 
