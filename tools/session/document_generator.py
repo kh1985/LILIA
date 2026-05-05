@@ -55,6 +55,14 @@ def generate_session_documents(
     **kwargs: Any,
 ) -> dict:
     """Generate validated downstream session markdown files."""
+    logger = kwargs.get("logger")
+    _write_log(
+        logger,
+        "[downstream_docs] generate_session_documents enter",
+        engine=engine,
+        session_name=kwargs.get("session_name") or "",
+        answer_count=len(answers) if isinstance(answers, dict) else "invalid",
+    )
 
     if not isinstance(answers, dict):
         raise DocumentGenerationError("answers must be a dict")
@@ -81,6 +89,7 @@ def generate_session_documents(
     documents: dict[str, str] = {}
     group_meta: dict[str, dict[str, Any]] = {}
 
+    _write_log(logger, "[downstream_docs] group_a start", paths=GROUP_A_PATHS)
     group_a = _generate_group(
         group_name="group_a",
         rel_paths=GROUP_A_PATHS,
@@ -89,10 +98,13 @@ def generate_session_documents(
         story_spine_md=story_spine_md,
         engine=engine,
         context=context,
+        logger=logger,
     )
     documents.update(group_a["documents"])
     group_meta["group_a"] = group_a["meta"]
+    _write_log(logger, "[downstream_docs] group_a complete", files=list(group_a["documents"]))
 
+    _write_log(logger, "[downstream_docs] group_b start", paths=GROUP_B_PATHS)
     group_b = _generate_group(
         group_name="group_b",
         rel_paths=GROUP_B_PATHS,
@@ -101,10 +113,13 @@ def generate_session_documents(
         story_spine_md=story_spine_md,
         engine=engine,
         context=context,
+        logger=logger,
     )
     documents.update(group_b["documents"])
     group_meta["group_b"] = group_b["meta"]
+    _write_log(logger, "[downstream_docs] group_b complete", files=list(group_b["documents"]))
 
+    _write_log(logger, "[downstream_docs] group_c start", paths=GROUP_C_PATHS)
     group_c = _generate_group(
         group_name="group_c",
         rel_paths=GROUP_C_PATHS,
@@ -113,10 +128,13 @@ def generate_session_documents(
         story_spine_md=story_spine_md,
         engine=engine,
         context=context,
+        logger=logger,
     )
     documents.update(group_c["documents"])
     group_meta["group_c"] = group_c["meta"]
+    _write_log(logger, "[downstream_docs] group_c complete", files=list(group_c["documents"]))
 
+    _write_log(logger, "[downstream_docs] combined validation start", files=list(documents))
     valid, errors = validate_session_documents(
         documents,
         answers,
@@ -124,7 +142,9 @@ def generate_session_documents(
         expected_paths=ALL_PATHS,
     )
     if not valid:
+        _write_log(logger, "[downstream_docs] combined validation failed", error="; ".join(errors[:8]))
         raise DocumentGenerationError("combined downstream validation failed: " + "; ".join(errors[:8]))
+    _write_log(logger, "[downstream_docs] combined validation pass")
 
     engine_used = next((meta.get("engine_used") for meta in group_meta.values() if meta.get("engine_used")), engine)
     retry_count = sum(int(meta.get("validation_retry_count", 0)) for meta in group_meta.values())
@@ -211,10 +231,19 @@ def _generate_group(
     story_spine_md: str,
     engine: str,
     context: dict[str, Any] | None = None,
+    logger: Any = None,
 ) -> dict[str, Any]:
     candidates = _engine_candidates(engine)
     previous_error = ""
     cli_failures: list[str] = []
+    _write_log(
+        logger,
+        "[downstream_docs] group enter",
+        group=group_name,
+        paths=rel_paths,
+        candidates=candidates,
+        prompt_chars=len(prompt),
+    )
 
     for attempt_index in range(MAX_ATTEMPTS):
         attempt_prompt = prompt
@@ -229,13 +258,38 @@ def _generate_group(
 """
         raw_output = ""
         engine_used = ""
+        _write_log(logger, "[downstream_docs] group attempt start", group=group_name, attempt=attempt_index + 1)
         for candidate in candidates:
             try:
+                _write_log(
+                    logger,
+                    "[downstream_docs] llm call start",
+                    group=group_name,
+                    attempt=attempt_index + 1,
+                    engine=candidate,
+                    prompt_chars=len(attempt_prompt),
+                )
                 raw_output = _run_engine(candidate, attempt_prompt)
                 engine_used = candidate
+                _write_log(
+                    logger,
+                    "[downstream_docs] llm call complete",
+                    group=group_name,
+                    attempt=attempt_index + 1,
+                    engine=candidate,
+                    output_chars=len(raw_output),
+                )
                 break
             except DocumentGenerationError as exc:
                 cli_failures.append(f"{candidate}: {exc}")
+                _write_log(
+                    logger,
+                    "[downstream_docs] llm call failed",
+                    group=group_name,
+                    attempt=attempt_index + 1,
+                    engine=candidate,
+                    error=str(exc),
+                )
                 if engine != "auto":
                     raise
         if not raw_output or not engine_used:
@@ -244,6 +298,13 @@ def _generate_group(
 
         try:
             parsed = _parse_file_blocks(raw_output, rel_paths)
+            _write_log(
+                logger,
+                "[downstream_docs] parse complete",
+                group=group_name,
+                attempt=attempt_index + 1,
+                files=list(parsed),
+            )
             if group_name == "group_c" and context is not None:
                 parsed["current/protagonist.md"] = _normalize_protagonist_document(
                     parsed["current/protagonist.md"],
@@ -262,6 +323,12 @@ def _generate_group(
             )
             if not valid:
                 raise DocumentGenerationError("; ".join(errors[:8]))
+            _write_log(
+                logger,
+                "[downstream_docs] group validation pass",
+                group=group_name,
+                attempt=attempt_index + 1,
+            )
             return {
                 "documents": parsed,
                 "meta": {
@@ -272,10 +339,26 @@ def _generate_group(
             }
         except DocumentGenerationError as exc:
             previous_error = str(exc)
+            _write_log(
+                logger,
+                "[downstream_docs] group validation failed",
+                group=group_name,
+                attempt=attempt_index + 1,
+                error=previous_error,
+            )
 
     raise DocumentGenerationError(
         f"{group_name}: generation failed after 3 attempts: {previous_error or 'unknown validation error'}"
     )
+
+
+def _write_log(logger: Any, event: str, **fields: object) -> None:
+    if logger is None or not hasattr(logger, "write"):
+        return
+    try:
+        logger.write(event, **fields)
+    except Exception:
+        return
 
 
 def _engine_candidates(engine: str) -> list[str]:

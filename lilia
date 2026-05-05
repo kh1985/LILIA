@@ -2139,6 +2139,7 @@ def generate_downstream_session_documents(
         engine=engine,
         lilia_name=lilia_name,
         session_name=session_name,
+        logger=globals().get("_CURRENT_OPERATION_LOGGER"),
     )
     if isinstance(result, dict) and "documents" in result and isinstance(result["documents"], dict):
         raw_documents = result["documents"]
@@ -3037,6 +3038,7 @@ def command_apply_newgame(args: list[str]) -> None:
 
     session_path = resolve_session(args[0])
     logger = OperationLogger("apply_newgame", session_path.name)
+    globals()["_CURRENT_OPERATION_LOGGER"] = logger
     logger.section("apply-newgame START")
     logger.write("start_context", session_id=session_path.name, timestamp=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"))
     answers_path = Path(args[1]).expanduser()
@@ -3148,6 +3150,15 @@ def command_apply_newgame(args: list[str]) -> None:
 
     logger.section("Session Documents")
     try:
+        logger.write(
+            "[downstream_docs] wrapper enter",
+            engine=requested_engine,
+            lilia_name=profile_name,
+            session_name=session_path.name,
+            profile_chars=len(documents["lilia/main/profile.md"]),
+            story_spine_chars=len(documents["current/story_spine.md"]),
+            relationship_spine_chars=len(documents["story/relationship_spine.md"]),
+        )
         downstream_result = generate_downstream_session_documents(
             answers=answers,
             profile_md=documents["lilia/main/profile.md"],
