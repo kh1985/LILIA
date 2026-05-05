@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import re
-import subprocess
 from typing import Any
+
+from tools.common.engine_runner import (
+    EngineRunnerError,
+    EngineTimeoutError,
+    engine_candidates,
+    engine_timeout_seconds,
+    run_engine,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_ATTEMPTS = 3
-ENGINE_TIMEOUT_SECONDS = 300
 
 
 class ProfileGenerationError(RuntimeError):
@@ -32,7 +37,9 @@ def generate_profile_document(answers: dict, character_yaml: dict, engine: str) 
     if not isinstance(character_yaml, dict):
         raise ProfileGenerationError("character_yaml must be a dict")
 
-    candidates = _engine_candidates(engine)
+    candidates = engine_candidates(engine)
+    if not candidates:
+        raise ProfileGenerationError("no available engine CLI was found")
     previous_error = ""
     cli_failures: list[str] = []
 
@@ -46,15 +53,20 @@ def generate_profile_document(answers: dict, character_yaml: dict, engine: str) 
 
         raw_output = ""
         engine_used = ""
-        for candidate_engine in candidates:
+        for candidate_engine in _attempt_engine_order(candidates, attempt_index):
             try:
-                raw_output = _run_engine(candidate_engine, prompt)
+                raw_output = run_engine(
+                    candidate_engine,
+                    prompt,
+                    timeout=engine_timeout_seconds(),
+                    root=ROOT,
+                )
                 engine_used = candidate_engine
                 break
-            except ProfileGenerationError as exc:
+            except EngineRunnerError as exc:
                 cli_failures.append(f"{candidate_engine}: {exc}")
                 if engine != "auto":
-                    raise
+                    raise ProfileGenerationError(str(exc)) from exc
         if not raw_output or not engine_used:
             detail = "; ".join(cli_failures[-4:]) or "no engine produced output"
             raise ProfileGenerationError(f"profile generation could not start: {detail}")
@@ -76,58 +88,10 @@ def generate_profile_document(answers: dict, character_yaml: dict, engine: str) 
     )
 
 
-def _engine_candidates(engine: str) -> list[str]:
-    if engine not in {"codex", "claude", "auto"}:
-        raise ProfileGenerationError("engine must be one of: codex, claude, auto")
-    if engine == "auto":
-        return ["codex", "claude"]
-    return [engine]
-
-
-def _build_engine_command(engine: str, prompt: str) -> tuple[list[str], str | None]:
-    if engine == "claude":
-        return ["claude", "-p", prompt], None
-    if engine == "codex":
-        return [
-            "codex",
-            "exec",
-            "--cd",
-            str(ROOT),
-            "--sandbox",
-            "read-only",
-            "--color",
-            "never",
-            "-",
-        ], prompt
-    raise ProfileGenerationError(f"unsupported engine: {engine}")
-
-
-def _run_engine(engine: str, prompt: str) -> str:
-    command, stdin_text = _build_engine_command(engine, prompt)
-    env = os.environ.copy()
-
-    try:
-        result = subprocess.run(
-            command,
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            timeout=ENGINE_TIMEOUT_SECONDS,
-            env=env,
-        )
-    except FileNotFoundError as exc:
-        raise ProfileGenerationError(f"{engine} command was not found") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise ProfileGenerationError(
-            f"{engine} generation timed out after {ENGINE_TIMEOUT_SECONDS} seconds"
-        ) from exc
-
-    if result.returncode != 0:
-        stderr = result.stderr.strip() or "(no stderr)"
-        raise ProfileGenerationError(f"{engine} CLI failed: {stderr}")
-    if not result.stdout.strip():
-        raise ProfileGenerationError(f"{engine} CLI returned empty output")
-    return result.stdout
+def _attempt_engine_order(candidates: list[str], attempt_index: int) -> list[str]:
+    if attempt_index < 2 or len(candidates) == 1:
+        return candidates[:1]
+    return candidates[1:]
 
 
 def _build_generation_prompt(

@@ -8,10 +8,8 @@ routes; generated YAML must be converted to lilia/main/profile.md before use.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import re
-import subprocess
 import tempfile
 from typing import Any
 
@@ -36,8 +34,17 @@ except ModuleNotFoundError as exc:  # pragma: no cover - depends on local enviro
 
     SIMPLE_YAML_LOADER = load_simple_character_yaml
 
+from tools.common.engine_runner import (
+    EngineRunnerError,
+    EngineTimeoutError,
+    engine_candidates,
+    engine_timeout_seconds,
+    run_engine,
+)
+
 
 ROOT = Path(__file__).resolve().parents[3]
+MAX_ATTEMPTS = 3
 
 
 MASTER_SYSTEM_PROMPT = """あなたはLILIA用のPersona Profile素材を作るキャラクター設計補助です。
@@ -99,50 +106,62 @@ context:
 """
 
 
-def build_engine_command(engine: str, prompt: str) -> tuple[list[str], str | None]:
-    if engine == "claude":
-        return ["claude", "-p", prompt], None
-    if engine == "codex":
-        return [
-            "codex",
-            "exec",
-            "--cd",
-            str(ROOT),
-            "--sandbox",
-            "read-only",
-            "--color",
-            "never",
-            "-",
-        ], prompt
-    raise ValueError(f"unsupported engine: {engine}")
+class CharacterGenerationError(RuntimeError):
+    """Raised when character YAML generation fails."""
 
 
 def generate_characters(instruction: str, engine: str = "claude") -> list[CharacterSheet]:
-    full_prompt = f"{MASTER_SYSTEM_PROMPT}\n\n---\n\n{instruction.strip()}"
-    env = os.environ.copy()
-    command, stdin_text = build_engine_command(engine, full_prompt)
-
-    try:
-        result = subprocess.run(
-            command,
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=env,
-        )
-    except FileNotFoundError as exc:
-        raise RuntimeError(
-            f"{engine} command was not found. Install/login to the requested LLM CLI, "
+    candidates = engine_candidates(engine)
+    if not candidates:
+        raise CharacterGenerationError(
+            "no available LLM CLI was found. Install/login to claude or codex, "
             "or use the fallback instruction in prompt/newgame.md to generate the same schema manually."
-        ) from exc
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError("character YAML generation timed out after 120 seconds") from exc
+        )
 
-    if result.returncode != 0:
-        raise RuntimeError(f"{engine} CLI failed:\n{result.stderr.strip()}")
+    previous_error = ""
+    failures: list[str] = []
+    for attempt_index in range(MAX_ATTEMPTS):
+        full_prompt = f"{MASTER_SYSTEM_PROMPT}\n\n---\n\n{instruction.strip()}"
+        if previous_error:
+            full_prompt += f"""
 
-    raw_dicts = parse_yaml_blocks(result.stdout)
+## 前回の失敗
+
+以下を直して、必ず1つだけ yaml ブロックを再出力してください。
+
+{previous_error}
+"""
+
+        for candidate in _attempt_engine_order(candidates, attempt_index):
+            try:
+                raw_output = run_engine(
+                    candidate,
+                    full_prompt,
+                    timeout=engine_timeout_seconds(),
+                    root=ROOT,
+                )
+                return _parse_characters(raw_output, candidate)
+            except EngineRunnerError as exc:
+                previous_error = str(exc)
+                failures.append(f"{candidate}: {exc}")
+                if engine != "auto":
+                    raise CharacterGenerationError(str(exc)) from exc
+            except (ValueError, ValidationError) as exc:
+                previous_error = str(exc)
+                failures.append(f"{candidate}: {exc}")
+
+    detail = "; ".join(failures[-4:]) or previous_error or "unknown generation error"
+    raise CharacterGenerationError("character YAML generation failed after 3 attempts: " + detail)
+
+
+def _attempt_engine_order(candidates: list[str], attempt_index: int) -> list[str]:
+    if attempt_index < 2 or len(candidates) == 1:
+        return candidates[:1]
+    return candidates[1:]
+
+
+def _parse_characters(raw_output: str, engine: str) -> list[CharacterSheet]:
+    raw_dicts = parse_yaml_blocks(raw_output)
     if not raw_dicts:
         raise ValueError(f"no YAML block with a character name was found in {engine} output")
 

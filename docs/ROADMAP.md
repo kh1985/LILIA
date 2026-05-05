@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md` を正本にする。
 
 ## 1. Goal
 
@@ -56,12 +56,13 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 12.2（AI-driven Downstream Session Documents）: 実装済み。apply-newgame は spines 生成後に `tools/session/document_generator.py` を呼び、13 downstream files をAI生成する。`tools/session/document_validator.py` がテンプレ見出し、文崩壊、テンプレ表現、重複、Q丸写し、GM only漏洩、knowledge_state YAMLを検証する。
 - Wave 13（Voice Continuity Gate Validator）: 実装済み。`tools/session/voice_continuity_validator.py` を追加し、resume 入口と apply-turn 書き込み完了後に呼び出す。第 1 版は soft fail。pytest 3 件全 pass。session_002b 単独実行で error 0。
 - Wave 14（Event Card Playability Gate Validator）: 実装済み。`tools/session/document_validator.py` に `_check_event_card_playability` を追加。pytest 4 件追加で全 pass。session_002b 単独実行で error 0。
+- Wave 15（Engine Runner Refactor）: docs正本化。`docs/ENGINE_RUNNER.md` を追加し、LLM CLI runnerの責務、engine選択、timeout、generator境界、Play Mode境界を固定した。理由: character / profile / spine / downstream docs のAI CLI呼び出しが分散しているため、Player Action Prompt改修前に実行境界を揃える。
 - 文豪シーン (literary scene situations): `style/defaults/scene_situations.md` を新規追加し、`prompt/core.md` から参照する形で接続済み。荷風 / 谷崎 / 川端 / 堀 / 鏡花 / 中島 / 賢治 + 路地裏 / 季節時間境界の 9 シチュエーション。Intimacy Stage との対応表あり。
 - Emotional Design Principles (8 原則): `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本として新規追加。`prompt/core.md` および `tools/character/profile_generator.py` / `tools/session/document_generator.py` / `tools/story/spine_generator.py` の生成 prompt に参照済み。
 - Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。0-5 数値運用ロジックは未確定として `docs/ROMANCE_INTIMACY_GROWTH.md` に記録。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) は実装済み。次は Wave 15 (GM 応答末尾の「→ どうする？」prompt 改修)。
+- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) は実装済み。Wave 15 で Engine Runner Refactor を先に挟み、次は Wave 16 (GM 応答末尾の「→ どうする？」prompt 改修)。
 
 ### Wave 4: Reference Libraries [完了]
 
@@ -187,9 +188,21 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - session_002b に対する単独実行で error 0 を確認。
 - 本 Wave では `Crisis / Ability Check`, `Intimacy / Boundary Check`, `Truth Hiding Boundary` のサブ項目は検査対象外。それぞれ専用 Wave で別途扱う。
 
+## Wave 15: Engine Runner Refactor [完了]
+
+- `docs/ENGINE_RUNNER.md` を追加し、LLM CLI runnerの責務を正本化する。
+- runner は `codex` / `claude` の選択、fallback、timeout、stdout取得、process終了だけを担当する。
+- character YAML、profile、story spine、downstream docs の parse / validation / retry / hard-fail は各 generator に残す。
+- `auto` の既定優先、`LILIA_DEFAULT_ENGINE`、`LILIA_ENGINE_TIMEOUT_SECONDS` の扱いを最小仕様として固定する。
+- `tools/common/engine_runner.py` を追加し、各 generator と launcher の CLI 実行を共通化した。
+- `apply-newgame` は `apply_newgame_phase` による checkpoint resume と `--force` 再生成に対応した。
+- downstream docs の group A / B / C は `ThreadPoolExecutor(max_workers=3)` で並列生成する。
+- Play Mode中の通常応答、AI Harness、自動プレイ、大量ログ解析、bench は対象外。
+- 理由: AI生成経路のCLI呼び出しが複数箇所に分散しているため、次のprompt改修前に実行境界を小さく揃える。
+
 ## 候補（優先度順、確定）
 
-- Wave 15: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
+- Wave 16: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
 
 ## 候補（中期、優先度順、未確定）
 
@@ -397,7 +410,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 5. Next Task
 
-次の実作業は Wave 15: GM 応答末尾の「→ どうする？」prompt 改修。`prompt/core.md` または `prompt/save_resume.md` に、ターン末尾でユーザーに行動余地を一行示す指示を追加する。選択肢を 3 つ並べる UI は本 Wave では実装せず、別 Wave で扱う。
+次の実作業は Wave 16: GM 応答末尾の「→ どうする？」prompt 改修。`prompt/core.md` または `prompt/save_resume.md` に、ターン末尾でユーザーに行動余地を一行示す指示を追加する。選択肢を 3 つ並べる UI は本 Wave では実装せず、別 Wave で扱う。
 
 完了済みの確認:
 - Wave 12.1 / 12.2 の AI driven generation は session_002b で品質確認済み。

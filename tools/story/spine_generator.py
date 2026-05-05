@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import re
-import subprocess
 from typing import Any
+
+from tools.common.engine_runner import (
+    EngineRunnerError,
+    EngineTimeoutError,
+    engine_candidates,
+    engine_timeout_seconds,
+    run_engine,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -26,7 +32,9 @@ def generate_story_and_relationship_spine(answers: dict, character_yaml: dict, e
     if not isinstance(character_yaml, dict):
         raise SpineGenerationError("character_yaml must be a dict")
 
-    candidates = _engine_candidates(engine)
+    candidates = engine_candidates(engine)
+    if not candidates:
+        raise SpineGenerationError("no available engine CLI was found")
     references = _load_sanitized_references()
     previous_error = ""
     q1_text = _answer_text(answers, 1)
@@ -43,15 +51,20 @@ def generate_story_and_relationship_spine(answers: dict, character_yaml: dict, e
 
         raw_output = ""
         engine_used = ""
-        for candidate_engine in candidates:
+        for candidate_engine in _attempt_engine_order(candidates, attempt_index):
             try:
-                raw_output = _run_engine(candidate_engine, prompt)
+                raw_output = run_engine(
+                    candidate_engine,
+                    prompt,
+                    timeout=engine_timeout_seconds(),
+                    root=ROOT,
+                )
                 engine_used = candidate_engine
                 break
-            except SpineGenerationError as exc:
+            except EngineRunnerError as exc:
                 cli_failures.append(f"{candidate_engine}: {exc}")
                 if engine != "auto":
-                    raise
+                    raise SpineGenerationError(str(exc)) from exc
         if not raw_output or not engine_used:
             detail = "; ".join(cli_failures[-4:]) or "no engine produced output"
             raise SpineGenerationError(f"story spine generation could not start: {detail}")
@@ -71,12 +84,10 @@ def generate_story_and_relationship_spine(answers: dict, character_yaml: dict, e
     )
 
 
-def _engine_candidates(engine: str) -> list[str]:
-    if engine not in {"codex", "claude", "auto"}:
-        raise SpineGenerationError("engine must be one of: codex, claude, auto")
-    if engine == "auto":
-        return ["codex", "claude"]
-    return [engine]
+def _attempt_engine_order(candidates: list[str], attempt_index: int) -> list[str]:
+    if attempt_index < 2 or len(candidates) == 1:
+        return candidates[:1]
+    return candidates[1:]
 
 
 def _answer_text(answers: dict, number: int) -> str:
@@ -98,50 +109,6 @@ def _answer_text(answers: dict, number: int) -> str:
         if key_text == number_text or key_text.startswith(f"q{number}") or f"q{number}" in key_text:
             return str(value)
     return ""
-
-
-def _build_engine_command(engine: str, prompt: str) -> tuple[list[str], str | None]:
-    if engine == "claude":
-        return ["claude", "-p", prompt], None
-    if engine == "codex":
-        return [
-            "codex",
-            "exec",
-            "--cd",
-            str(ROOT),
-            "--sandbox",
-            "read-only",
-            "--color",
-            "never",
-            "-",
-        ], prompt
-    raise SpineGenerationError(f"unsupported engine: {engine}")
-
-
-def _run_engine(engine: str, prompt: str) -> str:
-    command, stdin_text = _build_engine_command(engine, prompt)
-    env = os.environ.copy()
-
-    try:
-        result = subprocess.run(
-            command,
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=env,
-        )
-    except FileNotFoundError as exc:
-        raise SpineGenerationError(f"{engine} command was not found") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise SpineGenerationError(f"{engine} generation timed out after 120 seconds") from exc
-
-    if result.returncode != 0:
-        stderr = result.stderr.strip() or "(no stderr)"
-        raise SpineGenerationError(f"{engine} CLI failed: {stderr}")
-    if not result.stdout.strip():
-        raise SpineGenerationError(f"{engine} CLI returned empty output")
-    return result.stdout
 
 
 def _load_sanitized_references() -> dict[str, str]:

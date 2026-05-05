@@ -12,6 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from tools.common.engine_runner import (
+    EngineRunnerError,
+    engine_timeout_seconds,
+    resolve_engine,
+    run_engine as run_engine_cli,
+)
+
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE_DIR = ROOT / "templates" / "session"
@@ -69,6 +76,16 @@ DOWNSTREAM_SESSION_DOCUMENT_FILES = [
     "lilia/main/memory.md",
     "lilia/main/beliefs.md",
     "story/story_deck.md",
+]
+
+APPLY_NEWGAME_GENERATED_FILES = [
+    "lilia/main/character.yaml",
+    "lilia/main/profile.md",
+    "current/story_spine.md",
+    "story/relationship_spine.md",
+    *DOWNSTREAM_SESSION_DOCUMENT_FILES,
+    "style/reference.md",
+    "style/rules.md",
 ]
 
 AUTOSAVE_DEFAULTS = {
@@ -210,6 +227,30 @@ def write_session_json(path: Path, data: dict) -> None:
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def update_apply_newgame_phase(session_path: Path, phase: str) -> dict:
+    data = read_session_json(session_path)
+    data["apply_newgame_phase"] = phase
+    write_session_json(session_path, data)
+    return data
+
+
+def read_required_session_file(session_path: Path, rel_path: str) -> str:
+    path = session_path / rel_path
+    if not path.exists():
+        die(f"checkpoint is missing required file: {rel_path}")
+    content = path.read_text(encoding="utf-8")
+    if not content.strip():
+        die(f"checkpoint file is empty: {rel_path}")
+    return content
+
+
+def remove_apply_newgame_outputs(session_path: Path) -> None:
+    for rel_path in APPLY_NEWGAME_GENERATED_FILES:
+        path = session_path / rel_path
+        if path.exists():
+            path.unlink()
 
 
 def log_timestamp() -> str:
@@ -1554,7 +1595,7 @@ def validator_reinfer_documents(
     requested_engine: str,
     logger: Optional[OperationLogger] = None,
 ) -> tuple[Optional[dict[str, str]], Optional[str], str]:
-    engine = choose_engine(requested_engine)
+    engine = resolve_engine(requested_engine)
     if engine is None:
         if logger is not None:
             logger.write("validator_reinfer_unavailable", requested_engine=requested_engine)
@@ -2590,18 +2631,6 @@ def build_codex_resume_prompt_bundle(session_path: Path) -> str:
     )
 
 
-def choose_engine(requested: str) -> Optional[str]:
-    if requested == "auto":
-        if shutil.which("codex"):
-            return "codex"
-        if shutil.which("claude"):
-            return "claude"
-        return None
-    if shutil.which(requested):
-        return requested
-    return None
-
-
 def codex_interactive_command(instruction: Optional[str] = None) -> list[str]:
     command = [
         "codex",
@@ -2699,26 +2728,8 @@ def maybe_launch_codex_interactive(prompt_path: Path, mode: str, session_path: P
         print_codex_interactive_fallback(instruction)
 
 
-def engine_command(engine: str) -> list[str]:
-    if engine == "codex":
-        return [
-            "codex",
-            "exec",
-            "--cd",
-            str(ROOT),
-            "--sandbox",
-            "read-only",
-            "--color",
-            "never",
-            "-",
-        ]
-    if engine == "claude":
-        return ["claude", "-p", "--permission-mode", "dontAsk"]
-    die(f"unsupported engine: {engine}")
-
-
 def run_engine(requested_engine: str, session_path: Path, bundle: str) -> None:
-    engine = choose_engine(requested_engine)
+    engine = resolve_engine(requested_engine)
     if engine is None:
         die(
             "no AI CLI found for --run. Install codex or claude, or use "
@@ -2730,28 +2741,11 @@ def run_engine(requested_engine: str, session_path: Path, bundle: str) -> None:
     print("mode: run", flush=True)
     if engine == "codex":
         print("note: codex engine uses one-shot 'codex exec'; use codex-new/codex-resume for interactive play.", flush=True)
-    print("note: prompt bundle is written to a temporary file and removed after the engine exits.", flush=True)
-
-    temp_path: Optional[Path] = None
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            prefix=f"lilia_{session_path.name}_",
-            suffix=".prompt.md",
-            delete=False,
-        ) as temp_file:
-            temp_file.write(bundle)
-            temp_path = Path(temp_file.name)
-
-        print(f"prompt bundle: {temp_path}", flush=True)
-        with temp_path.open("r", encoding="utf-8") as prompt_file:
-            result = subprocess.run(engine_command(engine), stdin=prompt_file, cwd=ROOT)
-        if result.returncode != 0:
-            die(f"{engine} exited with status {result.returncode}", result.returncode)
-    finally:
-        if temp_path and temp_path.exists():
-            temp_path.unlink()
+        output = run_engine_cli(engine, bundle, timeout=engine_timeout_seconds(), root=ROOT)
+    except EngineRunnerError as exc:
+        die(f"{engine} failed: {exc}")
+    print(output, flush=True)
 
 
 def command_new(args: list[str]) -> None:
@@ -2846,8 +2840,9 @@ def command_prompt_only(args: list[str]) -> None:
         die("prompt-only accepts 'new' or 'resume'")
 
 
-def parse_apply_newgame_options(args: list[str]) -> tuple[list[str], str]:
+def parse_apply_newgame_options(args: list[str]) -> tuple[list[str], str, bool]:
     engine = "auto"
+    force = False
     remaining: list[str] = []
     index = 0
     while index < len(args):
@@ -2863,10 +2858,12 @@ def parse_apply_newgame_options(args: list[str]) -> tuple[list[str], str]:
             engine = arg.split("=", 1)[1]
             if engine not in {"codex", "claude", "auto"}:
                 die("--engine must be codex, claude, or auto")
+        elif arg == "--force":
+            force = True
         else:
             remaining.append(arg)
         index += 1
-    return remaining, engine
+    return remaining, engine, force
 
 
 def render_style_documents(answers: dict[int | str, str]) -> dict[str, str]:
@@ -2978,14 +2975,26 @@ def render_documents_from_character_yaml(
     answers: dict[int | str, str],
     engine: str,
 ) -> tuple[dict[str, str], dict[str, object]]:
+    if not hasattr(character, "model_dump"):
+        raise TypeError("character object must provide model_dump()")
+    character_data = character.model_dump(exclude_none=True)
+    profile, profile_meta = generate_profile_from_character_data(answers, character_data, engine)
+    documents = {
+        "lilia/main/character.yaml": dump_character_yaml(character_data),
+        "lilia/main/profile.md": profile,
+    }
+    return documents, profile_meta
+
+
+def generate_profile_from_character_data(
+    answers: dict[int | str, str],
+    character_data: dict[str, object],
+    engine: str,
+) -> tuple[str, dict[str, object]]:
     try:
         from tools.character.profile_generator import ProfileGenerationError, generate_profile_document
     except Exception as exc:  # pragma: no cover - depends on local environment
         raise RuntimeError(f"failed to import AI profile generator: {exc}") from exc
-
-    if not hasattr(character, "model_dump"):
-        raise TypeError("character object must provide model_dump()")
-    character_data = character.model_dump(exclude_none=True)
 
     try:
         profile_result = generate_profile_document(
@@ -3007,10 +3016,6 @@ def render_documents_from_character_yaml(
     profile_name = clean_lilia_name(str(character_data.get("name") or "")) or extract_profile_name(profile)
     if profile_name:
         profile = replace_profile_name(profile, profile_name)
-    documents = {
-        "lilia/main/character.yaml": dump_character_yaml(character_data),
-        "lilia/main/profile.md": profile,
-    }
     profile_meta = {
         "engine": result_value(profile_result, "engine_used", engine),
         "validation_pass": validation_pass,
@@ -3021,14 +3026,53 @@ def render_documents_from_character_yaml(
         ),
         "sections_count": result_value(profile_result, "sections_count", profile_sections_count(profile)),
     }
-    return documents, profile_meta
+    return profile, profile_meta
+
+
+def load_character_yaml_document(text: str) -> dict[str, object]:
+    try:
+        import yaml
+
+        parsed = yaml.safe_load(text)
+    except ModuleNotFoundError:
+        from tools.character.core.simple_schema import load_simple_character_yaml
+
+        temp_path: Optional[Path] = None
+        try:
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".yaml", delete=False) as temp_file:
+                temp_file.write(text)
+                temp_path = Path(temp_file.name)
+            character = load_simple_character_yaml(temp_path)
+            parsed = character.model_dump(exclude_none=True)
+        finally:
+            if temp_path and temp_path.exists():
+                temp_path.unlink()
+    if not isinstance(parsed, dict):
+        raise RuntimeError("character.yaml did not contain a mapping")
+    return parsed
+
+
+def generate_character_yaml_data(
+    answers: dict[int | str, str],
+    requested_engine: str,
+) -> tuple[dict[str, object], str, str]:
+    instruction = build_character_instruction_from_answers(answers)
+    try:
+        from tools.character.core.master import generate_character
+
+        character = generate_character(instruction, engine=requested_engine)
+        character_data = character.model_dump(exclude_none=True)
+    except Exception as exc:
+        raise RuntimeError(f"character YAML generation failed: {exc}") from exc
+    engine_label = resolve_engine(requested_engine) or requested_engine
+    return character_data, engine_label, f"generated via {engine_label}"
 
 
 def generate_character_documents(
     answers: dict[int | str, str],
     requested_engine: str,
 ) -> tuple[dict[str, str], Optional[str], str, Optional[dict[str, object]], dict[str, object]]:
-    engine = choose_engine(requested_engine)
+    engine = resolve_engine(requested_engine)
     if engine is None:
         return {}, None, f"{requested_engine} engine unavailable", None, {}
 
@@ -3048,53 +3092,93 @@ def generate_character_documents(
 
 
 def command_apply_newgame(args: list[str]) -> None:
-    args, requested_engine = parse_apply_newgame_options(args)
+    args, requested_engine, force = parse_apply_newgame_options(args)
     if len(args) != 2:
-        die("apply-newgame requires <session_name> <answers.md> [--engine codex|claude|auto]")
+        die("apply-newgame requires <session_name> <answers.md> [--engine codex|claude|auto] [--force]")
 
     session_path = resolve_session(args[0])
     logger = OperationLogger("apply_newgame", session_path.name)
     globals()["_CURRENT_OPERATION_LOGGER"] = logger
     logger.section("apply-newgame START")
-    logger.write("start_context", session_id=session_path.name, timestamp=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"))
+    logger.write(
+        "start_context",
+        session_id=session_path.name,
+        timestamp=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        force=force,
+    )
     answers_path = Path(args[1]).expanduser()
     logger.write("inputs", answers_path=answers_path, requested_engine=requested_engine)
     answers = parse_newgame_answers(answers_path)
+    data = read_session_json(session_path)
+    phase = str(data.get("apply_newgame_phase") or "pending")
+    if force:
+        remove_apply_newgame_outputs(session_path)
+        data["apply_newgame_phase"] = "pending"
+        write_session_json(session_path, data)
+        phase = "pending"
+        logger.write("force_reset", removed_files=APPLY_NEWGAME_GENERATED_FILES)
+    if phase in {"documents_generated", "complete"}:
+        die("apply-newgame は既に完了しています。やり直す場合は `--force` を指定してください")
+    if phase not in {"pending", "character_yaml_generated", "profile_generated", "spines_generated"}:
+        phase = "pending"
+        update_apply_newgame_phase(session_path, phase)
+
     logger.section("Q&A")
     question_count = 9 if is_wave101_answers(answers) else (6 if is_wave10_answers(answers) else 8)
     for number in range(1, question_count + 1):
         logger.write("answer", question=f"Q{number}", value=answer(answers, number).replace("\n", " / "))
+
     logger.section("LLM Calls")
-    try:
-        documents, selected_engine, generation_status, character_data, profile_meta = generate_character_documents(
-            answers,
-            requested_engine,
-        )
-    except Exception as exc:
-        if exc.__class__.__name__ == "ProfileGenerationError":
-            logger.write("[profile] validation", status="failed", error=str(exc))
-            print(f"Error: profile.md 生成に失敗しました: {exc}", file=sys.stderr)
+    documents: dict[str, str] = {}
+    profile_meta: dict[str, object] = {}
+    selected_engine = resolve_engine(requested_engine) or requested_engine
+
+    if phase == "pending":
+        try:
+            character_data, selected_engine, generation_status = generate_character_yaml_data(answers, requested_engine)
+        except Exception as exc:
+            logger.write("[character_yaml] failed", error=str(exc))
+            print(f"Error: character.yaml 生成に失敗しました: {exc}", file=sys.stderr)
             sys.exit(1)
-        raise
-    logger.write(
-        "profile generation",
-        selected_engine=selected_engine or "",
-        status=generation_status,
-        fallback_path=not bool(selected_engine),
-        generated_files=list(documents),
-    )
-    if not selected_engine or not documents:
-        logger.write("[profile] failed", error=generation_status)
-        print(f"Error: profile.md 生成に失敗しました: {generation_status}", file=sys.stderr)
-        sys.exit(1)
-    if profile_meta:
-        logger.write("[profile] generated via", engine=profile_meta.get("engine", selected_engine or ""))
+        documents["lilia/main/character.yaml"] = dump_character_yaml(character_data)
+        write_session_file(session_path, "lilia/main/character.yaml", documents["lilia/main/character.yaml"])
+        update_apply_newgame_phase(session_path, "character_yaml_generated")
+        phase = "character_yaml_generated"
+        logger.write("[character_yaml] generated via", engine=selected_engine, status=generation_status)
+    else:
+        documents["lilia/main/character.yaml"] = read_required_session_file(session_path, "lilia/main/character.yaml")
+        try:
+            character_data = load_character_yaml_document(documents["lilia/main/character.yaml"])
+        except Exception as exc:
+            logger.write("[character_yaml] checkpoint_invalid", error=str(exc))
+            print(f"Error: character.yaml の読み込みに失敗しました: {exc}", file=sys.stderr)
+            sys.exit(1)
+        logger.write("[character_yaml] resumed", phase=phase)
+
+    if phase == "character_yaml_generated":
+        try:
+            profile, profile_meta = generate_profile_from_character_data(answers, character_data, requested_engine)
+            documents["lilia/main/profile.md"] = profile
+        except Exception as exc:
+            if exc.__class__.__name__ == "ProfileGenerationError":
+                logger.write("[profile] validation", status="failed", error=str(exc))
+                print(f"Error: profile.md 生成に失敗しました: {exc}", file=sys.stderr)
+                sys.exit(1)
+            raise
+        write_session_file(session_path, "lilia/main/profile.md", documents["lilia/main/profile.md"])
+        update_apply_newgame_phase(session_path, "profile_generated")
+        phase = "profile_generated"
+        logger.write("[profile] generated via", engine=profile_meta.get("engine", selected_engine))
         logger.write(
             "[profile] validation",
             status="pass" if profile_meta.get("validation_pass", True) else "failed",
             retry_count=profile_meta.get("retry_count", 0),
             sections_count=profile_meta.get("sections_count", 0),
         )
+    else:
+        documents["lilia/main/profile.md"] = read_required_session_file(session_path, "lilia/main/profile.md")
+        logger.write("[profile] resumed", phase=phase)
+
     logger.section("Profile Validation")
     try:
         from tools.character.profile_validator import validate_profile_output
@@ -3111,6 +3195,7 @@ def command_apply_newgame(args: list[str]) -> None:
         logger.write("[profile] validation", status="failed", error="; ".join(profile_errors[:5]))
         print(f"Error: profile.md 生成に失敗しました: {'; '.join(profile_errors[:5])}", file=sys.stderr)
         sys.exit(1)
+
     profile_name = extract_profile_name(documents["lilia/main/profile.md"])
     if not profile_name:
         profile_name, name_source = resolve_lilia_name_layers(
@@ -3123,82 +3208,99 @@ def command_apply_newgame(args: list[str]) -> None:
             documents["lilia/main/profile.md"],
             profile_name,
         )
+        write_session_file(session_path, "lilia/main/profile.md", documents["lilia/main/profile.md"])
     else:
         logger.write("name_resolution", source="layer_a_profile", placeholder=False)
 
     logger.section("Story Spine")
-    if character_data is None:
-        logger.write(
-            "[story_spine] failed",
-            reason="character_yaml_unavailable",
-            requested_engine=requested_engine,
-            profile_generation_status=generation_status,
-        )
-        print(
-            f"Error: ストーリー生成に失敗しました: character YAML が生成されていません ({generation_status})",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    try:
-        from tools.story.spine_generator import SpineGenerationError, generate_story_and_relationship_spine
+    if phase == "profile_generated":
+        try:
+            from tools.story.spine_generator import SpineGenerationError, generate_story_and_relationship_spine
 
-        spine_engine = requested_engine
-        spine_result = generate_story_and_relationship_spine(
-            answers=answers,
-            character_yaml=character_data,
-            engine=spine_engine,
-        )
-        documents["current/story_spine.md"] = spine_result["story_spine_md"]
-        documents["story/relationship_spine.md"] = spine_result["relationship_spine_md"]
-        logger.write("[story_spine] generated via", engine=spine_result.get("engine_used", spine_engine))
-        logger.write("[story_spine] selected_structure", name=spine_result.get("selected_structure", ""))
-        logger.write("[story_spine] selected_pattern", ids=spine_result.get("selected_pattern", []))
-        logger.write("[story_spine] selection_reason", reason=spine_result.get("selection_reason", ""))
-        logger.write(
-            "[story_spine] validation",
-            status="pass",
-            retry_count=spine_result.get("validation_retry_count", 0),
-        )
-    except SpineGenerationError as exc:
-        logger.write("[story_spine] validation", status="failed", error=str(exc))
-        print(f"Error: ストーリー生成に失敗しました: {exc}", file=sys.stderr)
-        sys.exit(1)
+            spine_result = generate_story_and_relationship_spine(
+                answers=answers,
+                character_yaml=character_data,
+                engine=requested_engine,
+            )
+            documents["current/story_spine.md"] = spine_result["story_spine_md"]
+            documents["story/relationship_spine.md"] = spine_result["relationship_spine_md"]
+            write_session_file(session_path, "current/story_spine.md", documents["current/story_spine.md"])
+            write_session_file(session_path, "story/relationship_spine.md", documents["story/relationship_spine.md"])
+            update_apply_newgame_phase(session_path, "spines_generated")
+            phase = "spines_generated"
+            logger.write("[story_spine] generated via", engine=spine_result.get("engine_used", requested_engine))
+            logger.write("[story_spine] selected_structure", name=spine_result.get("selected_structure", ""))
+            logger.write("[story_spine] selected_pattern", ids=spine_result.get("selected_pattern", []))
+            logger.write("[story_spine] selection_reason", reason=spine_result.get("selection_reason", ""))
+            logger.write(
+                "[story_spine] validation",
+                status="pass",
+                retry_count=spine_result.get("validation_retry_count", 0),
+            )
+        except SpineGenerationError as exc:
+            logger.write("[story_spine] validation", status="failed", error=str(exc))
+            print(f"Error: ストーリー生成に失敗しました: {exc}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        documents["current/story_spine.md"] = read_required_session_file(session_path, "current/story_spine.md")
+        documents["story/relationship_spine.md"] = read_required_session_file(session_path, "story/relationship_spine.md")
+        logger.write("[story_spine] resumed", phase=phase)
 
     logger.section("Session Documents")
-    try:
-        logger.write(
-            "[downstream_docs] wrapper enter",
-            engine=requested_engine,
-            lilia_name=profile_name,
-            session_name=session_path.name,
-            profile_chars=len(documents["lilia/main/profile.md"]),
-            story_spine_chars=len(documents["current/story_spine.md"]),
-            relationship_spine_chars=len(documents["story/relationship_spine.md"]),
-        )
-        downstream_result = generate_downstream_session_documents(
-            answers=answers,
-            profile_md=documents["lilia/main/profile.md"],
-            character_yaml=character_data,
-            story_spine_md=documents["current/story_spine.md"],
-            relationship_spine_md=documents["story/relationship_spine.md"],
-            lilia_name=profile_name,
-            engine=requested_engine,
-            session_name=session_path.name,
-        )
-    except Exception as exc:
-        logger.write("[downstream_docs] failed", error=str(exc))
-        print(f"Error: 下流ファイル生成に失敗しました: {exc}", file=sys.stderr)
-        sys.exit(1)
+    downstream_result: dict[str, object] = {}
+    if phase == "spines_generated":
+        try:
+            logger.write(
+                "[downstream_docs] wrapper enter",
+                engine=requested_engine,
+                lilia_name=profile_name,
+                session_name=session_path.name,
+                profile_chars=len(documents["lilia/main/profile.md"]),
+                story_spine_chars=len(documents["current/story_spine.md"]),
+                relationship_spine_chars=len(documents["story/relationship_spine.md"]),
+            )
+            downstream_result = generate_downstream_session_documents(
+                answers=answers,
+                profile_md=documents["lilia/main/profile.md"],
+                character_yaml=character_data,
+                story_spine_md=documents["current/story_spine.md"],
+                relationship_spine_md=documents["story/relationship_spine.md"],
+                lilia_name=profile_name,
+                engine=requested_engine,
+                session_name=session_path.name,
+            )
+        except Exception as exc:
+            logger.write("[downstream_docs] failed", error=str(exc))
+            print(f"Error: 下流ファイル生成に失敗しました: {exc}", file=sys.stderr)
+            sys.exit(1)
 
-    downstream_documents = downstream_result["documents"]
-    downstream_documents["current/knowledge_state.md"] = render_ai_knowledge_state_document(
-        ai_knowledge_state_md=downstream_documents["current/knowledge_state.md"],
-        protagonist_md=downstream_documents["current/protagonist.md"],
-        profile=documents["lilia/main/profile.md"],
-        answers=answers,
-        lilia_name=profile_name,
-        story_fields=story_fields_from_story_spine_markdown(documents["current/story_spine.md"]),
-    )
+        downstream_documents = downstream_result["documents"]
+        downstream_documents["current/knowledge_state.md"] = render_ai_knowledge_state_document(
+            ai_knowledge_state_md=downstream_documents["current/knowledge_state.md"],
+            protagonist_md=downstream_documents["current/protagonist.md"],
+            profile=documents["lilia/main/profile.md"],
+            answers=answers,
+            lilia_name=profile_name,
+            story_fields=story_fields_from_story_spine_markdown(documents["current/story_spine.md"]),
+        )
+        for rel_path, content in downstream_documents.items():
+            write_session_file(session_path, rel_path, content)
+        style_documents = render_style_documents(answers)
+        for rel_path, content in style_documents.items():
+            write_session_file(session_path, rel_path, content)
+        update_apply_newgame_phase(session_path, "documents_generated")
+        phase = "documents_generated"
+    else:
+        downstream_documents = {
+            rel_path: read_required_session_file(session_path, rel_path)
+            for rel_path in DOWNSTREAM_SESSION_DOCUMENT_FILES
+        }
+        style_documents = {
+            "style/reference.md": read_required_session_file(session_path, "style/reference.md"),
+            "style/rules.md": read_required_session_file(session_path, "style/rules.md"),
+        }
+        logger.write("[downstream_docs] resumed", phase=phase)
+
     try:
         from tools.session.document_validator import validate_session_documents
 
@@ -3212,6 +3314,11 @@ def command_apply_newgame(args: list[str]) -> None:
         docs_errors = [f"downstream validator failed: {exc}"]
     if not docs_valid:
         logger.write("[downstream_docs] validation", status="failed", error="; ".join(docs_errors[:8]))
+        for rel_path in DOWNSTREAM_SESSION_DOCUMENT_FILES:
+            path = session_path / rel_path
+            if path.exists():
+                path.unlink()
+        update_apply_newgame_phase(session_path, "spines_generated")
         print(f"Error: 下流ファイル生成に失敗しました: {'; '.join(docs_errors[:8])}", file=sys.stderr)
         sys.exit(1)
 
@@ -3232,7 +3339,7 @@ def command_apply_newgame(args: list[str]) -> None:
             retry_count=group_meta.get("validation_retry_count", 0),
         )
     documents.update(downstream_documents)
-    documents.update(render_style_documents(answers))
+    documents.update(style_documents)
     logger.write(
         "[downstream_docs] generated",
         engine=downstream_result.get("engine_used", requested_engine) if isinstance(downstream_result, dict) else requested_engine,
@@ -3243,12 +3350,11 @@ def command_apply_newgame(args: list[str]) -> None:
 
     logger.section("Generated Files")
     logger.write("generated_files", files=list(documents))
-    for rel_path, content in documents.items():
-        write_session_file(session_path, rel_path, content)
 
     data = read_session_json(session_path)
     data["mode"] = data.get("mode") or "new"
     data["current_phase"] = "first_scene_ready"
+    data["apply_newgame_phase"] = "complete"
     data["active_lilia"] = data.get("active_lilia") or "main"
     ensure_lilia_names(data, profile_name)
     initialization = data.setdefault("initialization", {})
@@ -3268,7 +3374,7 @@ def command_apply_newgame(args: list[str]) -> None:
     print(f"session: {session_path.relative_to(ROOT)}")
     engine_note = "auto-selected" if requested_engine == "auto" else "requested"
     print(f"engine: {selected_engine} ({engine_note})")
-    print(f"character.yaml: {generation_status}")
+    print("character.yaml: generated or resumed from checkpoint")
     print("profile.md: generated by AI from character.yaml")
     print(f"session documents: generated via tools.session.document_generator ({len(DOWNSTREAM_SESSION_DOCUMENT_FILES)} files)")
     print(f"applied: {answers_path}")

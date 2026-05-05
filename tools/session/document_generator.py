@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
-import os
 from pathlib import Path
 import re
-import subprocess
 from typing import Any
 
+from tools.common.engine_runner import (
+    EngineRunnerError,
+    EngineTimeoutError,
+    engine_candidates,
+    engine_timeout_seconds,
+    run_engine,
+)
 from tools.session.document_validator import validate_session_documents
 
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_ATTEMPTS = 3
-ENGINE_TIMEOUT_SECONDS = 300
 
 GROUP_A_PATHS = [
     "current/scene.md",
@@ -89,50 +94,45 @@ def generate_session_documents(
     documents: dict[str, str] = {}
     group_meta: dict[str, dict[str, Any]] = {}
 
-    _write_log(logger, "[downstream_docs] group_a start", paths=GROUP_A_PATHS)
-    group_a = _generate_group(
-        group_name="group_a",
-        rel_paths=GROUP_A_PATHS,
-        prompt=_build_group_a_prompt(context),
-        answers=answers,
-        story_spine_md=story_spine_md,
-        engine=engine,
-        context=context,
-        logger=logger,
-    )
-    documents.update(group_a["documents"])
-    group_meta["group_a"] = group_a["meta"]
-    _write_log(logger, "[downstream_docs] group_a complete", files=list(group_a["documents"]))
+    group_specs = [
+        ("group_a", GROUP_A_PATHS, _build_group_a_prompt(context)),
+        ("group_b", GROUP_B_PATHS, _build_group_b_prompt(context)),
+        ("group_c", GROUP_C_PATHS, _build_group_c_prompt(context)),
+    ]
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {}
+        for group_name, rel_paths, prompt in group_specs:
+            _write_log(logger, f"[downstream_docs] {group_name} start", paths=rel_paths)
+            futures[
+                executor.submit(
+                    _generate_group,
+                    group_name=group_name,
+                    rel_paths=rel_paths,
+                    prompt=prompt,
+                    answers=answers,
+                    story_spine_md=story_spine_md,
+                    engine=engine,
+                    context=context,
+                    logger=logger,
+                )
+            ] = group_name
 
-    _write_log(logger, "[downstream_docs] group_b start", paths=GROUP_B_PATHS)
-    group_b = _generate_group(
-        group_name="group_b",
-        rel_paths=GROUP_B_PATHS,
-        prompt=_build_group_b_prompt(context),
-        answers=answers,
-        story_spine_md=story_spine_md,
-        engine=engine,
-        context=context,
-        logger=logger,
-    )
-    documents.update(group_b["documents"])
-    group_meta["group_b"] = group_b["meta"]
-    _write_log(logger, "[downstream_docs] group_b complete", files=list(group_b["documents"]))
-
-    _write_log(logger, "[downstream_docs] group_c start", paths=GROUP_C_PATHS)
-    group_c = _generate_group(
-        group_name="group_c",
-        rel_paths=GROUP_C_PATHS,
-        prompt=_build_group_c_prompt(context),
-        answers=answers,
-        story_spine_md=story_spine_md,
-        engine=engine,
-        context=context,
-        logger=logger,
-    )
-    documents.update(group_c["documents"])
-    group_meta["group_c"] = group_c["meta"]
-    _write_log(logger, "[downstream_docs] group_c complete", files=list(group_c["documents"]))
+        for future in as_completed(futures):
+            group_name = futures[future]
+            try:
+                group_result = future.result()
+            except Exception:
+                for pending in futures:
+                    if pending is not future:
+                        pending.cancel()
+                raise
+            documents.update(group_result["documents"])
+            group_meta[group_name] = group_result["meta"]
+            _write_log(
+                logger,
+                f"[downstream_docs] {group_name} complete",
+                files=list(group_result["documents"]),
+            )
 
     _write_log(logger, "[downstream_docs] combined validation start", files=list(documents))
     valid, errors = validate_session_documents(
@@ -233,7 +233,9 @@ def _generate_group(
     context: dict[str, Any] | None = None,
     logger: Any = None,
 ) -> dict[str, Any]:
-    candidates = _engine_candidates(engine)
+    candidates = engine_candidates(engine)
+    if not candidates:
+        raise DocumentGenerationError("no available engine CLI was found")
     previous_error = ""
     cli_failures: list[str] = []
     _write_log(
@@ -259,7 +261,7 @@ def _generate_group(
         raw_output = ""
         engine_used = ""
         _write_log(logger, "[downstream_docs] group attempt start", group=group_name, attempt=attempt_index + 1)
-        for candidate in candidates:
+        for candidate in _attempt_engine_order(candidates, attempt_index):
             try:
                 _write_log(
                     logger,
@@ -269,7 +271,12 @@ def _generate_group(
                     engine=candidate,
                     prompt_chars=len(attempt_prompt),
                 )
-                raw_output = _run_engine(candidate, attempt_prompt)
+                raw_output = run_engine(
+                    candidate,
+                    attempt_prompt,
+                    timeout=engine_timeout_seconds(),
+                    root=ROOT,
+                )
                 engine_used = candidate
                 _write_log(
                     logger,
@@ -280,7 +287,7 @@ def _generate_group(
                     output_chars=len(raw_output),
                 )
                 break
-            except DocumentGenerationError as exc:
+            except EngineRunnerError as exc:
                 cli_failures.append(f"{candidate}: {exc}")
                 _write_log(
                     logger,
@@ -291,7 +298,7 @@ def _generate_group(
                     error=str(exc),
                 )
                 if engine != "auto":
-                    raise
+                    raise DocumentGenerationError(str(exc)) from exc
         if not raw_output or not engine_used:
             detail = "; ".join(cli_failures[-4:]) or "no engine produced output"
             raise DocumentGenerationError(f"{group_name}: generation could not start: {detail}")
@@ -361,57 +368,10 @@ def _write_log(logger: Any, event: str, **fields: object) -> None:
         return
 
 
-def _engine_candidates(engine: str) -> list[str]:
-    if engine not in {"codex", "claude", "auto"}:
-        raise DocumentGenerationError("engine must be one of: codex, claude, auto")
-    if engine == "auto":
-        return ["codex", "claude"]
-    return [engine]
-
-
-def _build_engine_command(engine: str, prompt: str) -> tuple[list[str], str | None]:
-    if engine == "claude":
-        return ["claude", "-p", prompt], None
-    if engine == "codex":
-        return [
-            "codex",
-            "exec",
-            "--cd",
-            str(ROOT),
-            "--sandbox",
-            "read-only",
-            "--color",
-            "never",
-            "-",
-        ], prompt
-    raise DocumentGenerationError(f"unsupported engine: {engine}")
-
-
-def _run_engine(engine: str, prompt: str) -> str:
-    command, stdin_text = _build_engine_command(engine, prompt)
-    env = os.environ.copy()
-    try:
-        result = subprocess.run(
-            command,
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            timeout=ENGINE_TIMEOUT_SECONDS,
-            env=env,
-        )
-    except FileNotFoundError as exc:
-        raise DocumentGenerationError(f"{engine} command was not found") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise DocumentGenerationError(
-            f"{engine} generation timed out after {ENGINE_TIMEOUT_SECONDS} seconds"
-        ) from exc
-
-    if result.returncode != 0:
-        stderr = result.stderr.strip() or "(no stderr)"
-        raise DocumentGenerationError(f"{engine} CLI failed: {stderr}")
-    if not result.stdout.strip():
-        raise DocumentGenerationError(f"{engine} CLI returned empty output")
-    return result.stdout
+def _attempt_engine_order(candidates: list[str], attempt_index: int) -> list[str]:
+    if attempt_index < 2 or len(candidates) == 1:
+        return candidates[:1]
+    return candidates[1:]
 
 
 def _parse_file_blocks(raw_output: str, expected_paths: list[str]) -> dict[str, str]:
