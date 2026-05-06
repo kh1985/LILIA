@@ -241,6 +241,15 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - 採用しないもの: `docs/HANDOFF.md` 更新、`prompt/core.md` 改修、`style/defaults/heroine_appearance.md` 改修、`tools/session/document_generator.py` 改修、`prompt/opening_scene.md` 改修、templates変更、tests追加。
 - 理由: 初回登場で「何者か」「どこにいるか」「主人公と何が起きているか」「何に惹かれ、何が危ういか」を同時に読めるようにしつつ、LILIAを露骨な属性リストや所有物として扱わないため。
 
+## Wave Y-D: Example Anchoring Control Generator Reference [完了]
+
+- `prompt/core.md` の `Example Anchoring Control` 対象カテゴリを、描写の軸、Manifestation Anchors、仕草、匂い、声、身体表現まで拡張した。
+- `tools/common/example_anchoring.py` を追加し、`prompt/core.md` の `## Example Anchoring Control` セクションを source of truth として読み出せるようにした。
+- `tools/character/profile_generator.py` は、生成promptの入力素材より前に Example Anchoring Control を inline 埋め込みする。
+- Wave Y-C で追加した profile_generator 内の literal 禁止文言は移行期の安全策として残す。削除は動作確認後の別 Wave で検討する。
+- 採用しないもの: `tools/session/document_generator.py` / `tools/story/spine_generator.py` への導入、Example Anchoring Control の別ファイル分離、`prompt/startup.md` 変更、`docs/HANDOFF.md` 更新。
+- 理由: 今後の Wave 指示書で literal 禁止ルールを重複記述せず、トップレイヤーの共通原則を generator 側にも届かせるため。
+
 ## 候補（優先度順、確定）
 
 - Wave 17: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
