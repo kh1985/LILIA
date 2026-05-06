@@ -145,7 +145,7 @@ Usage:
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia codex-new [session_name]
   ./lilia codex-resume [session_name]
-  ./lilia archive-codex-logs <session_name>
+  ./lilia archive-codex-logs
   ./lilia format-input <player_input>
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
@@ -156,7 +156,7 @@ AI one-shot execution runs only when --run is explicit.
 For Codex interactive play, use codex-new or codex-resume.
 AI Harness, autoplay, exports, and production CI are not included.
 Tip: redirect prompt-only output to a file if you want a quieter terminal.
-archive-codex-logs   ~/.codex/sessions/ 配下から、cwd が LILIA リポと一致する codex rollout JSONL を saves/<session>/archive/logs/ へコピーする。idempotent（既存ファイルはスキップ）。
+archive-codex-logs   ~/.codex/sessions/ 配下から、cwd が LILIA リポと一致する codex rollout JSONL を logs/codex_rollouts/ へコピーする。idempotent（既存ファイルはスキップ）。
 """
     )
 
@@ -2885,19 +2885,18 @@ def find_codex_rollouts_for_repo() -> list[tuple[Path, Path]]:
 
 
 def command_archive_codex_logs(args: list[str]) -> None:
-    if len(args) != 1:
-        die("archive-codex-logs requires <session_name>")
+    if args:
+        die("archive-codex-logs does not accept arguments")
 
-    session_path = resolve_session(args[0])
     codex_sessions_dir = Path.home() / ".codex" / "sessions"
-    archive_root = session_path / "archive" / "logs"
+    archive_root = ROOT / "logs" / "codex_rollouts"
     matches = find_codex_rollouts_for_repo()
     if not matches:
         if not codex_sessions_dir.is_dir():
             print(f"no codex sessions directory found at {codex_sessions_dir}")
         else:
             print("no codex rollouts found whose cwd matches this LILIA repo.")
-        print(f"session: {session_path.relative_to(ROOT)}")
+        print(f"archive: {archive_root.relative_to(ROOT)}")
         return
 
     copied: list[str] = []
@@ -2917,7 +2916,7 @@ def command_archive_codex_logs(args: list[str]) -> None:
             continue
         copied.append(name)
 
-    print(f"session: {session_path.relative_to(ROOT)}")
+    print(f"archive: {archive_root.relative_to(ROOT)}")
     print(f"copied: {len(copied)}")
     for name in copied:
         print(f"  {name}")

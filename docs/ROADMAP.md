@@ -59,7 +59,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 15（Engine Runner Refactor）: docs正本化。`docs/ENGINE_RUNNER.md` を追加し、LLM CLI runnerの責務、engine選択、timeout、generator境界、Play Mode境界を固定した。理由: character / profile / spine / downstream docs のAI CLI呼び出しが分散しているため、Player Action Prompt改修前に実行境界を揃える。
 - Wave Y-F（Auto-save Chain Closure）: prompt / CLI 改修完了。GM AI に毎ターン scene-tick を必須化し、`autosave_required: true` 到達時に Save Mode へ強制遷移させる。apply-turn 本体・scene-tick のカウンター処理・13ファイル責務分離は触らない。
 - Wave Y-G（Terminal Recording via script）: 廃止。`script` コマンドによるターミナル全体録音方式は、codex の TUI 再描画により ANSI エスケープシーケンスの嵐となって実用にならなかった。Wave Y-H で撤去し、codex 自身が `~/.codex/sessions/` に保存する rollout JSONL を opt-in コマンドでコピーする方式へ移行。
-- Wave Y-H（Codex Rollout Logs Archive）: 実装済み。Wave Y-G の `script` 録音方式を撤去し、代わりに `~/.codex/sessions/` の rollout JSONL を opt-in でコピーする `./lilia archive-codex-logs <session>` コマンドを新設した。codex 自身が会話ログを構造化形式で永続保存しているため、LILIA は必要な時だけ取り寄せる方式へ移行する。
+- Wave Y-H（Codex Rollout Logs Archive）: 実装済み。Wave Y-G の `script` 録音方式を撤去し、代わりに `~/.codex/sessions/` の rollout JSONL を opt-in で `logs/codex_rollouts/` へコピーする `./lilia archive-codex-logs` コマンドを新設した。codex 自身が会話ログを構造化形式で永続保存しているため、LILIA は必要な時だけ取り寄せる方式へ移行する。
 - 文豪シーン (literary scene situations): `style/defaults/scene_situations.md` を新規追加し、`prompt/core.md` から参照する形で接続済み。荷風 / 谷崎 / 川端 / 堀 / 鏡花 / 中島 / 賢治 + 路地裏 / 季節時間境界の 9 シチュエーション。Intimacy Stage との対応表あり。
 - Emotional Design Principles (8 原則): `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本として新規追加。`prompt/core.md` および `tools/character/profile_generator.py` / `tools/session/document_generator.py` / `tools/story/spine_generator.py` の生成 prompt に参照済み。
 - Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。0-5 数値運用ロジックは未確定として `docs/ROMANCE_INTIMACY_GROWTH.md` に記録。
@@ -273,8 +273,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 ## Wave Y-H: Codex Rollout Logs Archive [完了]
 
 - Wave Y-G の `script` 録音方式を撤去し、`codex-new` / `codex-resume` は Wave Y-F の直接 interactive 起動へ戻した。
-- `./lilia archive-codex-logs <session>` を追加した。
-- このコマンドは `~/.codex/sessions/` の `rollout-*.jsonl` を探索し、先頭行の `session_meta.payload.cwd` が LILIA repo root と一致するものだけを `saves/<session>/archive/logs/<YYYY>/<MM>/<DD>/` へコピーする。
+- `./lilia archive-codex-logs` を追加した。
+- このコマンドは `~/.codex/sessions/` の `rollout-*.jsonl` を探索し、先頭行の `session_meta.payload.cwd` が LILIA repo root と一致するものだけを `logs/codex_rollouts/<YYYY>/<MM>/<DD>/` へコピーする。
 - 既存ファイルはスキップし、何度実行しても安全な opt-in archive として扱う。
 - `docs/CODEX_ROLLOUT_LOGS.md` を追加し、codex rollout JSONL の場所、取り込みコマンド、読み方、容量、元データの扱いを記録した。
 - 採用元は Wave Y-F の実機目視確認需要、LIRIA の archive 分離思想、codex 自身の構造化 rollout JSONL。

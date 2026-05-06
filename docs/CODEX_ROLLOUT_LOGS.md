@@ -10,11 +10,11 @@ codex は `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl` 
 ## LILIA への取り込み
 
 ```bash
-./lilia archive-codex-logs session_006
+./lilia archive-codex-logs
 ```
 
 `~/.codex/sessions/` から、cwd が LILIA リポと一致する rollout を探し、
-`saves/session_006/archive/logs/<YYYY>/<MM>/<DD>/` へコピーする。
+`logs/codex_rollouts/<YYYY>/<MM>/<DD>/` へコピーする。
 
 - 既存ファイルはスキップ（idempotent。何度実行しても安全）
 - コピーしたファイルとスキップしたファイルの数を表示
@@ -25,7 +25,7 @@ codex は `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<timestamp>-<uuid>.jsonl` 
 JSONL は 1 行 1 オブジェクト。`jq` で整形可能:
 
 ```bash
-cat saves/session_006/archive/logs/2026/05/06/rollout-*.jsonl | jq 'select(.type == "event_msg" and (.payload.type == "user_message" or .payload.type == "agent_message"))'
+cat logs/codex_rollouts/2026/05/06/rollout-*.jsonl | jq 'select(.type == "event_msg" and (.payload.type == "user_message" or .payload.type == "agent_message"))'
 ```
 
 主要なフィールド:

@@ -24,16 +24,6 @@ def load_lilia_module() -> ModuleType:
     return module
 
 
-def write_session(root: Path, name: str = "archive_case") -> Path:
-    session = root / "saves" / name
-    session.mkdir(parents=True)
-    (session / "session.json").write_text(
-        json.dumps({"session_name": name, "current_phase": "active"}, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    return session
-
-
 def write_rollout(
     home: Path,
     rel_path: str,
@@ -72,16 +62,15 @@ def write_invalid_rollout(home: Path, rel_path: str, content: str) -> Path:
 def prepare(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-) -> tuple[ModuleType, Path, Path]:
+) -> tuple[ModuleType, Path]:
     lilia = load_lilia_module()
     home = tmp_path / "home"
     home.mkdir()
-    session = write_session(tmp_path)
 
     monkeypatch.setattr(lilia, "ROOT", tmp_path)
     monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path / "saves")
     monkeypatch.setattr(lilia.Path, "home", lambda: home)
-    return lilia, home, session
+    return lilia, home
 
 
 def discover_rollouts(lilia: ModuleType) -> list[tuple[Path, Path]]:
@@ -92,7 +81,7 @@ def test_no_codex_sessions_returns_empty(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    lilia, _home, session = prepare(monkeypatch, tmp_path)
+    lilia, _home = prepare(monkeypatch, tmp_path)
 
     assert discover_rollouts(lilia) == []
 
@@ -101,7 +90,7 @@ def test_matching_cwd_only(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    lilia, home, session = prepare(monkeypatch, tmp_path)
+    lilia, home = prepare(monkeypatch, tmp_path)
     matching = write_rollout(home, "2026/05/06/rollout-matching.jsonl", tmp_path)
     write_rollout(home, "2026/05/06/rollout-other.jsonl", tmp_path / "other")
 
@@ -114,7 +103,7 @@ def test_other_cwd_skipped(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    lilia, home, session = prepare(monkeypatch, tmp_path)
+    lilia, home = prepare(monkeypatch, tmp_path)
     write_rollout(home, "2026/05/06/rollout-other.jsonl", tmp_path / "other")
 
     assert discover_rollouts(lilia) == []
@@ -124,7 +113,7 @@ def test_invalid_json_and_non_session_meta_skipped(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    lilia, home, session = prepare(monkeypatch, tmp_path)
+    lilia, home = prepare(monkeypatch, tmp_path)
     write_invalid_rollout(home, "2026/05/06/rollout-invalid.jsonl", "{not json}\n")
     write_rollout(
         home,
@@ -141,10 +130,10 @@ def test_command_prints_relative_path(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lilia, home, session = prepare(monkeypatch, tmp_path)
+    lilia, home = prepare(monkeypatch, tmp_path)
     source = write_rollout(home, "2026/05/06/rollout-relative.jsonl", tmp_path)
 
-    lilia.command_archive_codex_logs(["archive_case"])
+    lilia.command_archive_codex_logs([])
 
     captured = capsys.readouterr()
     assert "2026/05/06/rollout-relative.jsonl" in captured.out
@@ -155,7 +144,7 @@ def test_discovery_returns_codex_relative_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    lilia, home, session = prepare(monkeypatch, tmp_path)
+    lilia, home = prepare(monkeypatch, tmp_path)
     source = write_rollout(home, "2026/05/06/rollout-relative-path.jsonl", tmp_path)
 
     assert discover_rollouts(lilia) == [
@@ -168,13 +157,23 @@ def test_command_no_matches_prints_no_rollouts(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lilia, home, _session = prepare(monkeypatch, tmp_path)
+    lilia, home = prepare(monkeypatch, tmp_path)
     (home / ".codex" / "sessions").mkdir(parents=True)
 
-    lilia.command_archive_codex_logs(["archive_case"])
+    lilia.command_archive_codex_logs([])
 
     captured = capsys.readouterr()
     assert "no codex rollouts found whose cwd matches this LILIA repo." in captured.out
+
+
+def test_command_rejects_session_argument(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    lilia, _home = prepare(monkeypatch, tmp_path)
+
+    with pytest.raises(SystemExit):
+        lilia.command_archive_codex_logs(["archive_case"])
 
 
 def test_command_copies_and_second_run_skips_idempotently(
@@ -182,17 +181,17 @@ def test_command_copies_and_second_run_skips_idempotently(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lilia, home, session = prepare(monkeypatch, tmp_path)
+    lilia, home = prepare(monkeypatch, tmp_path)
     source = write_rollout(home, "2026/05/06/rollout-copy.jsonl", tmp_path)
 
-    lilia.command_archive_codex_logs(["archive_case"])
+    lilia.command_archive_codex_logs([])
     first = capsys.readouterr()
 
-    archived = session / "archive" / "logs" / "2026" / "05" / "06" / "rollout-copy.jsonl"
+    archived = tmp_path / "logs" / "codex_rollouts" / "2026" / "05" / "06" / "rollout-copy.jsonl"
     assert archived.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
     assert "copied" in first.out
 
-    lilia.command_archive_codex_logs(["archive_case"])
+    lilia.command_archive_codex_logs([])
     second = capsys.readouterr()
 
     assert archived.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
