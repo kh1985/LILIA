@@ -25,7 +25,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Relationship / Character Voice Continuity Gate: 設計仕様完了 / Wave 13 で `tools/session/voice_continuity_validator.py` に resume gate validator 実装済み（必須ファイル存在、呼び方根拠、core/voice 空検出、約束継続、relationship 進行語彙、GM only 漏洩）。第 1 版は soft fail（print 出力のみ、hard fail なし）
 - Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
-- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / session_002b で実プレイ動作確認済み
+- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / Wave Y-FでGM prompt上の scene-tick -> apply-turn 連鎖を必須化済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / event/story_deck/profile初期生成コード接続済み / story_spine・relationship_spine は Wave 11 でAI駆動化済み / ましろ・つむぎ・全Qおまかせ smoke 通過
 - Story Reference Engine 強制導線: prompt 接続済み
 - 5層 self-understanding 参照導線: prompt 接続済み
@@ -57,12 +57,13 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 13（Voice Continuity Gate Validator）: 実装済み。`tools/session/voice_continuity_validator.py` を追加し、resume 入口と apply-turn 書き込み完了後に呼び出す。第 1 版は soft fail。pytest 3 件全 pass。session_002b 単独実行で error 0。
 - Wave 14（Event Card Playability Gate Validator）: 実装済み。`tools/session/document_validator.py` に `_check_event_card_playability` を追加。pytest 4 件追加で全 pass。session_002b 単独実行で error 0。
 - Wave 15（Engine Runner Refactor）: docs正本化。`docs/ENGINE_RUNNER.md` を追加し、LLM CLI runnerの責務、engine選択、timeout、generator境界、Play Mode境界を固定した。理由: character / profile / spine / downstream docs のAI CLI呼び出しが分散しているため、Player Action Prompt改修前に実行境界を揃える。
+- Wave Y-F（Auto-save Chain Closure）: prompt / CLI 改修完了。GM AI に毎ターン scene-tick を必須化し、`autosave_required: true` 到達時に Save Mode へ強制遷移させる。apply-turn 本体・scene-tick のカウンター処理・13ファイル責務分離は触らない。
 - 文豪シーン (literary scene situations): `style/defaults/scene_situations.md` を新規追加し、`prompt/core.md` から参照する形で接続済み。荷風 / 谷崎 / 川端 / 堀 / 鏡花 / 中島 / 賢治 + 路地裏 / 季節時間境界の 9 シチュエーション。Intimacy Stage との対応表あり。
 - Emotional Design Principles (8 原則): `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本として新規追加。`prompt/core.md` および `tools/character/profile_generator.py` / `tools/session/document_generator.py` / `tools/story/spine_generator.py` の生成 prompt に参照済み。
 - Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。0-5 数値運用ロジックは未確定として `docs/ROMANCE_INTIMACY_GROWTH.md` に記録。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) は実装済み。Wave 15 で Engine Runner Refactor を先に挟み、Wave 16 で Opening Pattern Stock を初回scene生成へ接続した。次は Wave 17 (GM 応答末尾の「→ どうする？」prompt 改修)。
+- 10 ターン到達時の autosave_required UX は Wave Y-F で「保存提案」から「GM の Save Mode 強制遷移」へ prompt 改修済み。次は実機プレイで scene-tick 毎ターン実行と apply-turn 発火を目視確認する。
 
 ### Wave 4: Reference Libraries [完了]
 
@@ -250,6 +251,15 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - 採用しないもの: `tools/session/document_generator.py` / `tools/story/spine_generator.py` への導入、Example Anchoring Control の別ファイル分離、`prompt/startup.md` 変更、`docs/HANDOFF.md` 更新。
 - 理由: 今後の Wave 指示書で literal 禁止ルールを重複記述せず、トップレイヤーの共通原則を generator 側にも届かせるため。
 
+## Wave Y-F: Auto-save Chain Closure [完了]
+
+- scene-tick -> apply-turn の自動連鎖を prompt 運用として閉じた。
+- GM AI に通常プレイ毎ターン後の `./lilia scene-tick <session>` を必須化し、`autosave_required: true` 到達時に次のプレイ応答前の Save Mode 遷移、`turn_update.md` 作成、`./lilia apply-turn <session> <turn_update.md>` 実行を要求する。
+- `scene-tick` 出力は `SAVE REQUIRED` の必須トーンへ強化した。
+- 採用元は既存の autosave counter / `scene-tick` / `apply-turn` 設計、Growth Update Loop の「変わったものだけ保存する」原則。
+- 採用しないもの: `apply-turn` 本体変更、`scene-tick` カウンター処理変更、13ファイル責務分離変更、session.json autosave構造変更、新コマンド追加、生ログ archive/logs/ 保管、`docs/HANDOFF.md` 更新。
+- 理由: session_005 で見えた「scene-tick が任意」「autosave_required 到達後も手動保存提案止まり」という設計倒れを、prompt 改修と出力メッセージ強化だけで抜けるため。
+
 ## 候補（優先度順、確定）
 
 - Wave 17: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
@@ -382,11 +392,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - `docs/GROWTH_UPDATE_LOOP.md` を正本として、更新タイミング、各ファイルの保存責務、親密scene後/event_card後/archive/beatsの扱い、failure条件を固定した。
    - `templates/session/current/event_card.md` と `templates/session/story/story_deck.md` を、event_cardの進行状態と背景化した未回収札を扱える最小形へ補強した。
    - `./lilia apply-turn <session> <turn_update.md>` をSave Mode用MVPとして追加済み。`scene` / `relationship_overview` / `next_hook` もturn_update経由で反映できる。
-   - 通常プレイ中は自動保存せず、ユーザーの明示saveやscene区切りでSave Modeに入った時だけ使う。
+   - 通常プレイ中はファイルを直接編集しない。保存が必要な時は Save Mode に入り、`turn_update.md` 経由で `apply-turn` を使う。
    - autosave counterは `session.json` に持ち、`./lilia scene-tick <session>` で通常プレイ1ターンごとに進める。
-   - `scene-tick` は10ターン到達時に `autosave_required: true` にするが、自動保存や `apply-turn` 実行はしない。
-   - 次タスクは、実プレイで10ターン到達時の保存提案UXを確認すること、または `apply-turn` の実プレイ検証。
-   - Status: apply-turn MVP実装済み / next_hook導線追加済み / scene-tick MVP実装済み / 自動保存は未実装
+   - `scene-tick` は10ターン到達時に `autosave_required: true` にする。Wave Y-F 以降、GM prompt はこの表示を見たら次のプレイ応答前に Save Mode へ入り、`apply-turn` を実行する。
+   - 次タスクは、session_005（葵）または session_006（玲）で10ターン以上プレイし、scene-tick が毎ターン呼ばれるか、10ターン到達時に apply-turn が発火するか目視確認すること。
+   - Status: apply-turn MVP実装済み / next_hook導線追加済み / scene-tick MVP実装済み / prompt上の autosave_required Save Mode 強制遷移を実装済み
 
 8. Story / Relationship Accumulation Loop
    - イベントを点、ストーリーを線として扱い、出来事がLILIAの記憶、関係、beliefs、voiceへ残ることで物語が進む形にする。

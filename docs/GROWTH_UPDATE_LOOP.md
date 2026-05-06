@@ -43,6 +43,7 @@ Growth Update は、Save Modeで以下のタイミングに短く確認する。
 - Save Modeに入ったうえで、拒否、保留、約束が出た後。
 - Save Modeに入ったうえで、親密scene後。
 - Save Modeに入ったうえで、衝突scene後。
+- `autosave_required: true` がscene-tickで示された時。この場合、GMは次のプレイ応答を返す前に Save Mode に入り、turn_update.md を作って apply-turn を実行する。
 - save前。
 - resume smokeで破綻が見えた時。
 
