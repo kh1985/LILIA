@@ -42,11 +42,25 @@ Save Modeでない時に、以下のようなメタ発言を出さない。
 - diff / stat
 - session stateには保存済みです
 
-通常プレイ1ターンが終わった後、必要に応じて `./lilia scene-tick <session>` を実行してよい。
+通常プレイ1ターンが終わった後、**必ず** `./lilia scene-tick <session>` を実行する。
 `scene-tick` は保存ではなく、Play Modeで許される唯一の軽量bookkeepingとして、`session.json` の autosave counter だけを進める。
-`autosave_required` が `true` になっても、勝手に `apply-turn` は実行しない。
-保存する場合はユーザーに保存提案を出し、`turn_update.md` を作って `./lilia apply-turn <session> <turn_update.md>` を実行する。
-Play Mode中に保存更新ログやgit確認を割り込ませない。
+カウンターを進めずにプレイを続けると `autosave_required` が永遠に立たないため、毎ターン後の scene-tick は **必須**である。
+
+`scene-tick` の出力で `autosave_required: true` が表示された場合、GM は **次のプレイ応答を返す前に** 以下を実行する：
+
+1. Save Mode に入る（`prompt/save_resume.md` の Save Mode 手順に従う）
+2. 直近 `interval_turns` ターンで実際に変わったものを `## 4. First Question` に従って判断する
+3. 変わったセクションだけを `turn_update.md` として書き出す（変わってないセクションは含めない）
+4. `./lilia apply-turn <session> <turn_update.md>` を実行する
+5. apply-turn が成功したら、session.json の `turns_since_save` は 0 にリセットされる
+6. その後、プレイヤーへの応答を **短い 1 文** で済ませる（例: 「（保存しました）」のような括弧書き）
+7. 通常の Play Mode に戻る
+
+`autosave_required: true` を見て **保存しないまま次のプレイを返してはいけない**。これを破ると保存設計が空回りする。
+
+`apply-turn` 実行時は `prompt/core.md` の `Example Anchoring Control` に従う。例文の語彙を採用せず、ユーザーが明示的に使った言葉と会話履歴を優先する。
+
+Play Mode中に保存更新ログやgit確認を割り込ませない（保存実行のメタ発言は避ける、上記 1 文の括弧書きだけが許容される）。
 
 保存は、設定を増やすためではなく、関係の継続感を保つために行う。
 
@@ -62,6 +76,8 @@ LILIAの人格の核、現在状態、関係、記憶、認識を分けて保存
 
 Save Modeでは、会話やシーンの後、必要に応じて以下を更新する。
 Play Modeの通常ターンでは、この一覧を根拠に即時編集しない。
+
+**重要**: autosave 由来の Save Mode でも、以下のリストを機械的に全部更新しない。`## 4. First Question` に従い、直近ターンで実際に変わったセクションだけを turn_update.md に含める。何も変わっていないファイルは触らない。
 
 - `current/scene.md`
 - `current/hotset.md`
