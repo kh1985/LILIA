@@ -2,6 +2,7 @@
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
 思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex rollout logの運用は `docs/CODEX_ROLLOUT_LOGS.md` を正本にする。
+小規模商用化、WebUI有料ベータ、画像生成付きプレイ、BOOTH / DLsite / 月額モデルの検証順は `docs/COMMERCIALIZATION_ROADMAP.md` を正本にする。
 
 ## 1. Goal
 
@@ -304,23 +305,6 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - ダイス機構（世界事象のみ）: TRPG 的なランダム性を導入する。実装は `tools/session/dice.py` 等で Python `random` を使った軽量処理。適用対象は世界事象（白衣が間に合うか、雨が降るか、客が来るかなど）のみ。ヒロインの態度 / 好意 / 内面は対象外（CORE_CONCEPT 違反）。何面ダイス、確率の塩梅、適用シーンの基準、結果の物語反映方法は未確定。
 - GraphRAG（中期再検討）: 複数ヒロイン Wave 実装後、または 1 セッションが 30+ チャプターに伸びた後に再検討。現状は LILIA のスケール（13 ファイル ~数千トークン）に対してオーバースペック。代替として軽量 Integrity Audit Tool を先に整備する。
 
-## 商用化ロードマップ（長期）
-
-### マネタイズ基盤
-
-- API 化: 現在の CLI（codex-resume / codex-new）を API サーバとして公開し、外部クライアントから利用可能にする。CRAVE ブランドでの BOOTH / DLsite 販売、またはサブスクリプション提供を目指す
-- 課金・セッション管理: ユーザーごとのセッション管理、API キー認証、ターン課金 or 月額制の設計
-
-### 漫画機能
-
-- JSONL → Markdown 変換: codex rollout JSONL からプレイヤーと LILIA の会話を抽出し、読みやすい Markdown に変換するツール
-- Markdown → 漫画変換: 会話 Markdown からワンシーン（1 枚見せ / 4 コマ形式）の漫画パネルを生成する。画像生成 API（Gemini Imagen 等）との連携を想定
-
-### 次の優先 Wave 候補
-
-- 3 本フック運用（戦闘なし版）: メイン事件フック / ヒロイン関係フック / 探索・生活フックの 3 方向を並列管理する。戦闘システムは分離し、イベント駆動のフック管理に絞る。タイプ被り禁止（3 本とも恋愛系にしない等）
-- 品質自動検証: 入力に対する応答品質を自動テストする仕組み。現在は kk が手動でゼロから立ち上げて叩いているが、リグレッション検知や Wave 効果測定を自動化したい
-
 ## 残機能リスト（完全版）
 
 ### Wave 系 PENDING（LILIA で議論済み）
@@ -403,13 +387,6 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - group_b の 187s ボトルネック最適化（apply-newgame の生成速度）
 - Story Reference Engine 群（8 種のエンジン概念定義のみ）
 - 品質自動検証（入力→応答の自動テスト、リグレッション検知、Wave 効果測定の自動化）
-
-## 優先度整理メモ
-
-- 高: 3 本フック運用（戦闘なし版）、品質自動検証
-- 中: JSONL → Markdown 変換（漫画パイプラインの前提）、Wave Y-E（Anchoring Control 拡張）
-- 低（後回し）: 複数ヒロイン管理（harem.md）、Hidden ベクトル運用、経営・お金回り、世界・異界設定、戦闘システム
-- 長期: API 化、漫画機能、課金設計
 
 ## 設計保留事項 (Pending Decisions)
 
