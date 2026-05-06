@@ -45,3 +45,13 @@ def test_profile_generator_prompt_forbids_literal_example_reuse() -> None:
     assert "literal に流用しない" in prompt
     assert "そのヒロインだけに合う言葉" in prompt
     assert "Q&A・character.yaml・職業・状況・人格から" in prompt
+
+
+def test_profile_generator_prompt_embeds_core_example_anchoring_control() -> None:
+    prompt = _prompt()
+
+    assert "## トップレイヤーの共通原則（必読）" in prompt
+    assert "## Example Anchoring Control" in prompt
+    assert "prompt内の例文" in prompt
+    assert "LILIAの人格は、例文からではなく" in prompt
+    assert "描写の軸・Manifestation Anchors・仕草・匂い・声・身体表現" in prompt
