@@ -33,7 +33,9 @@ LILIAでは、inner-galge の `cast/heroine/*.md` を復活させない。
 character YAMLは素材であり、LILIAの最終正本ではない。
 YAMLから `lilia/main/profile.md` を生成し、first scene前に読む。
 `./lilia apply-newgame` は LLM CLI(codex または claude)が利用可能な場合、内部で character YAML を生成して `profile.md` へ変換する default 経路を持つ。
-`--engine codex|claude|auto` フラグで engine を選べる(default は auto: codex 優先、claude fallback)。
+`--engine codex|claude|auto` フラグで engine を選べる。
+`auto` の character YAML 生成段は `LILIA_CHARACTER_ENGINE` 未設定時に claude 優先、codex fallback とする。
+profile / spine / downstream などの一般生成は `LILIA_DEFAULT_ENGINE` 未設定時に codex 優先、claude fallback とする。
 LLM CLI が無い、または生成失敗時は hard-fail し、壊れた `profile.md` は保存しない。
 `scripts/lilia_generate_character_yaml.py` は同じ engine フラグに対応した standalone wrapper として手動実行もできる。
 
@@ -43,7 +45,7 @@ LLM CLI が無い、または生成失敗時は hard-fail し、壊れた `profi
 内部経路:
 
 1. `tools/character/core/master.py` の `generate_characters(instruction, engine)` を呼ぶ。
-2. engine は `--engine codex|claude|auto` で指定。default は auto(codex 優先、claude fallback)。
+2. engine は `--engine codex|claude|auto` で指定。character YAML の default は auto(claude 優先、codex fallback)。
 3. 返ってきた YAML を `CharacterSheet` schema でバリデーションする。
 4. `tools.character.profile_generator.generate_profile_document(...)` が Q&A と character YAML を解釈して `profile.md` を作る。
 5. profile validator が必須セクション、placeholder残骸、Q1丸写し、Deepening Tags / Do Not Predefine 固定項目を検査する。

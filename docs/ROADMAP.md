@@ -194,6 +194,9 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - runner は `codex` / `claude` の選択、fallback、timeout、stdout取得、process終了だけを担当する。
 - character YAML、profile、story spine、downstream docs の parse / validation / retry / hard-fail は各 generator に残す。
 - `auto` の既定優先、`LILIA_DEFAULT_ENGINE`、`LILIA_ENGINE_TIMEOUT_SECONDS` の扱いを最小仕様として固定する。
+- Engine Runner 第2ホットフィックスで、一般生成の `auto` は未設定時 codex 優先へ変更した。character YAML 生成段だけは `LILIA_CHARACTER_ENGINE` 未設定時 claude 優先を維持する。
+- `codex exec --cd` は repo root ではなく空の一時ディレクトリを渡す。codex の cwd 自動context読み込みで docs / prompt が膨張する問題を避けるため。空ディレクトリは git repository ではないため `--skip-git-repo-check` も渡す。
+- engine候補は `shutil.which()` で検出できた CLI のみに限定する。
 - `tools/common/engine_runner.py` を追加し、各 generator と launcher の CLI 実行を共通化した。
 - `apply-newgame` は `apply_newgame_phase` による checkpoint resume と `--force` 再生成に対応した。
 - downstream docs の group A / B / C は `ThreadPoolExecutor(max_workers=3)` で並列生成する。
@@ -278,6 +281,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
    - AFFINITY、bond、好感度、攻略ルート、ハーレム前提は採用しない。
    - 2026-05-02: `./lilia apply-newgame` を改造し、LLM CLI(codex / claude)経由の character YAML 生成を default 経路にした。
    - `--engine codex|claude|auto` フラグで engine を選択可能(default auto)。`tools/character/core/master.py` の `generate_characters` も engine 引数対応。
+   - 2026-05-06: character YAML 生成段の `auto` は `LILIA_CHARACTER_ENGINE` 未設定時 claude 優先、profile / spine / downstream の一般生成は `LILIA_DEFAULT_ENGINE` 未設定時 codex 優先へ分離した。
    - `scripts/lilia_generate_character_yaml.py` も `--engine` 対応。
    - 2026-05-05 Wave 12.1: `./lilia apply-newgame` は character YAML 生成後に `tools.character.profile_generator.generate_profile_document(answers=..., character_yaml=..., engine=...)` を呼び、AI-driven `profile.md` を生成する。
    - 2026-05-05 Wave 12.2: `apply-newgame` は profile validation後に `tools/story/spine_generator.py` で `current/story_spine.md` / `story/relationship_spine.md` を生成し、その後 `tools.session.document_generator.generate_session_documents` へ profile / character YAML / 両spine / Q&A を渡して13 downstream filesを生成する。

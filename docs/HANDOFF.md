@@ -60,7 +60,7 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - inner-galge / character の「自然言語指示 -> character YAML -> 登場前キャラmd」の流れを、LILIA向けに「character YAML -> `lilia/main/profile.md`」へ変換する Persona Profile 方針を追加済み。
 - `docs/LILIA_PERSONA_PROFILE.md` を作成済み。`profile.md` は first scene前に読む人格正本であり、完成済み攻略キャラカードではない。関係で育った内容は `core / voice / relationship / memory / beliefs` へ分解して保存する。
 - `tools/character/` に character YAML生成の最小schema / LLM CLI(codex / claude) bridgeを追加済み。
-- `./lilia apply-newgame` を改造し、LLM CLI(codex / claude)経由の character YAML 生成を default 経路にした。`--engine codex|claude|auto` フラグで engine を選択可能。default は auto(codex 優先、claude fallback)。内部で `tools/character/core/master.py` の `generate_characters(instruction, engine)` を呼ぶ。character YAML が生成できない場合、Wave 11 の spine生成もできないため `apply-newgame` は失敗する。
+- `./lilia apply-newgame` を改造し、LLM CLI(codex / claude)経由の character YAML 生成を default 経路にした。`--engine codex|claude|auto` フラグで engine を選択可能。character YAML 生成段の `auto` は `LILIA_CHARACTER_ENGINE` 未設定時に claude 優先、codex fallback。profile / spine / downstream など一般生成の `auto` は `LILIA_DEFAULT_ENGINE` 未設定時に codex 優先、claude fallback。内部で `tools/character/core/master.py` の `generate_characters(instruction, engine)` を呼ぶ。character YAML が生成できない場合、Wave 11 の spine生成もできないため `apply-newgame` は失敗する。
 - `tools/character/core/master.py` の `generate_characters` を engine 引数対応にした(default `claude` で後方互換)。
 - `scripts/lilia_generate_character_yaml.py` も `--engine codex|claude|auto` フラグに対応した standalone wrapper として残す。
 - Wave 12.1 で `./lilia apply-newgame` の profile生成を `tools.character.profile_generator.generate_profile_document(answers=..., character_yaml=..., engine=...)` へ切り替えた。
@@ -69,6 +69,8 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `render_profile_initialized_documents` / `render_protagonist_document` / `render_knowledge_state_document` / `render_newgame_documents` は削除済み。Wave 12.2以降の新規初期反映ではPython穴埋め経路を使わない。
 - profile generator が `ProfileGenerationError` を投げた場合、`apply-newgame` は hard-fail する。ログには `[profile] generated via`、`[profile] validation`、`retry_count`、`sections_count` を残す。
 - `./lilia` は `scripts/lilia_character_to_profile.py` を import しない。pydantic 不在fallbackは `tools/character/core/simple_schema.py` に移し、旧 `scripts/lilia_character_to_profile.py` は削除済み。
+- Engine Runner 第2ホットフィックスで、`codex exec --cd` は LILIA repo root ではなく module load 時に作る空の一時ディレクトリを使う。codex が `--cd` 配下を自動contextとして読み込み、repo root 指定で prompt が数万トークンに膨張する問題を避けるため。空ディレクトリは `atexit` で削除する。空ディレクトリは git repository ではないため、codex command には `--skip-git-repo-check` も渡す。
+- `engine_candidates` は `shutil.which()` で検出できた CLI だけを返す。片方の CLI しかない環境ではその CLI のみで動作し、どちらもない場合は候補なしとして generator 側で明確に失敗する。
 - Wave 12.1 smoke は `wave12_sakura`(session_010)、`wave12_akari`(session_011)、`wave12_omakase`(全Qおまかせ)で実施済み。いずれも profile validator pass、24セクション生成、旧 `profile/answers から再推論` 残骸なし。
 - `templates/session/lilia/main/profile.md` を追加済み。`profile.md` はAI-driven生成を正本にし、launcher内の旧Python変換fallbackを正本にしない。
 - `session.json` に `lilia_name` / `lilia_display_name` を追加済み。LILIAは作品名・存在カテゴリであり、作中の名乗りはPersona Profile / character YAML由来の個体名を使う。

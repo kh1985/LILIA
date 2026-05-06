@@ -68,19 +68,48 @@ Engine Runner が担当しないもの:
 - `auto`
 
 `auto` は利用可能な CLI から順に試す。
-既定の優先は `claude` とし、必要な場合だけ `LILIA_DEFAULT_ENGINE=codex` で変更できる。
+候補は必ず `shutil.which()` で検出できた CLI だけにする。
+未インストールの CLI は候補に含めない。
+利用可能な CLI が1つだけなら、その CLI だけで実行する。
+利用可能な CLI がない場合、候補は空になり、generator 側で明確なエラーとして扱う。
 
 明示指定された engine は、その engine だけを使う。
 明示指定の失敗を、勝手に別 engine の成功で覆い隠さない。
+明示指定された engine が未インストールの場合も候補は空になる。
+
+### engine 優先順位の決定
+
+| 用途 | 環境変数 | デフォルト優先順位 |
+| --- | --- | --- |
+| 一般（profile / spine / downstream / interactive） | `LILIA_DEFAULT_ENGINE` | `codex -> claude` |
+| character YAML 生成 | `LILIA_CHARACTER_ENGINE` | `claude -> codex` |
+
+一般生成では、長プロンプト（profile / spine / downstream）で `claude` がハングするケースを避けるため、未設定時は `codex` を優先する。
+character YAML は短プロンプトで `claude` が安定して速いため、`tools/character/core/master.py` の `engine="auto"` だけは `claude` を優先する。
+どちらも、環境変数で先頭候補を切り替えられる。
 
 ## 6. Environment Variables
 
-- `LILIA_DEFAULT_ENGINE`: `auto` の優先 engine。未設定時は `claude`。
+- `LILIA_DEFAULT_ENGINE`: 一般生成での `auto` 優先 engine。未設定時は `codex`。
+- `LILIA_CHARACTER_ENGINE`: character YAML 生成での `auto` 優先 engine。未設定時は `claude`。
 - `LILIA_CODEX_REASONING_EFFORT`: `codex exec` の reasoning effort。未設定時は `low`。
 - `LILIA_ENGINE_TIMEOUT_SECONDS`: LLM CLI 呼び出し timeout 秒。未設定時は `600`。
 
-`codex` は `codex exec --cd <root> --sandbox read-only --color never -c model_reasoning_effort=<value> -` を使い、prompt は stdin から渡す。
+`codex` は `codex exec --cd <empty-temp-dir> --skip-git-repo-check --sandbox read-only --color never -c model_reasoning_effort=<value> -` を使い、prompt は stdin から渡す。
 `claude` は `claude -p --permission-mode dontAsk` を使い、prompt は stdin から渡す。
+
+## codex の cwd 自動 context 読み込み問題
+
+`codex exec --cd <path>` は、`--cd` 配下のファイルを自動で context に取り込む挙動がある。
+`--cd` に LILIA repo root を渡すと、docs / prompt / templates の Markdown 群まで読み込まれ、数千トークンの生成promptが数万トークン規模に膨張する。
+このため profile / spine / downstream の生成が極端に遅くなる。
+
+対策として、`tools/common/engine_runner.py` はモジュールロード時に空の一時ディレクトリを1つだけ作成し、`codex exec --cd` には常にその空ディレクトリを渡す。
+一時ディレクトリは process 終了時に `atexit` で削除する。
+空ディレクトリは git repository ではないため、`codex exec` には `--skip-git-repo-check` も渡す。
+
+副作用として、`codex` の sandbox は空ディレクトリを基準にするため、`codex` に LILIA repo 内のファイルを直接読ませる運用はできない。
+LILIA の生成経路は prompt と stdin だけで完結する設計なので、この副作用は許容する。
 
 ## 7. Timeout / Failure
 

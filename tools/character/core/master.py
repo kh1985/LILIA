@@ -8,8 +8,10 @@ routes; generated YAML must be converted to lilia/main/profile.md before use.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import re
+import shutil
 import tempfile
 from typing import Any
 
@@ -111,7 +113,7 @@ class CharacterGenerationError(RuntimeError):
 
 
 def generate_characters(instruction: str, engine: str = "claude") -> list[CharacterSheet]:
-    candidates = engine_candidates(engine)
+    candidates = _character_engine_candidates(engine)
     if not candidates:
         raise CharacterGenerationError(
             "no available LLM CLI was found. Install/login to claude or codex, "
@@ -158,6 +160,19 @@ def _attempt_engine_order(candidates: list[str], attempt_index: int) -> list[str
     if attempt_index < 2 or len(candidates) == 1:
         return candidates[:1]
     return candidates[1:]
+
+
+def _character_engine_candidates(engine: str) -> list[str]:
+    if engine != "auto":
+        return engine_candidates(engine)
+    return [candidate for candidate in _character_engine_priority() if shutil.which(candidate) is not None]
+
+
+def _character_engine_priority() -> list[str]:
+    env = os.environ.get("LILIA_CHARACTER_ENGINE", "").strip().lower()
+    if env == "codex":
+        return ["codex", "claude"]
+    return ["claude", "codex"]
 
 
 def _parse_characters(raw_output: str, engine: str) -> list[CharacterSheet]:

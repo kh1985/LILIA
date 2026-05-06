@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 from collections.abc import Callable
 import os
 from pathlib import Path
@@ -9,11 +10,25 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 
 
-SUPPORTED_ENGINES = ("claude", "codex")
+SUPPORTED_ENGINES = ("codex", "claude")
 DEFAULT_TIMEOUT_SECONDS = 600
+
+# Codex auto-loads files under --cd into context. Pointing it at the LILIA
+# repo can balloon small prompts by tens of thousands of tokens, so codex gets
+# a process-wide empty cwd instead.
+_CODEX_NEUTRAL_CWD: Path = Path(tempfile.mkdtemp(prefix="lilia_codex_neutral_"))
+
+
+@atexit.register
+def _cleanup_codex_neutral_cwd() -> None:
+    try:
+        shutil.rmtree(_CODEX_NEUTRAL_CWD, ignore_errors=True)
+    except Exception:
+        pass
 
 
 class EngineRunnerError(RuntimeError):
@@ -31,7 +46,7 @@ class EngineUnavailableError(EngineRunnerError):
 def available_engines() -> list[str]:
     """Return supported engine CLIs available on PATH."""
 
-    return [engine for engine in SUPPORTED_ENGINES if shutil.which(engine)]
+    return [engine for engine in SUPPORTED_ENGINES if shutil.which(engine) is not None]
 
 
 def resolve_engine(requested: str) -> str | None:
@@ -51,12 +66,9 @@ def engine_candidates(requested: str) -> list[str]:
     if requested not in {"auto", *SUPPORTED_ENGINES}:
         raise EngineUnavailableError("engine must be one of: codex, claude, auto")
     if requested != "auto":
-        return [requested]
+        return [requested] if shutil.which(requested) is not None else []
 
-    default_engine = os.environ.get("LILIA_DEFAULT_ENGINE", "claude").strip() or "claude"
-    priority = _priority_order(default_engine)
-    available = set(available_engines())
-    return [engine for engine in priority if engine in available]
+    return _default_engine_priority()
 
 
 def run_with_fallback(
@@ -139,10 +151,18 @@ def run_engine(engine: str, prompt: str, *, timeout: float, root: Path) -> str:
     return stdout
 
 
-def _priority_order(default_engine: str) -> list[str]:
-    if default_engine not in SUPPORTED_ENGINES:
-        default_engine = "claude"
-    return [default_engine] + [engine for engine in SUPPORTED_ENGINES if engine != default_engine]
+def _default_engine_priority() -> list[str]:
+    env = os.environ.get("LILIA_DEFAULT_ENGINE", "").strip().lower()
+    if env == "claude":
+        priority = ["claude", "codex"]
+    elif env == "codex":
+        priority = ["codex", "claude"]
+    else:
+        # Long profile/spine/downstream prompts are more stable on codex in
+        # current LILIA operation; character YAML keeps its own claude-first
+        # route in tools.character.core.master.
+        priority = ["codex", "claude"]
+    return [engine for engine in priority if shutil.which(engine) is not None]
 
 
 def _build_engine_command(engine: str, root: Path) -> list[str]:
@@ -154,7 +174,8 @@ def _build_engine_command(engine: str, root: Path) -> list[str]:
             "codex",
             "exec",
             "--cd",
-            str(root),
+            str(_CODEX_NEUTRAL_CWD),
+            "--skip-git-repo-check",
             "--sandbox",
             "read-only",
             "--color",
@@ -221,4 +242,3 @@ def engine_timeout_seconds() -> float:
     if value <= 0:
         raise EngineRunnerError("LILIA_ENGINE_TIMEOUT_SECONDS must be positive")
     return value
-

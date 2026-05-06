@@ -15,22 +15,66 @@ if str(ROOT) not in sys.path:
 from tools.common import engine_runner
 
 
-def test_engine_candidates_auto_defaults_to_claude(monkeypatch: pytest.MonkeyPatch) -> None:
+def _which_for(*available: str):
+    available_set = set(available)
+
+    def fake_which(command: str) -> str | None:
+        return f"/fake/bin/{command}" if command in available_set else None
+
+    return fake_which
+
+
+def test_codex_command_uses_neutral_cwd(tmp_path: Path) -> None:
+    command = engine_runner._build_engine_command("codex", tmp_path)
+    cd_index = command.index("--cd")
+
+    assert command[cd_index + 1] == str(engine_runner._CODEX_NEUTRAL_CWD)
+    assert command[cd_index + 1] != str(tmp_path)
+    assert "--skip-git-repo-check" in command
+
+
+def test_codex_neutral_cwd_exists_and_is_empty() -> None:
+    neutral_cwd = engine_runner._CODEX_NEUTRAL_CWD
+
+    assert neutral_cwd.exists()
+    assert neutral_cwd.is_dir()
+    assert list(neutral_cwd.iterdir()) == []
+
+
+def test_engine_candidates_auto_defaults_to_codex(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LILIA_DEFAULT_ENGINE", raising=False)
-    monkeypatch.setattr(engine_runner, "available_engines", lambda: ["claude", "codex"])
-
-    assert engine_runner.engine_candidates("auto") == ["claude", "codex"]
-
-
-def test_engine_candidates_auto_respects_default_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LILIA_DEFAULT_ENGINE", "codex")
-    monkeypatch.setattr(engine_runner, "available_engines", lambda: ["claude", "codex"])
+    monkeypatch.setattr(engine_runner.shutil, "which", _which_for("claude", "codex"))
 
     assert engine_runner.engine_candidates("auto") == ["codex", "claude"]
 
 
-def test_engine_candidates_explicit_returns_only_requested() -> None:
+def test_engine_candidates_auto_respects_default_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LILIA_DEFAULT_ENGINE", "claude")
+    monkeypatch.setattr(engine_runner.shutil, "which", _which_for("claude", "codex"))
+
+    assert engine_runner.engine_candidates("auto") == ["claude", "codex"]
+
+
+def test_engine_candidates_explicit_returns_only_requested_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(engine_runner.shutil, "which", _which_for("claude"))
+
     assert engine_runner.engine_candidates("claude") == ["claude"]
+
+
+def test_engine_candidates_filter_unavailable_clis(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LILIA_DEFAULT_ENGINE", raising=False)
+    monkeypatch.setattr(engine_runner.shutil, "which", _which_for("claude"))
+    assert engine_runner.engine_candidates("auto") == ["claude"]
+    assert engine_runner.engine_candidates("codex") == []
+
+    monkeypatch.setattr(engine_runner.shutil, "which", _which_for("codex"))
+    assert engine_runner.engine_candidates("auto") == ["codex"]
+    assert engine_runner.engine_candidates("claude") == []
+
+    monkeypatch.setattr(engine_runner.shutil, "which", _which_for())
+    assert engine_runner.engine_candidates("auto") == []
+    assert engine_runner.engine_candidates("codex") == []
+    assert engine_runner.engine_candidates("claude") == []
 
 
 def test_run_engine_reads_stdout_from_dummy_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
