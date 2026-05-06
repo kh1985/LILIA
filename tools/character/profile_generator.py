@@ -14,6 +14,7 @@ from tools.common.engine_runner import (
     engine_timeout_seconds,
     run_engine,
 )
+from tools.common.example_anchoring import load_example_anchoring_control
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -103,6 +104,7 @@ def _build_generation_prompt(
 ) -> str:
     answers_json = json.dumps(answers, ensure_ascii=False, indent=2, default=str)
     character_json = json.dumps(character_yaml, ensure_ascii=False, indent=2, sort_keys=True, default=str)
+    example_anchoring = load_example_anchoring_control()
     retry_block = ""
     if previous_error:
         retry_block = f"""
@@ -119,6 +121,15 @@ Q&A回答と生成済みcharacter YAMLから、first scene前に読む `lilia/ma
 LILIAは、ユーザーとの会話・選択・物語を記憶し、関係性と人格の出方が少しずつ変化していくAI恋愛シミュレーションです。
 `profile.md` は完成済み攻略キャラカードではありません。初回から生活、行動、矛盾、反応、禁忌を持たせるための人格正本です。
 関係で育った内容は後で core / voice / relationship / memory / beliefs へ分解されます。
+
+## トップレイヤーの共通原則（必読）
+
+以下は LILIA リポ全体の共通原則であり、すべての生成 prompt に適用される。
+本 prompt 内の例文・サンプル・候補語に該当する。
+
+{example_anchoring}
+
+---
 
 ## Example Anchoring Control
 
