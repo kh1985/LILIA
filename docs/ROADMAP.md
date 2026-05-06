@@ -215,6 +215,13 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - `docs/OPENING_SCENE_GENERATION.md` を追加し、Q&A → Opening Plan → first scene 出力 → 4_jobs / clarity self-check の流れを正本化した。
 - 理由: 桜セッションのように、ヒロイン描写だけが濃く、主人公の職業・目的・場所・関係性が読めない冒頭を避けるため。
 
+## Wave Y-B1: ヒロイン第一反応情報の抽象レベル分離 [完了]
+
+- `tools/session/document_generator.py` の group A / group B / 共通生成promptに、第一反応系セクションの抽象レベル分離ルールを追加した。
+- 分離軸は、voice.md = 永続的な癖、state.md = 今だけの気分、event_card.md First Concrete Action = 場面の最初のトリガー、hotset.md = 再開キャッシュ、scene.md 直前のやりとり = 物理事実。
+- `prompt/opening_scene.md` と `prompt/core.md` に、5ファイルの似た反応情報をチェックリスト扱いせず、今のターンでは自然な行動か問いを1つだけ表に出す読み取りルールを追加した。
+- 物理ファイル統合やテンプレート変更は行わない。効果測定後、改善が不十分な場合だけ Wave Y-B2（物理統合）を検討する。
+
 ## 候補（優先度順、確定）
 
 - Wave 17: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
