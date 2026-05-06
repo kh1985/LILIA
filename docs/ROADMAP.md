@@ -230,6 +230,17 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - 採用しないもの: `tools/session/document_generator.py` の生成経路変更、`prompt/core.md` の追加改修、物理ファイル統合、Opening Plan 専用 validator の hard fail 化。
 - 理由: 初回sceneがヒロイン描写だけで濃くなり、主人公の職業・目的・場所・関係性が読めない冒頭へ戻ることを防ぐため。
 
+## Wave Y-C: Heroine Entrance Density Profile / Opening Requirements [完了]
+
+- ヒロイン初登場の密度を、`profile.md` の「描写の縛り」拡張と、`prompt/opening_scene.md` Part 2 の multi-axis requirements によって強化する方針を追加した。
+- `profile.md` の「描写の縛り」は、単一の物的アンカーだけでなく、見た目、所作、職能、生活痕、距離感、矛盾、触れられたくない境界が初登場で自然に立ち上がるための参照束として扱う。
+- 初回scene Part 2 では、ヒロインの姿だけを濃くするのではなく、主人公の職業・目的・場所・関係性、event_card入口、Opening Plan の `clarity_anchors` と同時に読める多軸描写を必須にする。
+- 官能性は、露出やフェティッシュ項目の粗い列挙ではなく、表/内、近づく/止まる、見せる/隠す、職能/弱さなどの二軸の緊張と矛盾として表現する。
+- 採用元は inner-galge の `cast/heroine/<name>.md` にある「描写の縛り」構造。具体語やキャラ配置は移植せず、初登場時に毎回効く観察軸と縛りの構造だけをLILIA向けに採用する。
+- 互換性: 旧 `profile.md` 構造は引き続き有効。既存セッションの自動 migration は行わない。`--force` 再生成を使う場合のみ、新しい `profile.md` 形式を生成できる。
+- 採用しないもの: `docs/HANDOFF.md` 更新、`prompt/core.md` 改修、`style/defaults/heroine_appearance.md` 改修、`tools/session/document_generator.py` 改修、`prompt/opening_scene.md` 改修、templates変更、tests追加。
+- 理由: 初回登場で「何者か」「どこにいるか」「主人公と何が起きているか」「何に惹かれ、何が危ういか」を同時に読めるようにしつつ、LILIAを露骨な属性リストや所有物として扱わないため。
+
 ## 候補（優先度順、確定）
 
 - Wave 17: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
