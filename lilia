@@ -143,8 +143,8 @@ Usage:
   ./lilia apply-turn [--dry-run] <session_name> <turn_update.md>
   ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
-  ./lilia codex-new [session_name]
-  ./lilia codex-resume [session_name]
+  ./lilia codex-new [session_name] [--no-record]
+  ./lilia codex-resume [session_name] [--no-record]
   ./lilia format-input <player_input>
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
@@ -155,6 +155,7 @@ AI one-shot execution runs only when --run is explicit.
 For Codex interactive play, use codex-new or codex-resume.
 AI Harness, autoplay, exports, and production CI are not included.
 Tip: redirect prompt-only output to a file if you want a quieter terminal.
+--no-record   ターミナル録音を無効化する。デフォルトは録音オン (saves/<session>/archive/logs/<YYYY>/<timestamp>.log)。
 """
     )
 
@@ -2664,6 +2665,44 @@ def codex_interactive_command(instruction: Optional[str] = None) -> list[str]:
     return command
 
 
+def generate_codex_log_path(session_path: Path) -> Path:
+    """Generate a timestamped log path under archive/logs/<YYYY>/.
+
+    Returns the Path object. Does not create the file or directories.
+    """
+    now = datetime.now(timezone.utc).astimezone()
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
+    year = now.strftime("%Y")
+    return session_path / "archive" / "logs" / year / f"{timestamp}.log"
+
+
+def wrap_codex_with_script(codex_cmd: list[str], log_path: Path) -> list[str]:
+    """Wrap a codex command with `script` for terminal recording.
+
+    Returns the wrapped command list, or the original command if `script`
+    is not available or the platform is unsupported.
+
+    macOS (BSD script):   script -q <log_path> <command...>
+    Linux (util-linux):   script -q -c "<command>" <log_path>
+    Other platforms:      no wrapping, return original command
+    """
+    if not shutil.which("script"):
+        return codex_cmd
+
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return codex_cmd
+
+    if sys.platform == "darwin":
+        return ["script", "-q", str(log_path), *codex_cmd]
+    if sys.platform.startswith("linux"):
+        return ["script", "-q", "-c", shlex.join(codex_cmd), str(log_path)]
+
+    # Unknown platform: skip recording
+    return codex_cmd
+
+
 def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Path) -> str:
     if mode == "new":
         return (
@@ -2735,7 +2774,12 @@ def print_codex_interactive_fallback(instruction: str) -> None:
     print(f"  {instruction}", flush=True)
 
 
-def maybe_launch_codex_interactive(prompt_path: Path, mode: str, session_path: Path) -> None:
+def maybe_launch_codex_interactive(
+    prompt_path: Path,
+    mode: str,
+    session_path: Path,
+    record: bool = True,
+) -> None:
     instruction = codex_interactive_instruction(prompt_path, mode, session_path)
     if not shutil.which("codex"):
         print("codex: not found; install/login to Codex CLI.", flush=True)
@@ -2746,8 +2790,22 @@ def maybe_launch_codex_interactive(prompt_path: Path, mode: str, session_path: P
         print_codex_interactive_fallback(instruction)
         return
 
+    codex_cmd = codex_interactive_command(instruction)
+    if record:
+        log_path = generate_codex_log_path(session_path)
+        wrapped_cmd = wrap_codex_with_script(codex_cmd, log_path)
+        if wrapped_cmd is not codex_cmd and wrapped_cmd != codex_cmd:
+            try:
+                relative = log_path.relative_to(ROOT)
+            except ValueError:
+                relative = log_path
+            print(f"recording terminal: {relative}", flush=True)
+            codex_cmd = wrapped_cmd
+        else:
+            print("codex: terminal recording unavailable on this platform; continuing without it.", flush=True)
+
     print("launching Codex interactive now.", flush=True)
-    result = subprocess.run(codex_interactive_command(instruction), cwd=ROOT)
+    result = subprocess.run(codex_cmd, cwd=ROOT)
     if result.returncode != 0:
         print(f"codex: interactive launch exited with status {result.returncode}.", flush=True)
         print_codex_interactive_fallback(instruction)
@@ -2807,6 +2865,8 @@ def command_resume(args: list[str]) -> None:
 
 
 def command_codex_new(args: list[str]) -> None:
+    record = "--no-record" not in args
+    args = [arg for arg in args if arg != "--no-record"]
     if len(args) > 1:
         die("codex-new accepts at most one session_name")
     session_path = create_session(args[0] if args else None)
@@ -2814,17 +2874,19 @@ def command_codex_new(args: list[str]) -> None:
     write_prompt_file(prompt_path, build_codex_new_prompt_bundle(session_path))
     print(f"created: {session_path.relative_to(ROOT)}", flush=True)
     print_codex_interactive_steps(session_path, prompt_path, "new")
-    maybe_launch_codex_interactive(prompt_path, "new", session_path)
+    maybe_launch_codex_interactive(prompt_path, "new", session_path, record=record)
 
 
 def command_codex_resume(args: list[str]) -> None:
+    record = "--no-record" not in args
+    args = [arg for arg in args if arg != "--no-record"]
     if len(args) > 1:
         die("codex-resume accepts at most one session_name")
     session_path = resolve_session(args[0] if args else None)
     prompt_path = codex_prompt_path(session_path, "resume")
     write_prompt_file(prompt_path, build_codex_resume_prompt_bundle(session_path))
     print_codex_interactive_steps(session_path, prompt_path, "resume")
-    maybe_launch_codex_interactive(prompt_path, "resume", session_path)
+    maybe_launch_codex_interactive(prompt_path, "resume", session_path, record=record)
 
 
 def command_list_sessions() -> None:
