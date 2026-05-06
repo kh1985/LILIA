@@ -2619,9 +2619,11 @@ def build_codex_new_prompt_bundle(session_path: Path) -> str:
         "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
         "while the heroine may perceive only PLAYER_ACTION. "
         "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
-        "or when initialization requires file generation. If needed after a normal play turn, scene-tick may update only the "
-        "autosave counter; it is not a save. If autosave_required becomes true, suggest saving but do not run apply-turn "
-        "unless the user asks. Do not expose internal save reasoning to the player.\n"
+        "or when initialization requires file generation. After every normal play turn, you must run ./lilia scene-tick <session> "
+        "to advance the autosave counter. When the scene-tick output shows autosave_required: true, you must enter save mode "
+        "immediately, write a turn_update.md containing only the sections that actually changed in the last interval, run "
+        "./lilia apply-turn <session> <turn_update.md>, and then return a single short bracketed line (e.g. (保存しました)) "
+        "to the player before continuing play. Do not expose internal save reasoning to the player.\n"
         "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
         + build_new_prompt_bundle(session_path)
     )
@@ -2638,9 +2640,11 @@ def build_codex_resume_prompt_bundle(session_path: Path) -> str:
         "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
         "while the heroine may perceive only PLAYER_ACTION. "
         "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
-        "or when initialization requires file generation. If needed after a normal play turn, scene-tick may update only the "
-        "autosave counter; it is not a save. If autosave_required becomes true, suggest saving but do not run apply-turn "
-        "unless the user asks. Do not expose internal save reasoning to the player.\n"
+        "or when initialization requires file generation. After every normal play turn, you must run ./lilia scene-tick <session> "
+        "to advance the autosave counter. When the scene-tick output shows autosave_required: true, you must enter save mode "
+        "immediately, write a turn_update.md containing only the sections that actually changed in the last interval, run "
+        "./lilia apply-turn <session> <turn_update.md>, and then return a single short bracketed line (e.g. (保存しました)) "
+        "to the player before continuing play. Do not expose internal save reasoning to the player.\n"
         "do not: start AI Harness, autoplay, massive log analysis, exports, or production CI.\n\n"
         + build_resume_prompt_bundle(session_path)
     )
@@ -2671,9 +2675,11 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
             "while the heroine may perceive only PLAYER_ACTION. "
             "Respond in playable scene text first. Enter save/update mode only when the user explicitly asks to save/update "
-            "or when initialization requires file generation. If needed after a normal play turn, run ./lilia scene-tick "
-            f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
-            "suggest saving but do not run apply-turn unless the user asks. Do not expose internal save reasoning to the player."
+            "or when initialization requires file generation. After every normal play turn, you must run ./lilia scene-tick "
+            f"{session_path.name} to advance the autosave counter. When scene-tick shows autosave_required: true, you must "
+            "enter save mode, write turn_update.md with only changed sections, run ./lilia apply-turn "
+            f"{session_path.name} <turn_update.md>, and return a single short bracketed line (e.g. (保存しました)) before "
+            "continuing play. Do not expose internal save reasoning to the player."
         )
 
     data = read_session_json(session_path)
@@ -2688,9 +2694,11 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
             "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
             "while the heroine may perceive only PLAYER_ACTION. "
             "Enter save/update mode only when the user explicitly asks to save/update. "
-            "If needed after a normal play turn, run ./lilia scene-tick "
-            f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
-            "suggest saving but do not run apply-turn unless the user asks. Do not expose internal save reasoning to the player."
+            "After every normal play turn, you must run ./lilia scene-tick "
+            f"{session_path.name} to advance the autosave counter. When scene-tick shows autosave_required: true, you must "
+            "enter save mode, write turn_update.md with only changed sections, run ./lilia apply-turn "
+            f"{session_path.name} <turn_update.md>, and return a single short bracketed line (e.g. (保存しました)) before "
+            "continuing play. Do not expose internal save reasoning to the player."
         )
 
     return (
@@ -2701,9 +2709,11 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
         "while the heroine may perceive only PLAYER_ACTION. "
         "Respond in playable scene text first. "
         "Enter save/update mode only when the user explicitly asks to save/update or when initialization requires file generation. "
-        "If needed after a normal play turn, run ./lilia scene-tick "
-        f"{session_path.name} only as an autosave counter tick; it is not a save. If autosave_required becomes true, "
-        "suggest saving but do not run apply-turn unless the user asks. Do not expose internal save reasoning to the player."
+        "After every normal play turn, you must run ./lilia scene-tick "
+        f"{session_path.name} to advance the autosave counter. When scene-tick shows autosave_required: true, you must "
+        "enter save mode, write turn_update.md with only changed sections, run ./lilia apply-turn "
+        f"{session_path.name} <turn_update.md>, and return a single short bracketed line (e.g. (保存しました)) before "
+        "continuing play. Do not expose internal save reasoning to the player."
     )
 
 
@@ -3553,8 +3563,11 @@ def command_scene_tick(args: list[str]) -> None:
     print(f"autosave_required: {str(autosave['autosave_required']).lower()}")
     if autosave["autosave_required"]:
         print(
-            "save recommended: create turn_update.md and run "
-            f"./lilia apply-turn {session_path.name} <turn_update.md>"
+            "SAVE REQUIRED: GM must enter save mode now. "
+            "Write turn_update.md with only changed sections from the last "
+            f"{interval} turns, then run "
+            f"./lilia apply-turn {session_path.name} <turn_update.md>. "
+            "Do not return the next play response until save completes."
         )
 
 
