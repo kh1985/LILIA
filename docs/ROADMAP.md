@@ -222,6 +222,14 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - `prompt/opening_scene.md` と `prompt/core.md` に、5ファイルの似た反応情報をチェックリスト扱いせず、今のターンでは自然な行動か問いを1つだけ表に出す読み取りルールを追加した。
 - 物理ファイル統合やテンプレート変更は行わない。効果測定後、改善が不十分な場合だけ Wave Y-B2（物理統合）を検討する。
 
+## Wave X-4: Opening Plan / clarity_anchors Hard Requirement [完了]
+
+- Wave X-3 Opening Plan の `clarity_anchors` は、初回scene本文の外側に置く確認項目ではなく、冒頭本文へ必ず織り込む必須要素として扱う。
+- `prompt/opening_scene.md` は soft check ではなく hard requirement として、主人公の職業・目的・場所・関係性が冒頭本文から読めるようにする。
+- 採用元は Wave 16 の `Opening Plan` / `clarity_anchors` と、Wave Y-B1 の「反応情報を自然な行動・問いへ変換する」読み取りルール。
+- 採用しないもの: `tools/session/document_generator.py` の生成経路変更、`prompt/core.md` の追加改修、物理ファイル統合、Opening Plan 専用 validator の hard fail 化。
+- 理由: 初回sceneがヒロイン描写だけで濃くなり、主人公の職業・目的・場所・関係性が読めない冒頭へ戻ることを防ぐため。
+
 ## 候補（優先度順、確定）
 
 - Wave 17: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
