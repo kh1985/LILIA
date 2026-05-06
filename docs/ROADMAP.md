@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex interactive terminal logの形式は `docs/TERMINAL_LOG_FORMAT.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex rollout logの運用は `docs/CODEX_ROLLOUT_LOGS.md` を正本にする。
 
 ## 1. Goal
 
@@ -58,7 +58,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave 14（Event Card Playability Gate Validator）: 実装済み。`tools/session/document_validator.py` に `_check_event_card_playability` を追加。pytest 4 件追加で全 pass。session_002b 単独実行で error 0。
 - Wave 15（Engine Runner Refactor）: docs正本化。`docs/ENGINE_RUNNER.md` を追加し、LLM CLI runnerの責務、engine選択、timeout、generator境界、Play Mode境界を固定した。理由: character / profile / spine / downstream docs のAI CLI呼び出しが分散しているため、Player Action Prompt改修前に実行境界を揃える。
 - Wave Y-F（Auto-save Chain Closure）: prompt / CLI 改修完了。GM AI に毎ターン scene-tick を必須化し、`autosave_required: true` 到達時に Save Mode へ強制遷移させる。apply-turn 本体・scene-tick のカウンター処理・13ファイル責務分離は触らない。
-- Wave Y-G（Terminal Recording via script）: 実装済み。`codex-new` / `codex-resume` 起動時に Unix `script` でターミナル録音を自動開始し、`saves/<session>/archive/logs/<YYYY>/<timestamp>.log` に保存する。`--no-record` で明示的に無効化できる。`apply-turn` / `scene-tick` / Wave Y-F の自動連鎖は触らない。
+- Wave Y-G（Terminal Recording via script）: 廃止。`script` コマンドによるターミナル全体録音方式は、codex の TUI 再描画により ANSI エスケープシーケンスの嵐となって実用にならなかった。Wave Y-H で撤去し、codex 自身が `~/.codex/sessions/` に保存する rollout JSONL を opt-in コマンドでコピーする方式へ移行。
+- Wave Y-H（Codex Rollout Logs Archive）: 実装済み。Wave Y-G の `script` 録音方式を撤去し、代わりに `~/.codex/sessions/` の rollout JSONL を opt-in でコピーする `./lilia archive-codex-logs <session>` コマンドを新設した。codex 自身が会話ログを構造化形式で永続保存しているため、LILIA は必要な時だけ取り寄せる方式へ移行する。
 - 文豪シーン (literary scene situations): `style/defaults/scene_situations.md` を新規追加し、`prompt/core.md` から参照する形で接続済み。荷風 / 谷崎 / 川端 / 堀 / 鏡花 / 中島 / 賢治 + 路地裏 / 季節時間境界の 9 シチュエーション。Intimacy Stage との対応表あり。
 - Emotional Design Principles (8 原則): `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本として新規追加。`prompt/core.md` および `tools/character/profile_generator.py` / `tools/session/document_generator.py` / `tools/story/spine_generator.py` の生成 prompt に参照済み。
 - Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。0-5 数値運用ロジックは未確定として `docs/ROMANCE_INTIMACY_GROWTH.md` に記録。
@@ -261,17 +262,24 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - 採用しないもの: `apply-turn` 本体変更、`scene-tick` カウンター処理変更、13ファイル責務分離変更、session.json autosave構造変更、新コマンド追加、生ログ archive/logs/ 保管、`docs/HANDOFF.md` 更新。
 - 理由: session_005 で見えた「scene-tick が任意」「autosave_required 到達後も手動保存提案止まり」という設計倒れを、prompt 改修と出力メッセージ強化だけで抜けるため。
 
-## Wave Y-G: Terminal Recording via script [完了]
+## Wave Y-G: Terminal Recording via script [廃止]
 
-- `./lilia codex-new` / `./lilia codex-resume` の起動時に、Unix の `script` コマンドでターミナル録音を自動開始する仕組みを追加した。
-- 録音先は `saves/<session>/archive/logs/<YYYY>/<YYYYMMDD_HHMMSS>.log`。1回の Codex interactive 起動につき1ファイルを作る。
-- 録音は AI ではなく `script` が機械的にキャプチャするため、会話の再出力トークンを消費しない。
-- macOS は BSD `script` の `script -q <log_path> <command...>`、Linux は util-linux `script -q -c "<command>" <log_path>` へ分岐する。`script` 不在や非対応platformでは録音せず通常起動へフォールバックする。
-- `--no-record` を `codex-new` / `codex-resume` に追加し、デバッグ時に録音を明示的にオフにできるようにした。
-- `docs/TERMINAL_LOG_FORMAT.md` を追加し、ANSI escape や Codex system message を掃除せず raw log として読む運用を固定した。
-- 採用元は Wave Y-F の実機目視確認需要、既存 `codex-new` / `codex-resume` 起動導線、LIRIA の archive/logs 分離思想。
-- 採用しないもの: ANSI掃除、log rotation、古いlog自動削除、AI要約、cross-session統合log、Web UI、検索機能、Windows専用録音、`apply-turn` / `scene-tick` / Wave Y-F 自動連鎖の変更、`docs/HANDOFF.md` 更新。
-- 理由: session_005 で消えた生会話のようなターミナル上の出来事を、state正本とは分けた検証・振り返り用のraw transcriptとして永続化するため。
+- `script` コマンドによるターミナル全体録音方式は廃止する。
+- 実機検証で codex の TUI 再描画が ANSI エスケープシーケンスごと録音され、読める会話ログとして実用にならないことが分かった。
+- Wave Y-H で script wrapping 関数、terminal recording 用のinteractive launch引数、recording用CLIフラグ、recording tests、旧terminal log形式docを撤去する。
+- 採用しないもの: terminal raw transcript の自動保存、ANSI掃除、log rotation、古いlog自動削除、AI要約、cross-session統合log、Web UI、検索機能、Windows専用録音。
+- 理由: LILIA がリアルタイム録音する必要はなく、codex 自身が構造化された rollout JSONL を保持しているため。
+
+## Wave Y-H: Codex Rollout Logs Archive [完了]
+
+- Wave Y-G の `script` 録音方式を撤去し、`codex-new` / `codex-resume` は Wave Y-F の直接 interactive 起動へ戻した。
+- `./lilia archive-codex-logs <session>` を追加した。
+- このコマンドは `~/.codex/sessions/` の `rollout-*.jsonl` を探索し、先頭行の `session_meta.payload.cwd` が LILIA repo root と一致するものだけを `saves/<session>/archive/logs/<YYYY>/<MM>/<DD>/` へコピーする。
+- 既存ファイルはスキップし、何度実行しても安全な opt-in archive として扱う。
+- `docs/CODEX_ROLLOUT_LOGS.md` を追加し、codex rollout JSONL の場所、取り込みコマンド、読み方、容量、元データの扱いを記録した。
+- 採用元は Wave Y-F の実機目視確認需要、LIRIA の archive 分離思想、codex 自身の構造化 rollout JSONL。
+- 採用しないもの: 自動コピー、JSONL から Markdown への変換、検索専用コマンド、gzip 圧縮/rotation、cwd フィルタ無効化、時間範囲指定、`apply-turn` / `scene-tick` / Wave Y-F 自動連鎖の変更、`docs/HANDOFF.md` 更新、prompt変更。
+- 理由: 普段のPlay Modeを邪魔せず、必要な時だけ構造化ログを取り寄せられるようにするため。
 
 ## 候補（優先度順、確定）
 

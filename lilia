@@ -143,8 +143,9 @@ Usage:
   ./lilia apply-turn [--dry-run] <session_name> <turn_update.md>
   ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
-  ./lilia codex-new [session_name] [--no-record]
-  ./lilia codex-resume [session_name] [--no-record]
+  ./lilia codex-new [session_name]
+  ./lilia codex-resume [session_name]
+  ./lilia archive-codex-logs <session_name>
   ./lilia format-input <player_input>
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
@@ -155,7 +156,7 @@ AI one-shot execution runs only when --run is explicit.
 For Codex interactive play, use codex-new or codex-resume.
 AI Harness, autoplay, exports, and production CI are not included.
 Tip: redirect prompt-only output to a file if you want a quieter terminal.
---no-record   ターミナル録音を無効化する。デフォルトは録音オン (saves/<session>/archive/logs/<YYYY>/<timestamp>.log)。
+archive-codex-logs   ~/.codex/sessions/ 配下から、cwd が LILIA リポと一致する codex rollout JSONL を saves/<session>/archive/logs/ へコピーする。idempotent（既存ファイルはスキップ）。
 """
     )
 
@@ -2665,44 +2666,6 @@ def codex_interactive_command(instruction: Optional[str] = None) -> list[str]:
     return command
 
 
-def generate_codex_log_path(session_path: Path) -> Path:
-    """Generate a timestamped log path under archive/logs/<YYYY>/.
-
-    Returns the Path object. Does not create the file or directories.
-    """
-    now = datetime.now(timezone.utc).astimezone()
-    timestamp = now.strftime("%Y%m%d_%H%M%S")
-    year = now.strftime("%Y")
-    return session_path / "archive" / "logs" / year / f"{timestamp}.log"
-
-
-def wrap_codex_with_script(codex_cmd: list[str], log_path: Path) -> list[str]:
-    """Wrap a codex command with `script` for terminal recording.
-
-    Returns the wrapped command list, or the original command if `script`
-    is not available or the platform is unsupported.
-
-    macOS (BSD script):   script -q <log_path> <command...>
-    Linux (util-linux):   script -q -c "<command>" <log_path>
-    Other platforms:      no wrapping, return original command
-    """
-    if not shutil.which("script"):
-        return codex_cmd
-
-    try:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        return codex_cmd
-
-    if sys.platform == "darwin":
-        return ["script", "-q", str(log_path), *codex_cmd]
-    if sys.platform.startswith("linux"):
-        return ["script", "-q", "-c", shlex.join(codex_cmd), str(log_path)]
-
-    # Unknown platform: skip recording
-    return codex_cmd
-
-
 def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Path) -> str:
     if mode == "new":
         return (
@@ -2778,7 +2741,6 @@ def maybe_launch_codex_interactive(
     prompt_path: Path,
     mode: str,
     session_path: Path,
-    record: bool = True,
 ) -> None:
     instruction = codex_interactive_instruction(prompt_path, mode, session_path)
     if not shutil.which("codex"):
@@ -2791,19 +2753,6 @@ def maybe_launch_codex_interactive(
         return
 
     codex_cmd = codex_interactive_command(instruction)
-    if record:
-        log_path = generate_codex_log_path(session_path)
-        wrapped_cmd = wrap_codex_with_script(codex_cmd, log_path)
-        if wrapped_cmd is not codex_cmd and wrapped_cmd != codex_cmd:
-            try:
-                relative = log_path.relative_to(ROOT)
-            except ValueError:
-                relative = log_path
-            print(f"recording terminal: {relative}", flush=True)
-            codex_cmd = wrapped_cmd
-        else:
-            print("codex: terminal recording unavailable on this platform; continuing without it.", flush=True)
-
     print("launching Codex interactive now.", flush=True)
     result = subprocess.run(codex_cmd, cwd=ROOT)
     if result.returncode != 0:
@@ -2865,8 +2814,6 @@ def command_resume(args: list[str]) -> None:
 
 
 def command_codex_new(args: list[str]) -> None:
-    record = "--no-record" not in args
-    args = [arg for arg in args if arg != "--no-record"]
     if len(args) > 1:
         die("codex-new accepts at most one session_name")
     session_path = create_session(args[0] if args else None)
@@ -2874,19 +2821,110 @@ def command_codex_new(args: list[str]) -> None:
     write_prompt_file(prompt_path, build_codex_new_prompt_bundle(session_path))
     print(f"created: {session_path.relative_to(ROOT)}", flush=True)
     print_codex_interactive_steps(session_path, prompt_path, "new")
-    maybe_launch_codex_interactive(prompt_path, "new", session_path, record=record)
+    maybe_launch_codex_interactive(prompt_path, "new", session_path)
 
 
 def command_codex_resume(args: list[str]) -> None:
-    record = "--no-record" not in args
-    args = [arg for arg in args if arg != "--no-record"]
     if len(args) > 1:
         die("codex-resume accepts at most one session_name")
     session_path = resolve_session(args[0] if args else None)
     prompt_path = codex_prompt_path(session_path, "resume")
     write_prompt_file(prompt_path, build_codex_resume_prompt_bundle(session_path))
     print_codex_interactive_steps(session_path, prompt_path, "resume")
-    maybe_launch_codex_interactive(prompt_path, "resume", session_path, record=record)
+    maybe_launch_codex_interactive(prompt_path, "resume", session_path)
+
+
+def find_codex_rollouts_for_repo() -> list[tuple[Path, Path]]:
+    """Find codex rollout JSONL files whose session cwd matches this repo.
+
+    Returns (source_path, relative_path) tuples. relative_path is relative to
+    ~/.codex/sessions/ so archive-codex-logs can mirror Codex's layout.
+    """
+    codex_sessions = Path.home() / ".codex" / "sessions"
+    if not codex_sessions.is_dir():
+        return []
+
+    matches: list[tuple[Path, Path]] = []
+    repo_root_resolved = ROOT.resolve()
+
+    for jsonl in sorted(codex_sessions.rglob("rollout-*.jsonl")):
+        try:
+            with jsonl.open("r", encoding="utf-8") as handle:
+                first_line = handle.readline()
+            if not first_line.strip():
+                continue
+            meta = json.loads(first_line)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        if meta.get("type") != "session_meta":
+            continue
+
+        payload = meta.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        cwd_str = payload.get("cwd")
+        if not cwd_str:
+            continue
+
+        try:
+            cwd_resolved = Path(cwd_str).expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+
+        if cwd_resolved != repo_root_resolved:
+            continue
+
+        try:
+            relative = jsonl.relative_to(codex_sessions)
+        except ValueError:
+            continue
+        matches.append((jsonl, relative))
+
+    return matches
+
+
+def command_archive_codex_logs(args: list[str]) -> None:
+    if len(args) != 1:
+        die("archive-codex-logs requires <session_name>")
+
+    session_path = resolve_session(args[0])
+    codex_sessions_dir = Path.home() / ".codex" / "sessions"
+    archive_root = session_path / "archive" / "logs"
+    matches = find_codex_rollouts_for_repo()
+    if not matches:
+        if not codex_sessions_dir.is_dir():
+            print(f"no codex sessions directory found at {codex_sessions_dir}")
+        else:
+            print("no codex rollouts found whose cwd matches this LILIA repo.")
+        print(f"session: {session_path.relative_to(ROOT)}")
+        return
+
+    copied: list[str] = []
+    skipped: list[str] = []
+
+    for source, rel_path in matches:
+        dest = archive_root / rel_path
+        name = str(rel_path)
+        if dest.exists():
+            skipped.append(name)
+            continue
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, dest)
+        except OSError as exc:
+            print(f"copy failed: {name}: {exc}", flush=True)
+            continue
+        copied.append(name)
+
+    print(f"session: {session_path.relative_to(ROOT)}")
+    print(f"copied: {len(copied)}")
+    for name in copied:
+        print(f"  {name}")
+    if skipped:
+        print(f"skipped (already archived): {len(skipped)}")
+        for name in skipped:
+            print(f"  {name}")
 
 
 def command_list_sessions() -> None:
@@ -3657,6 +3695,8 @@ def main(argv: list[str]) -> None:
         command_codex_new(args)
     elif command == "codex-resume":
         command_codex_resume(args)
+    elif command == "archive-codex-logs":
+        command_archive_codex_logs(args)
     elif command == "format-input":
         command_format_input(args)
     elif command == "list-sessions":
