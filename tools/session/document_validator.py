@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 import re
+import sys
 from typing import Any
 
 
@@ -140,8 +141,106 @@ def validate_session_documents(
         original_knowledge_state_md=original_knowledge_state_md,
     )
     _check_event_card_playability(documents, errors)
+    _check_opening_plan_consistency(documents)
 
     return not errors, errors
+
+
+OPENING_PATTERN_GROUPS = {
+    **{f"O{number}": "A" for number in range(1, 5)},
+    **{f"O{number}": "B" for number in range(5, 9)},
+    **{f"O{number}": "C" for number in range(9, 13)},
+    **{f"O{number}": "D" for number in range(13, 16)},
+}
+
+
+def validate_opening_plan_consistency(scene_md: str) -> list[str]:
+    """Return soft warnings for ``current/scene.md`` Opening Plan consistency."""
+
+    warnings: list[str] = []
+    section = _section_body(scene_md, "Opening Plan")
+    if section is None:
+        warnings.append("current/scene.md: Opening Plan section is missing")
+        return warnings
+
+    patterns = _opening_plan_patterns(section)
+    if not patterns:
+        warnings.append("current/scene.md: Opening Plan selected_patterns is missing or empty")
+    if len(patterns) > 3:
+        warnings.append("current/scene.md: Opening Plan selects more than 3 patterns")
+
+    invalid = [pattern for pattern in patterns if pattern not in OPENING_PATTERN_GROUPS]
+    for pattern in invalid:
+        warnings.append(f"current/scene.md: Opening Plan has unknown pattern: {pattern}")
+
+    valid_patterns = [pattern for pattern in patterns if pattern in OPENING_PATTERN_GROUPS]
+    groups = [OPENING_PATTERN_GROUPS[pattern] for pattern in valid_patterns]
+    if groups.count("A") != 1:
+        warnings.append("current/scene.md: Opening Plan must select exactly one A-group pattern (O1-O4)")
+    if groups.count("D") != 1:
+        warnings.append("current/scene.md: Opening Plan must select exactly one D-group pattern (O13-O15)")
+    if groups.count("B") + groups.count("C") > 1:
+        warnings.append("current/scene.md: Opening Plan may select at most one optional B/C pattern")
+    for group in ["A", "B", "C", "D"]:
+        if groups.count(group) > 1:
+            warnings.append(f"current/scene.md: Opening Plan selects multiple patterns from group {group}")
+
+    for field in ["hook", "orientation", "agency", "unresolved"]:
+        if not _yaml_like_field_has_value(section, field):
+            warnings.append(f"current/scene.md: Opening Plan 4_jobs.{field} is missing")
+    if not _list_block_has_item(section, "must_include"):
+        warnings.append("current/scene.md: Opening Plan must_include is missing")
+    for field in ["protagonist_role", "protagonist_purpose", "location_function", "heroine_relation"]:
+        if not _yaml_like_field_has_value(section, field):
+            warnings.append(f"current/scene.md: Opening Plan clarity_anchors.{field} is missing")
+    return warnings
+
+
+def _check_opening_plan_consistency(documents: dict[str, str]) -> None:
+    scene_md = documents.get("current/scene.md")
+    if not scene_md:
+        return
+    for warning in validate_opening_plan_consistency(scene_md):
+        print(f"[opening_plan] warning: {warning}", file=sys.stderr)
+
+
+def _section_body(markdown: str, heading: str) -> str | None:
+    pattern = re.compile(rf"^##\s+{re.escape(heading)}\s*$", re.MULTILINE)
+    match = pattern.search(markdown)
+    if not match:
+        return None
+    next_heading = re.search(r"^##\s+.+?\s*$", markdown[match.end() :], re.MULTILINE)
+    end = match.end() + next_heading.start() if next_heading else len(markdown)
+    return markdown[match.end() : end].strip()
+
+
+def _opening_plan_patterns(section: str) -> list[str]:
+    match = re.search(r"^selected_patterns\s*:\s*(.+)$", section, flags=re.MULTILINE)
+    if not match:
+        return []
+    return re.findall(r"\bO(?:[1-9]|1[0-5])\b|\bO\d+\b", match.group(1))
+
+
+def _yaml_like_field_has_value(section: str, field: str) -> bool:
+    match = re.search(rf"^[ \t]*{re.escape(field)}[ \t]*:[ \t]*(.*)$", section, flags=re.MULTILINE)
+    if not match:
+        return False
+    value = match.group(1).strip()
+    return bool(value and value not in {"-", "未設定", "TODO", "placeholder"})
+
+
+def _list_block_has_item(section: str, field: str) -> bool:
+    match = re.search(rf"^[ \t]*{re.escape(field)}[ \t]*:[ \t]*$", section, flags=re.MULTILINE)
+    if not match:
+        inline = re.search(rf"^[ \t]*{re.escape(field)}[ \t]*:[ \t]*(.+)$", section, flags=re.MULTILINE)
+        return bool(inline and inline.group(1).strip())
+    following = section[match.end() :]
+    next_field = re.search(r"^\S[^:\n]*:\s*", following, flags=re.MULTILINE)
+    block = following[: next_field.start()] if next_field else following
+    return any(
+        line.strip().startswith("-") and line.strip() not in {"-", "- 未設定", "- TODO"}
+        for line in block.splitlines()
+    )
 
 
 def _check_required_sections(rel_path: str, content: str, template_root: Path, errors: list[str]) -> None:

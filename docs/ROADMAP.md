@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md` を正本にする。
 
 ## 1. Goal
 
@@ -62,7 +62,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。0-5 数値運用ロジックは未確定として `docs/ROMANCE_INTIMACY_GROWTH.md` に記録。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) は実装済み。Wave 15 で Engine Runner Refactor を先に挟み、次は Wave 16 (GM 応答末尾の「→ どうする？」prompt 改修)。
+- 10 ターン到達時の保存提案 UX は session_002b で動作確認済み。Wave 13 (Voice Continuity Gate validator) と Wave 14 (Event Card Playability Gate validator) は実装済み。Wave 15 で Engine Runner Refactor を先に挟み、Wave 16 で Opening Pattern Stock を初回scene生成へ接続した。次は Wave 17 (GM 応答末尾の「→ どうする？」prompt 改修)。
 
 ### Wave 4: Reference Libraries [完了]
 
@@ -203,9 +203,21 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Play Mode中の通常応答、AI Harness、自動プレイ、大量ログ解析、bench は対象外。
 - 理由: AI生成経路のCLI呼び出しが複数箇所に分散しているため、次のprompt改修前に実行境界を小さく揃える。
 
+## Wave 16: Opening Pattern Stock Integration [完了]
+
+- `references/opening_pattern_stock.md` を初回scene生成へ接続した。
+- `tools/common/references.py` を追加し、reference Markdown から観察作品行や具体例を取り除く sanitizer を共通化した。
+- `tools/session/document_generator.py` の group A prompt が sanitized opening stock を読み、`current/scene.md` の `## Opening Plan` を生成する。
+- `Opening Plan` は A群1 + D群1を必須にし、B群またはC群を最大1つだけ任意追加する。
+- `Opening Plan` には selected_patterns、selection_reason、must_include、4_jobs、clarity_anchors、opening_caveats を保存する。
+- `prompt/opening_scene.md` は Opening Plan と opening_pattern_stock を読み、8〜15文の冒頭へ変換する。O14 では発見の瞬間から始め、助けた後から始めない。
+- `tools/session/document_validator.py` に soft warning の opening plan consistency check を追加した。既存セッションに `## Opening Plan` が無くても resume を壊さない。
+- `docs/OPENING_SCENE_GENERATION.md` を追加し、Q&A → Opening Plan → first scene 出力 → 4_jobs / clarity self-check の流れを正本化した。
+- 理由: 桜セッションのように、ヒロイン描写だけが濃く、主人公の職業・目的・場所・関係性が読めない冒頭を避けるため。
+
 ## 候補（優先度順、確定）
 
-- Wave 16: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
+- Wave 17: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
 
 ## 候補（中期、優先度順、未確定）
 

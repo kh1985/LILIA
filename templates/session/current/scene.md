@@ -35,3 +35,23 @@
 ## 次にユーザーへ渡す行動余地
 
 - 未設定
+
+## Opening Plan
+
+selected_patterns:
+selection_reason:
+must_include:
+  -
+  -
+4_jobs:
+  hook:
+  orientation:
+  agency:
+  unresolved:
+clarity_anchors:
+  protagonist_role:
+  protagonist_purpose:
+  location_function:
+  heroine_relation:
+opening_caveats:
+  -

@@ -15,6 +15,7 @@ from tools.common.engine_runner import (
     engine_timeout_seconds,
     run_engine,
 )
+from tools.common.references import load_sanitized_reference
 from tools.session.document_validator import validate_session_documents
 
 
@@ -220,6 +221,10 @@ def generate_protagonist_documents(
         context=context,
     )
     return result["documents"]
+
+
+def load_sanitized_opening_pattern_stock() -> str:
+    return load_sanitized_reference("references/opening_pattern_stock.md")
 
 
 def _generate_group(
@@ -686,15 +691,11 @@ def _answer_text(answers: dict, number: int) -> str:
 
 
 def _build_group_a_prompt(context: dict[str, Any]) -> str:
-    return _build_base_prompt(
-        context=context,
-        rel_paths=GROUP_A_PATHS,
-        role="あなたは LILIA セッションの初回シーン素材を作る設計者です。",
-        constraints="""
+    opening_pattern_stock = load_sanitized_opening_pattern_stock()
+    constraints = """
 1. 各ファイルは異なる目的を持つ。同じ文や同じ素材を複数ファイルへコピペしない。
 2. 文を途中で切らない。「...」「…」で終わらせない。
 3. 全セッション共通のテンプレ表現を使わない。
-   禁止: 「次の行動の判断について、急かさず短く聞く」
    禁止: 「{ヒロイン名}が自分で決めるまで待つ」
    禁止: 「{ヒロイン名}に名乗る / 名前を聞く」
    禁止: 「{物}に触れず、扱い方だけを提案する」
@@ -705,7 +706,62 @@ def _build_group_a_prompt(context: dict[str, Any]) -> str:
 7. current/event_card.md は原則1, 3, 4, 5を意識し、Visible Problem / Relationship Stake / Next Visible Change に感情の圧と未完了を残す。
 8. current/scene.md は原則2, 3, 5を意識し、感情名ではなく身体反応、環境、予想との差、未解決の要素で初回sceneを始める。
 9. current/hotset.md は原則5を意識し、再開時に戻す未完了の余白を短く残す。
-""",
+10. current/scene.md の末尾に必ず `## Opening Plan` セクションを出す。
+    Q&A の Q3（描写の縛り）、Q5（内面に持っているもの）、Q6（出会い + 関係性の起点）、Q9（避けたい展開）、
+    character YAML、profile.md、story_spine の Background Truth / Drift Guard を解釈し、
+    下の Opening Pattern Stock から A群 1 + D群 1（必須） + B群またはC群から最大1（任意）を選ぶ。
+11. Opening Pattern の選択ルール:
+    - 必ず A群（O1-O4）から1つ、D群（O13-O15）から1つ。
+    - B群（O5-O8）またはC群（O9-O12）から任意で1つ追加可。
+    - 3つ以上の混在は禁止。
+    - 同じ群から2つ採用するのは禁止。
+    - Q9に「停滞を避けたい」がある場合、O9 / O10 / O14 を優先候補にする。
+    - Q5に過去の傷・秘密が強い場合、O5 / O11 を候補にする。
+    - Q6が偶然の出会いの場合、O13 / O14 を候補にする。
+12. `## Opening Plan` は以下の固定フォーマットで出す。空欄、未設定、TODO、placeholder を残さない。
+
+```text
+## Opening Plan
+
+selected_patterns: [O<n>, O<n>] または [O<n>, O<n>, O<n>]
+selection_reason: 1-2文の短い説明
+must_include:
+  - O<n>: そのパターンが要求する具体要素
+  - O<n>: そのパターンが要求する具体要素
+4_jobs:
+  hook: 冒頭の掴みになる要素
+  orientation: 主人公の位置・職業・状況。3文以内で読み取れる形
+  agency: プレイヤーの初手の選択余地
+  unresolved: 持ち越す問い
+clarity_anchors:
+  protagonist_role: 主人公の職業・立場を示す具体描写、1行
+  protagonist_purpose: なぜ今この場にいるかの具体描写、1行
+  location_function: 場所が何の場所か伝わる描写、1行。固有名詞のみで終わらせない
+  heroine_relation: 主人公とヒロインの関係性が判別できる手がかり、1行
+opening_caveats:
+  - パターン固有の典型的失敗をどう回避するかの1行
+```
+
+13. `clarity_anchors` は冒頭本文を書く LLM が自然な描写へ織り込むための足場である。
+    説明調にせず、役割・目的・場所機能・関係性を1行の描写に含められる具体度で書く。
+    悪い例: 「鴉ノ宿のガラス戸を細く叩いていた」
+    良い例: 「オカルトショップ『鴉ノ宿』のガラス戸を、雨が細く叩いていた」
+14. `must_include` は選んだパターンの「形」から必須要素を1-2個抜く。
+    O3: 視覚情報は最後、音/匂い/温度を先に置く。2感覚までで止める。
+    O14: 発見の瞬間から始める。助けた後から始めない。助ける/通過/様子を見る余地を残す。
+    O15: 日常のルーチンが先、違和感は1-2点で止める。
+15. `## 次に起きそうなこと` は Opening Plan の `agency` と矛盾させない。プレイヤーの選択を奪わない。
+16. `## 直前のやりとり` は Opening Plan の `4_jobs.hook` と整合させる。
+
+## Opening Pattern Stock（作品名サニタイズ済み）
+
+```md
+""".rstrip() + "\n" + opening_pattern_stock + "\n```\n"
+    return _build_base_prompt(
+        context=context,
+        rel_paths=GROUP_A_PATHS,
+        role="あなたは LILIA セッションの初回シーン素材を作る設計者です。",
+        constraints=constraints,
     )
 
 

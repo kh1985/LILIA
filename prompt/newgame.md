@@ -31,6 +31,7 @@ LILIAは固有の人格を持ち、関係の中で人格の出方が変化する
 - `docs/GROWTH_UPDATE_LOOP.md`: 初回scene後に何をどこへ保存更新するかの正本。
 - `docs/STATE_STRUCTURE.md`: session scaffoldと各ファイル責務の正本。
 - `docs/LILIA_PERSONA_PROFILE.md`: first scene前に読む `lilia/main/profile.md` の目的と責務の正本。
+- `references/opening_pattern_stock.md`: 初回sceneの冒頭パターン棚。`current/scene.md` の `Opening Plan` へ短く接続する。
 - `templates/session/`: 実セッションへ複製されるファイル形状。
 - root `style/defaults/`: 全session共通のStyle Layer。session固有の保存先ではない。
 
@@ -394,10 +395,15 @@ signal名、engine名、参考作品名を作中に出さない。
 結果は、物語素材として `story/story_deck.md`、文章表現の参照として `style/reference.md`、出力ルールとして `style/rules.md` に分けて短く保存する。
 `story/relationship_spine.md` と `current/story_spine.md` は、Light Story Reference Passの穴埋め結果ではなく、Wave 11のAI spine生成結果を使う。
 
+Opening Plan は、`references/opening_pattern_stock.md` から1〜2個の冒頭パターンを選び、`current/scene.md` に短く保存する。
+保存するのは、選んだ構造、選んだ理由、プレイヤーの立ち位置、最初に見せるもの、最後に残す余白、分かりやすさのanchorだけにする。
+Opening Plan は `prompt/opening_scene.md` の Part 1 / Part 2 / Part 3、Knowledge Boundary、禁止事項、文字数目安を上書きしない。
+
 出力先は以下に分ける。
 
 | 出力先 | 保存するもの |
 | --- | --- |
+| `current/scene.md` | Opening Plan、現在地、場面時間、初回sceneの入口、次にユーザーへ渡す行動余地 |
 | `story/relationship_spine.md` | 育てたいテーマ、最初の摩擦、守るもの、避けるもの、ユーザーに問うこと、関係が変化する方向 |
 | `story/story_deck.md` | 3-5個までのstory素材、関係を揺らす圧、未回収札、次に使うなら |
 | `style/reference.md` | source hints 0-2、抽出した表現軸、場面温度、視点距離、描写密度、台詞と沈黙、余韻 |
@@ -826,6 +832,8 @@ knowledge_state.md は session document generator の protagonist 系AI出力と
 
 current/配下のファイル生成が完了したら、最初のsceneを出力する。
 この時、`prompt/opening_scene.md` の指針に完全に従う。
+この時、`current/scene.md` の `Opening Plan` があれば先に確認し、冒頭の開き方だけに使う。
+Opening Plan は本文の設計メモであり、パターン名や参照元名を作中に出さない。
 
 注意:
 
