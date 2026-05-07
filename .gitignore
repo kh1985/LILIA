@@ -1,5 +1,6 @@
 /saves/
 /logs/
 /logs/codex_rollouts/
+/playtests/
 __pycache__/
 .DS_Store
