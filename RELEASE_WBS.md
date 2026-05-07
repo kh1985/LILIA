@@ -1,0 +1,115 @@
+# LILIA Release WBS
+
+この文書は、LILIA商用βリリースまでのタスク、状態、優先度、完了条件を管理するトップレベルWBSである。
+
+## Status
+
+- todo: 未着手
+- doing: 作業中
+- blocked: 停止中
+- review: 確認待ち
+- done: 完了
+- dropped: 採用しない
+
+## Priority
+
+- P0: リリース不能になる
+- P1: β品質に必要
+- P2: あると良い
+- P3: 後回し
+
+## WBS
+
+| ID | Task | Status | Priority | Owner | Due | Done Criteria |
+|---|---|---|---|---|---|---|
+| C-001 | 商用βスコープ確定 | todo | P0 |  |  | 初期βで作るもの・作らないものが COMMERCIALIZATION_ROADMAP.md に明文化されている |
+| C-002 | 1ヒロイン方針確定 | todo | P0 |  |  | 初期βで使うヒロインと現実路線の範囲が決まっている |
+| C-003 | 異界 / 能力オプション後回し明文化 | todo | P0 |  |  | 初期βでは実装しないことが明記されている |
+| P-001 | 1ヒロイン実機プレイ10ターン | todo | P0 |  |  | new → first scene → 10 turns が破綻しない |
+| P-002 | save / apply-turn 確認 | todo | P0 |  |  | Save Modeに入り、apply-turnで必要stateが更新される |
+| P-003 | resume 1ターン目確認 | todo | P0 |  |  | resume後に声・距離・余韻が戻る |
+| P-004 | event_card playable確認 | todo | P0 |  |  | event_cardが今触れる可視イベントになっている |
+| AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
+| AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary の3種が定義済み |
+| AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |
+| AI-004 | transcript保存 | todo | P0 |  |  | GM出力、AI Player入力、turn番号がMarkdownまたはJSONLで保存される |
+| AI-005 | scene-tick連動 | todo | P0 |  |  | 各ターン後にscene-tickが実行される |
+| AI-006 | apply-turn連動 | todo | P0 |  |  | 指定ターン後にSave Mode更新をテストできる |
+| AI-007 | resume検証 | todo | P0 |  |  | save → resume 後の1ターン目を生成・評価できる |
+| AI-008 | Playtest Report生成 | todo | P0 |  |  | PASS / WARN / FAIL、破綻箇所、推奨修正がMarkdown出力される |
+| IMG-001 | 画像用キャラ正本作成 | todo | P0 |  |  | 採用できる基準絵が1枚以上ある |
+| IMG-002 | character_visual.yaml 作成 | todo | P0 |  |  | 髪・目・体型・服装・禁止事項・style が定義されている |
+| IMG-003 | 画像PoC 10シーン×3枚 | todo | P0 |  |  | 30枚を生成し、同一人物性と可愛さを評価済み |
+| IMG-004 | 採用画像モデル決定 | todo | P0 |  |  | OpenAI / Gemini / その他の比較結果から初期採用モデルが決まっている |
+| IMG-005 | 画像生成タイミング定義 | todo | P0 |  |  | 初登場・場面転換・関係節目・明示要求のどれで出すか決まっている |
+| WEB-001 | WebUI PoC | todo | P0 |  |  | ブラウザで1セッションを開始できる |
+| WEB-002 | チャット画面 | todo | P0 |  |  | GM / LILIA出力とユーザー入力が表示できる |
+| WEB-003 | resume画面 | todo | P0 |  |  | 既存セッションを再開できる |
+| WEB-004 | 画像表示枠 | todo | P0 |  |  | 生成画像を会話中に表示できる |
+| WEB-005 | エラー表示 | todo | P1 |  |  | 生成失敗や保存失敗がユーザーに分かる |
+| PAY-001 | β価格決定 | todo | P1 |  |  | 月額または買い切りβ価格が決まっている |
+| PAY-002 | 決済方式決定 | todo | P1 |  |  | Stripe / BOOTH / 手動決済のどれで始めるか決まっている |
+| PAY-003 | 利用規約ドラフト | todo | P1 |  |  | β公開に耐える最低限の規約がある |
+| PAY-004 | 返金方針 | todo | P1 |  |  | β利用者向けの返金・キャンセル方針がある |
+| MKT-001 | β募集文作成 | todo | P1 |  |  | X / Discord / note で募集できる文章がある |
+| MKT-002 | LP作成 | todo | P1 |  |  | LILIAの価値、価格、参加方法が分かるページがある |
+| MKT-003 | サンプル会話作成 | todo | P1 |  |  | マーケに使える短い会話ログがある |
+| MKT-004 | サンプル画像作成 | todo | P1 |  |  | 初登場または関係節目の商用サンプル画像がある |
+| REL-001 | 身内テスト | todo | P0 |  |  | 5人以上が触り、離脱点を記録済み |
+| REL-002 | 外部テスト | todo | P0 |  |  | 忖度の少ない外部ユーザー5人以上が触る |
+| REL-003 | Go / No-Go判定 | todo | P0 |  |  | 有料βを開始するか、延期するかを判断済み |
+
+## 8 Week Schedule
+
+Week 1:
+
+- 商用βスコープ確定
+- WBS作成
+- 実装済み棚卸し
+- 初期ヒロイン決定
+
+Week 2:
+
+- 画像PoC開始
+- キャラ正本絵作成
+- OpenAI / Gemini 比較
+- 10シーン画像テスト
+
+Week 3:
+
+- 画像プロンプトテンプレート作成
+- 画像生成タイミング定義
+- 1ヒロイン10ターン実機プレイ
+
+Week 4:
+
+- WebUI最小PoC
+- チャット画面
+- session作成
+- resume表示
+
+Week 5:
+
+- WebUIから apply-newgame / resume / scene-tick 接続
+- 画像表示枠
+- エラー表示
+
+Week 6:
+
+- 課金方式決定
+- 利用規約
+- β募集LP / 投稿素材
+- 身内テスト
+
+Week 7:
+
+- 外部テスト5〜10人
+- バグ修正
+- 画像安定性改善
+- Go / No-Go判定
+
+Week 8:
+
+- 有料β 20〜50人募集
+- 運用開始
+- 継続率・離脱点記録
