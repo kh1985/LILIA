@@ -49,6 +49,11 @@
 | STORY-004 | AI PlaytestへScene Change Check追加 | todo | P1 |  |  | 入口と出口で何が変わったかを評価できる |
 | STORY-005 | PLAY_MODE_SPECへ「情報ではなく問い」ルール追加 | todo | P0 |  |  | GMが設定説明より問い・行動・衝突を優先するルールがある |
 | STORY-006 | Story Functionを固定プロット化しないルール追加 | todo | P0 |  |  | 十五機能を順番強制せず、診断と生成補助に限定することが明文化されている |
+| REL-LOGIC-001 | AFFINITY / bond 非採用方針の明文化 | todo | P0 |  |  | LILIA初期βではAFFINITY / bondを採用しない理由が明記されている |
+| REL-LOGIC-002 | hiddenベクトル本格運用の保留 | todo | P0 |  |  | hiddenベクトルは初期βでは数値運用せず、将来の深化管理候補として保持すると明記されている |
+| REL-LOGIC-003 | Relationship Change Audit正本作成 | todo | P0 |  |  | docs/RELATIONSHIP_CHANGE_AUDIT.md に、関係変化の根拠・速度・保存先分離の監査ルールがある |
+| REL-LOGIC-004 | AI PlaytestへRelationship Change Audit追加 | todo | P1 |  |  | AI Playtestで早すぎる/遅すぎる/根拠なしの関係変化を検出できる |
+| REL-LOGIC-005 | relationship templateへhidden保留方針追加 | todo | P0 |  |  | templates/session/lilia/main/relationship.md に、初期βではhiddenを通常進行メーターにしない方針がある |
 | AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
 | AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer / traveler の6種が定義済み |
 | AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |

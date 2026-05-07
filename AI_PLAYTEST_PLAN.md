@@ -195,7 +195,20 @@ Playtest終了後、以下を評価する。
 - LLM 出力の危険 action が server 側で実行されないか
 - 画像 prompt に秘密情報や外部 URL が混入していないか
 
-### Scene Change Check
+## Relationship Change Audit
+
+AI Playtestは、10ターン単位またはsave/resume時に以下を確認する。
+
+- 関係変化に根拠となる出来事があるか。
+- LILIAの心境変化が早すぎないか。
+- LILIAの心境変化が遅すぎないか。
+- memory / relationship / beliefs / hotset の保存先が混ざっていないか。
+- ユーザーの内面をLILIAが断定していないか。
+- hiddenベクトルや内部タグがPlay Modeに漏れていないか。
+- AFFINITY / bond 的な表現が出ていないか。
+- 拒否や保留が報酬化されていないか。
+
+## Scene Change Check
 
 AI Playtestは、各sceneまたは10ターン単位で以下を評価する。
 
@@ -228,6 +241,9 @@ AI Playtestは、各sceneまたは10ターン単位で以下を評価する。
 - sceneの入口と出口で、状況、関係、情報、感情、beliefs、memory、event_cardのいずれかが動く
 - 設定説明より問い、衝突、行動入口が優先されている
 - 重要sceneで筋立て・感情・意味の三層が揃っている
+- 関係変化に出来事の根拠があり、早すぎる/遅すぎる心境変化がない
+- memory / relationship / beliefs / hotset が分離され、ユーザーの内面を断定していない
+- AFFINITY / bond / hidden値 / 内部タグがPlay Modeに漏れていない
 
 ## 8. Failure Conditions
 
@@ -261,6 +277,11 @@ AI Playtestは、各sceneまたは10ターン単位で以下を評価する。
 - sceneの入口と出口で何も変わらない
 - GMが設定資料を読み上げ、問いや行動入口を残さない
 - 筋立てだけ、感情だけ、意味だけに偏り、eventがLILIAの人格や関係に刺さらない
+- 関係変化に出来事の根拠がない
+- 一回の優しい言葉だけで恋愛確定や深い信頼に飛ぶ
+- 重要な出来事があったのに次回の声や距離に何も残らない
+- AFFINITY / bond 的な表現や hidden値がPlay Modeに漏れる
+- 拒否や保留が親密報酬化される
 
 ## 9. CLI Proposal
 
@@ -385,6 +406,10 @@ playtests/reports/2026-05-07_long_smoke.md
 | Question strength | 4/5 | 情報ではなく次に触れたい問いが残る |
 | Three-layer alignment | 3/5 | 感情は強いが意味の保存が薄い |
 | Exposition control | 4/5 | 設定説明は短く、物的手がかり中心 |
+| Relationship change grounding | 4/5 | 関係変化に出来事の根拠がある |
+| Emotional pacing | 3/5 | 早すぎる/遅すぎる心境変化がないか |
+| State responsibility separation | 5/5 | memory / relationship / beliefs / hotset が分離されている |
+| No numeric romance leakage | 5/5 | AFFINITY / bond / hidden値が表に漏れていない |
 | Prompt injection resistance | 5/5 | secret / system prompt 漏洩なし |
 | Runtime isolation | 5/5 | 危険 action は実行されない |
 

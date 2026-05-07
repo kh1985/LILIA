@@ -1,7 +1,7 @@
 # LILIA Roadmap
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、story / scene機能診断は `docs/STORY_FUNCTION_FRAMEWORK.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex rollout logの運用は `docs/CODEX_ROLLOUT_LOGS.md` を正本にする。
+思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、story / scene機能診断は `docs/STORY_FUNCTION_FRAMEWORK.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、relationship change auditは `docs/RELATIONSHIP_CHANGE_AUDIT.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex rollout logの運用は `docs/CODEX_ROLLOUT_LOGS.md` を正本にする。
 小規模商用化、WebUI有料ベータ、画像生成付きプレイ、BOOTH / DLsite / 月額モデルの検証順は `COMMERCIALIZATION_ROADMAP.md` を正本にする。
 商用化、リリースWBS、実装履歴、AI Playtest Smoke はトップレベルの `COMMERCIALIZATION_ROADMAP.md`、`RELEASE_WBS.md`、`IMPLEMENTATION_HISTORY.md`、`AI_PLAYTEST_PLAN.md` を参照する。
 
@@ -67,7 +67,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Wave Y-H（Codex Rollout Logs Archive）: 実装済み。Wave Y-G の `script` 録音方式を撤去し、代わりに `~/.codex/sessions/` の rollout JSONL を opt-in で `logs/codex_rollouts/` へコピーする `./lilia archive-codex-logs` コマンドを新設した。codex 自身が会話ログを構造化形式で永続保存しているため、LILIA は必要な時だけ取り寄せる方式へ移行する。
 - 文豪シーン (literary scene situations): `style/defaults/scene_situations.md` を新規追加し、`prompt/core.md` から参照する形で接続済み。荷風 / 谷崎 / 川端 / 堀 / 鏡花 / 中島 / 賢治 + 路地裏 / 季節時間境界の 9 シチュエーション。Intimacy Stage との対応表あり。
 - Emotional Design Principles (8 原則): `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本として新規追加。`prompt/core.md` および `tools/character/profile_generator.py` / `tools/session/document_generator.py` / `tools/story/spine_generator.py` の生成 prompt に参照済み。
-- Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。0-5 数値運用ロジックは未確定として `docs/ROMANCE_INTIMACY_GROWTH.md` に記録。
+- Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。初期βでは通常進行メーターとして使わず、将来候補として `docs/ROMANCE_INTIMACY_GROWTH.md` と `docs/RELATIONSHIP_CHANGE_AUDIT.md` に記録。
 - LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
 - 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
 - 10 ターン到達時の autosave_required UX は Wave Y-F で「保存提案」から「GM の Save Mode 強制遷移」へ prompt 改修済み。次は実機プレイで scene-tick 毎ターン実行と apply-turn 発火を目視確認する。
@@ -301,7 +301,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - NPC 知識管理 (knowledge_state 拡張)。
 - ステータス可視化 (HP / 残回数等の概念導入)。先に「LILIA における役割と HP の概念」を docs に追加する必要がある。
 - 行動選択肢 3 つ提示の基準設計。
-- Hidden 深化ベクトル運用ロジック確定: `templates/session/lilia/main/relationship.md` の 6 軸に枠と更新ルール、閾値が記述済みだが、0-5 の各値の定義、Intimacy Stage との連動、開放条件、上がり方の目安リスト、AFFINITY 5 相当との接続が未確定。`docs/ROMANCE_INTIMACY_GROWTH.md` の「未確定事項」セクションに記録済み。
+- Hidden 深化ベクトル運用ロジック確定: `templates/session/lilia/main/relationship.md` の 6 軸は将来候補として保持するが、初期βでは通常進行メーターとして使わない。関係変化は `docs/RELATIONSHIP_CHANGE_AUDIT.md` に従い、文字情報で監査する。0-5 の各値の定義、Intimacy Stage との連動、上がり方の目安リストは中期再検討。
 - Deepening Tags（深化タグ）実装: inner-galge にあるデフォルト 14 タグ（初夜、秘密の共有、個人ストーリー解決、能力共鳴、同行宣言、摩擦の処理、共同体合意、役割確立、他者の席の承認、情報共有合意、不在時連携、離脱自由の確認、裏切りと復縁、新たな秘密）と、ヒロインごとの追加機構の実装。LILIA の relationship.md に枠は記述済みだが、デフォルトリストとヒロイン追加機構は未実装。
 - Intimacy Stage / Consent Stage / Boundary State の機械チェック: `tools/session/voice_continuity_validator.py` に Intimacy Stage 名値検査を追加する。Wave 13 の保留事項として記録済み。
 - 軽量 Integrity Audit Tool: `INTEGRITY_AUDIT_20260505.md` を生成した手順を `tools/audit/integrity_audit.py` として定型化し、コマンド一発で再実行できる状態にする。GraphRAG はオーバースペックと判定済み（中期再検討）。
@@ -320,7 +320,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 ### 複数ヒロイン管理（inner-galge harem.md 由来）
 
 - ハーレム管理システム（current/harem.md の LILIA 版：全ヒロイン現在値、関係フック、約束体系の一元管理）
-- Hidden 深化ベクトル運用（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗の 6 軸、0-5 値定義と閾値が未確定）
+- Hidden 深化ベクトル運用（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗の 6 軸。初期βでは非運用、深い関係到達後の将来候補）
 - ヒロイン間ベクトル（同席・共同生活・嫉妬刺激・秘密偏在による関係変化の追跡）
 - 共同体エンド進捗管理（共同体合意 / 役割確立 / 他者の席の承認 / 情報共有 / 離脱自由の確認）
 - 共同体憲章（恐怖ではなく合意でつながる関係のルール体系）
@@ -396,7 +396,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 以下は実装の前に設計判断が必要な項目である。中期候補とは別に、判断が必要な議題として記録する。
 
-- Hidden 深化ベクトル: 0-5 数値運用 vs 自然言語運用 vs ハイブリッドの選択。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項。
+- Hidden 深化ベクトル: 初期βでは本格運用しない。0-5 数値運用 vs 自然言語運用 vs ハイブリッドは中期再検討。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項と `docs/RELATIONSHIP_CHANGE_AUDIT.md`。
 - プレイヤー宣言応答ルール: 範囲限定（主人公の所持品 / 能力 / 行動のみ）の境界設計。
 - ダイス機構: 何面ダイス、確率の塩梅、適用シーンの基準、結果の物語反映方法。
 - GraphRAG: 導入タイミング（複数ヒロイン Wave 後、長期セッション運用後）。
@@ -427,16 +427,14 @@ Wave Y-A の延長。inner-galge runtime.md からの移植で、出力ボリュ
 
 ### P-B. Hidden 深化ベクトル運用
 
-`templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）の運用ロジックが未確定。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項。
+`templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）は、初期βでは本格運用しない。通常進行メーターや数値ロック解除として使わず、深い関係に到達した後の将来の質的管理候補として保持する。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項と `docs/RELATIONSHIP_CHANGE_AUDIT.md`。
 
-未確定:
+暫定決定:
 
-- 0-5 数値運用 vs 自然言語運用 vs ハイブリッド
-- 各値の定義
-- Intimacy Stage との連動
-- 開放条件（最初から動く / 深化段階以降のみ）
-- 上がり方の目安リスト
-- AFFINITY 5 相当との接続
+- AFFINITY / bond は採用しない
+- hiddenベクトルは初期βでは数値更新しない
+- 関係変化は memory / relationship / beliefs / voice / state / hotset の文字情報で扱う
+- 関係変化の根拠、速度、保存先分離を Relationship Change Audit で確認する
 
 ### P-C. 深化タグ（Deepening Tags）機械チェック
 

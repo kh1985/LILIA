@@ -24,6 +24,7 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - autosave counter
 - scene-tick MVP
 - Story / Relationship Accumulation Loop
+- Relationship Change Audit
 - story_spine / relationship_spine AI駆動化
 - Story Reference Engine
 - 5層 self-understanding 参照導線
@@ -75,7 +76,7 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - Resume Smoke Test の実生成コード
 - Crisis / Combat / Ability Constraint Loop の実生成コード
 - scene-tick 毎ターン実行と apply-turn 発火の実機目視確認
-- 深化ベクトル 0-5 数値運用ロジック確定
+- 深化ベクトル 0-5 数値運用ロジックの中期再検討
 - Voice Continuity Validator の hard fail 化判断
 - 呼び方の厳密比較
 - relationship 進行語彙リスト正本化
@@ -85,7 +86,7 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 ## 4.1 Pending Items（2026-05-07 整理、詳細は docs/ROADMAP.md 「保留事項」を正本）
 
 - P-A. テンポ管理（何をどこまでどう出すか）: 重い文量スコア化や濃度段階は未確定。ただしβ前の最小版として Lightweight Tempo Guard を Three Hook Spine に含め、`HOOK-007` で管理する
-- P-B. Hidden 深化ベクトル運用: 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）の 0-5 数値運用 vs 自然言語運用 vs ハイブリッドの選択
+- P-B. Hidden 深化ベクトル運用: 初期βでは本格運用しない。通常進行メーターにせず、深い関係に到達した後の将来の質的管理候補として保持する
 - P-C. 深化タグ機械チェック: inner-galge デフォルト 14 タグ + ヒロイン追加機構の解放条件自動評価
 - P-D. 3 本フック運用（戦闘なし版）: 2026-05-07 にβ前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook の3方向並列、Active Hook、story_deck保持、apply-turn更新、wanderer playtest、Lightweight Tempo Guard を `RELEASE_WBS.md` の `HOOK-001〜HOOK-007` で管理する
 - Story Continuation / Travel Branch MVP: 2026-05-07 にβ前P0として追加。初期story完了後の次arc生成、大移動branch、LILIA同行可否、未解決arc最大2本、100ターン級smokeを `RELEASE_WBS.md` の `ARC-001〜ARC-007` で管理する
@@ -98,6 +99,13 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - 小説を書くための設計ノート由来の Story Function Framework を設計正本として追加予定。
 - 固定プロットではなく、LILIA向けのscene診断・event_card品質確認・AI Playtest評価へ転用する。
 - 十五機能は順番強制ではなく、story_spine現在地、scene入口/出口の変化、筋立て・感情・意味の三層確認に使う。
+
+## 4.3 Design Decisions / Deferred Mechanics
+
+- inner-galgeではAFFINITY / bondが恋愛進行の正本だった。
+- LILIA初期βでは、LILIAの思想上、AFFINITY / bondは採用しない。
+- hidden深化ベクトルはinner-galgeではAFFINITY 5後の質的管理だったため、LILIAでも初期βでは通常進行メーターにしない。
+- 初期βでは、文字ベースの関係変化監査を優先する。
 
 ## 5. Commercialization Gap
 
@@ -113,3 +121,4 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - AI Playtest Smoke
 - Three Hook Spine MVP
 - Story Continuation / Travel Branch MVP
+- Relationship Change Audit

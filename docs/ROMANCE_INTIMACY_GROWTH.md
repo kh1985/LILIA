@@ -22,12 +22,14 @@ LILIAは、会話・選択・物語・記憶・関係性によって人格の出
 - state構造: `docs/STATE_STRUCTURE.md`
 - voice continuity: `docs/VOICE_CONTINUITY.md`
 - event_card可プレイ性: `docs/EVENT_CARD_PLAYABILITY.md`
+- relationship change audit: `docs/RELATIONSHIP_CHANGE_AUDIT.md`
 - save/resume: `prompt/save_resume.md`
 - 文体参照: `prompt/style_reference.md`
 - romance style defaults: `style/defaults/romance.md`
 
 この文書は、親密成長、合意、境界線、aftercare保存の正本である。
 官能場面の文体技法は `style/defaults/romance.md` を参照するが、関係状態と保存責務はこの文書を優先する。
+関係変化の根拠、速度、保存先分離の確認は `docs/RELATIONSHIP_CHANGE_AUDIT.md` を参照する。
 
 ## 3. Core Distinction
 
@@ -46,6 +48,9 @@ LILIAは、会話・選択・物語・記憶・関係性によって人格の出
 段階は数値ではない。
 旧AFFINITY、好感度、攻略ルート、ロック解除条件として使わない。
 sceneや関係の変化で、進む、止まる、戻る、保留されることがある。
+初期βでは inner-galge の AFFINITY / bond を採用しない。
+通常の関係変化は、memory / relationship / beliefs / voice / state / hotset の文字情報で管理する。
+hidden深化ベクトルは、深い関係に到達した後の将来の質的管理候補として保持するが、初期βでは本格運用しない。
 
 ### Intimacy Stage
 
@@ -218,22 +223,28 @@ LILIAの親密さは、単発の報酬ではなく、信頼、記憶、境界線
 
 ### Hidden ベクトル運用ロジック
 
-`templates/session/lilia/main/relationship.md` の `## 深化ベクトル（hidden）` には、6 軸（安心、欲情、共犯、生活、受容、摩耗）の枠と、更新ルール、閾値が既に記述されている。
-しかし以下が確定していない:
+`templates/session/lilia/main/relationship.md` の `## 深化ベクトル（hidden）` には、6 軸（安心、欲情、共犯、生活、受容、摩耗）の枠が置かれている。
+
+暫定決定:
+
+- 初期βではhidden深化ベクトルを本格運用しない。
+- 通常進行のメーターとしては使わない。
+- Save Modeでも原則として数値更新しない。
+- 将来的に深い関係に到達した後、関係の質を管理する必要が出た時に再検討する。
+- 通常の関係変化は、memory / relationship / beliefs / voice / state / hotset の文字情報で管理する。
+- 関係変化の根拠確認は `docs/RELATIONSHIP_CHANGE_AUDIT.md` を参照する。
+
+未確定のまま残すもの:
 
 - 0-5 の各値の定義（何が 0 で、何が 1 で、何が 5 か。「眠っている」「かすかに」「明確に」「常時」「中核」「支配的」のような質の階段が未定義）
 - Intimacy Stage（関心 / 動揺 / 亀裂 / 信頼と合意 / 深化）との連動ルール
-- Hidden ベクトルの開放条件（最初から動くのか、Intimacy Stage が「深化」段階に達してから動くのか）
-- AFFINITY 5 相当の段階に達したヒロインのみ動かすのか、最初から全ヒロインで動かすのか
 - 「上がり方の目安」リストの正本化（どんな出来事で安心が +1 になるか、欲情が +1 になるかなど）
 - 数値運用 vs 自然言語運用 vs ハイブリッドの選択
 - 摩耗が高止まりした場合の関係扱い（断絶、保留、修復のどれに進むか）
 
-これらが未確定のまま、現状の template には数値の枠だけが置かれている。
+template には数値の枠が残っているが、初期βでは動かさない。
 GM（AI）が雑に運用すると、数値が動かないか、動いても根拠が不明な状態になる。
-
-本 Wave（指示書 J）では運用ロジックの確定はせず、軸名と説明文のみ修正した。
-運用ロジックの確定は、別途 ROADMAP の中期 PENDING に項目として追加し、後日詰める。
+運用ロジックの確定は、別途 ROADMAP の中期 PENDING に項目として残し、後日詰める。
 
 ### Deepening Tags（深化タグ）
 
