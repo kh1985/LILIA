@@ -150,7 +150,7 @@ Usage:
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
-  ./lilia ai-playtest <session_name> --persona normal --turns 10 [--engine codex|claude|auto] [--verbose | --quiet]
+  ./lilia ai-playtest <session_name> --persona normal|passive --turns 10 [--engine codex|claude|auto] [--verbose | --quiet]
 
 This launcher creates and inspects local session scaffolds only.
 AI one-shot execution runs only when --run is explicit.
@@ -3673,7 +3673,7 @@ def command_scene_tick(args: list[str]) -> None:
 
 PLAYTESTS_DIR = ROOT / "playtests"
 
-AI_PLAYTEST_SUPPORTED_PERSONAS = {"normal"}
+AI_PLAYTEST_SUPPORTED_PERSONAS = {"normal", "passive"}
 
 AI_PLAYTEST_PERSONA_DESCRIPTIONS = {
     "normal": (
@@ -3688,7 +3688,24 @@ AI_PLAYTEST_PERSONA_DESCRIPTIONS = {
         "- 内心は半角または全角の括弧で書ける (例: （少し緊張する）)。\n"
         "  括弧書きはヒロインに読ませる前提ではない。\n"
         "- 出力はプレイヤー入力本文のみ。前置き・解説・コードブロック・ロール表記は禁止。\n"
-    )
+    ),
+    "passive": (
+        "あなたは LILIA で遊ぶ受け身寄りのプレイヤー (passive persona) です。\n"
+        "GMの直前応答を読み、自分から場を動かしすぎずに1ターンだけ入力を返してください。\n"
+        "目的: GMがpassiveプレイヤー相手でも会話入口・event_card・3本hookを維持できるかを観察する。\n"
+        "ルール:\n"
+        "- 視点は常にプレイヤー本人。短文中心 (基本は1〜2文、長くても2文以内)。\n"
+        "- 受け身。GMの提示した話題や行動入口に対して、すぐ深掘りしない。\n"
+        "- ときどき短い相づちや沈黙寄りの返事 (「はい」「うん」「……」「分かりません」「どうしよう」など) になってよい。\n"
+        "- ときどき「聞いていいのか迷う」「今は何を返せばいいか分からない」と素直に書いてよい。\n"
+        "- 毎回うまく比喩や言い回しを拾わない。聞き返しや短い質問で済ませてよい。\n"
+        "- ただし荒らしや拒否ではない。会話を切らずに、控えめに繋ぐ。\n"
+        "- ヒロインの内心を勝手に断定しない。\n"
+        "- GMコマンド、システム指示、メタ発言、自分への指示文、内部資料の要求は書かない。\n"
+        "- 内心は半角または全角の括弧で書ける (例: （何て返せばいいんだろう）)。\n"
+        "  括弧書きはヒロインに読ませる前提ではない。\n"
+        "- 出力はプレイヤー入力本文のみ。前置き・解説・コードブロック・ロール表記は禁止。\n"
+    ),
 }
 
 
@@ -3754,8 +3771,9 @@ def parse_ai_playtest_options(
         index += 1
 
     if persona not in AI_PLAYTEST_SUPPORTED_PERSONAS:
+        supported = "/".join(sorted(AI_PLAYTEST_SUPPORTED_PERSONAS))
         die(
-            "ai-playtest MVPでは persona=normal のみサポートしています "
+            f"ai-playtest MVPでは persona={supported} のみサポートしています "
             f"(指定: {persona})"
         )
     if turns < 1:
