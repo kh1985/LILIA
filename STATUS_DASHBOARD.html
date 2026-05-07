@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>LILIA — 開発ステータス & リリース進捗</title>
+<style>
+:root {
+  --bg: #14121a;
+  --bg-elev: #1c1925;
+  --bg-card: #221e2c;
+  --line: #322c40;
+  --text: #ece7f5;
+  --text-dim: #a097b8;
+  --text-faint: #6b6580;
+  --accent: #d97aa8;
+  --accent-soft: #8a5cb8;
+  --green: #6ec48a;
+  --amber: #e0a84a;
+  --red: #d96860;
+  --blue: #6aa8e0;
+  --gray: #4b4458;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 14px;
+  padding: 32px 24px 80px;
+}
+
+.wrap { max-width: 1100px; margin: 0 auto; }
+
+/* Header */
+.hero {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 32px;
+  background: linear-gradient(135deg, #1c1925 0%, #2a1f33 100%);
+  margin-bottom: 32px;
+}
+.hero h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+.hero .sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.stat {
+  background: rgba(0,0,0,0.25);
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+.stat .label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+.stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+.stat .note { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+/* Section */
+section { margin-bottom: 40px; }
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+h2 .num {
+  display: inline-block;
+  width: 24px; height: 24px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 24px;
+  font-weight: 700;
+}
+h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 20px 0 10px;
+  color: var(--accent);
+}
+
+/* Capability grid (今遊べること) */
+.cap-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.cap {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+  border-radius: 8px;
+}
+.cap .cap-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.cap .cap-desc { color: var(--text-dim); font-size: 12px; }
+.cap.playable { border-left: 3px solid var(--green); }
+.cap.partial { border-left: 3px solid var(--amber); }
+.cap.absent { border-left: 3px solid var(--red); opacity: 0.7; }
+
+/* Flow diagram */
+.flow {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.flow-row:last-child { margin-bottom: 0; }
+.flow-row .label {
+  min-width: 80px;
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.step {
+  background: rgba(217,122,168,0.12);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.step.done { background: rgba(110,196,138,0.10); border-color: var(--green); }
+.step.gap { background: rgba(217,104,96,0.10); border-color: var(--red); color: var(--text-dim); }
+.arrow { color: var(--text-faint); font-size: 14px; }
+
+/* Progress bars */
+.progress-section { background: var(--bg-card); border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 80px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.bar-row:last-child { margin-bottom: 0; }
+.bar-name { color: var(--text); }
+.bar-name .meta { font-size: 11px; color: var(--text-faint); display: block; }
+.bar-track {
+  background: rgba(0,0,0,0.3);
+  height: 18px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-soft) 0%, var(--accent) 100%);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  font-size: 11px;
+  color: #fff;
+}
+.bar-fill.done { background: linear-gradient(90deg, #4a8a5e 0%, var(--green) 100%); }
+.bar-fill.empty { background: var(--gray); }
+.bar-pct { text-align: right; color: var(--text-dim); font-size: 12px; }
+
+/* WBS table */
+.wbs-cat {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.wbs-head {
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.wbs-head:hover { background: rgba(0,0,0,0.3); }
+.wbs-head .title { font-weight: 600; font-size: 14px; }
+.wbs-head .count { font-size: 11px; color: var(--text-dim); }
+.wbs-body { padding: 0; }
+.wbs-task {
+  display: grid;
+  grid-template-columns: 70px 70px 1fr;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 12px;
+  border-top: 1px solid rgba(50,44,64,0.4);
+}
+.wbs-task .id { color: var(--text-faint); font-family: monospace; }
+.priority {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 3px;
+  text-align: center;
+}
+.priority.p0 { background: rgba(217,104,96,0.2); color: var(--red); border: 1px solid var(--red); }
+.priority.p1 { background: rgba(224,168,74,0.2); color: var(--amber); border: 1px solid var(--amber); }
+.priority.p2 { background: rgba(106,168,224,0.15); color: var(--blue); border: 1px solid var(--blue); }
+.priority.p3 { background: rgba(160,151,184,0.15); color: var(--text-faint); border: 1px solid var(--gray); }
+
+/* Schedule */
+.schedule {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+}
+.schedule-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(50,44,64,0.4);
+  font-size: 12px;
+}
+.schedule-row:last-child { border-bottom: none; }
+.schedule-row .week {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 12px;
+}
+.schedule-row ul { list-style: none; }
+.schedule-row li {
+  display: inline-block;
+  background: rgba(217,122,168,0.08);
+  border: 1px solid rgba(217,122,168,0.3);
+  padding: 3px 8px;
+  margin: 2px 4px 2px 0;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Go/NoGo */
+.gono {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.gono .col {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+.gono h3 { margin: 0 0 10px 0; font-size: 13px; }
+.gono.go .col-go h3 { color: var(--green); }
+.gono.go .col-nogo h3 { color: var(--red); }
+.gono ul { list-style: none; }
+.gono li {
+  font-size: 12px;
+  padding: 4px 0 4px 16px;
+  position: relative;
+  color: var(--text-dim);
+}
+.gono .col-go li::before { content: "✓"; position: absolute; left: 0; color: var(--green); }
+.gono .col-nogo li::before { content: "✗"; position: absolute; left: 0; color: var(--red); }
+
+/* Done feature list */
+.done-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+.done-item {
+  font-size: 12px;
+  background: rgba(110,196,138,0.06);
+  border: 1px solid rgba(110,196,138,0.2);
+  padding: 8px 12px;
+  border-radius: 4px;
+  color: var(--text-dim);
+}
+.done-item .check { color: var(--green); margin-right: 6px; font-weight: 700; }
+
+/* Footer */
+footer {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 11px;
+  margin-top: 60px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+/* Misc */
+.tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--gray); color: var(--text); margin-left: 6px; }
+.tag.green { background: rgba(110,196,138,0.2); color: var(--green); }
+.tag.red { background: rgba(217,104,96,0.2); color: var(--red); }
+.tag.amber { background: rgba(224,168,74,0.2); color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>LILIA — 開発ステータス & リリース進捗</h1>
+    <div class="sub">小規模商用βリリース（1ヒロイン / WebUI / 月額20〜50人）までの現状と残作業の可視化 &nbsp;·&nbsp; 2026-05-07 時点</div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="label">フェーズ</div>
+        <div class="value">Phase 0</div>
+        <div class="note">Commercial Readiness（β前準備）</div>
+      </div>
+      <div class="stat">
+        <div class="label">基盤実装</div>
+        <div class="value">ほぼ完了</div>
+        <div class="note">設計 / Wave 1〜16 + Y系すべて done</div>
+      </div>
+      <div class="stat">
+        <div class="label">商用β WBS</div>
+        <div class="value">0 / 45</div>
+        <div class="note">P0+P1 タスクは全件 todo（Safety 9件追加）</div>
+      </div>
+      <div class="stat">
+        <div class="label">想定スケジュール</div>
+        <div class="value">8 週</div>
+        <div class="note">画像PoC → WebUI → β募集</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. 今プレイできること -->
+  <section>
+    <h2><span class="num">1</span>今、何ができて、どこまで遊べるか</h2>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">
+      LILIA は <b>ターミナル CLI</b>（<code style="color:var(--accent);">./lilia</code>）から起動する AI 恋愛 ADV です。
+      WebUI・画像生成・課金などの商用要素はまだ無く、現時点では <b>1 セッションをコマンドラインで通す</b>段階に到達しています。
+    </p>
+
+    <h3>プレイループ（今動く経路）</h3>
+    <div class="flow">
+      <div class="flow-row">
+        <span class="label">NEW</span>
+        <span class="step done">./lilia new</span><span class="arrow">→</span>
+        <span class="step done">Q1〜Q9 対話</span><span class="arrow">→</span>
+        <span class="step done">apply-newgame</span><span class="arrow">→</span>
+        <span class="step done">character YAML 生成</span><span class="arrow">→</span>
+        <span class="step done">profile.md AI 生成</span><span class="arrow">→</span>
+        <span class="step done">story / relationship spine</span><span class="arrow">→</span>
+        <span class="step done">13 downstream files</span>
+      </div>
+      <div class="flow-row">
+        <span class="label">PLAY</span>
+        <span class="step done">codex-new / codex-resume</span><span class="arrow">→</span>
+        <span class="step done">First Scene</span><span class="arrow">→</span>
+        <span class="step done">対話ターン</span><span class="arrow">→</span>
+        <span class="step done">scene-tick（毎ターン必須）</span><span class="arrow">→</span>
+        <span class="step done">10 ターンで Save Mode 強制</span>
+      </div>
+      <div class="flow-row">
+        <span class="label">SAVE</span>
+        <span class="step done">turn_update.md 作成</span><span class="arrow">→</span>
+        <span class="step done">apply-turn</span><span class="arrow">→</span>
+        <span class="step done">memory / relationship / beliefs / hotset 分離保存</span><span class="arrow">→</span>
+        <span class="step done">archive/beats（節目）</span>
+      </div>
+      <div class="flow-row">
+        <span class="label">RESUME</span>
+        <span class="step done">resume → 軽量読み順</span><span class="arrow">→</span>
+        <span class="step done">voice continuity validator（soft）</span><span class="arrow">→</span>
+        <span class="step done">声・呼び方・余韻復元</span>
+      </div>
+      <div class="flow-row">
+        <span class="label">未実装</span>
+        <span class="step gap">WebUI</span>
+        <span class="step gap">画像生成</span>
+        <span class="step gap">AI Playtest Smoke</span>
+        <span class="step gap">LLM Runtime Isolation</span>
+        <span class="step gap">課金 / 利用規約</span>
+        <span class="step gap">10 ターン実機 P0 確認</span>
+      </div>
+    </div>
+
+    <h3>機能カテゴリ別の到達状況</h3>
+    <div class="cap-grid">
+      <div class="cap playable">
+        <div class="cap-title">セッション基盤 <span class="tag green">遊べる</span></div>
+        <div class="cap-desc">new / resume / save / startup 分岐 / state scaffold / autosave counter / Save Mode 強制遷移（Wave Y-F）</div>
+      </div>
+      <div class="cap playable">
+        <div class="cap-title">人格生成パイプライン <span class="tag green">遊べる</span></div>
+        <div class="cap-desc">Q1-Q9 → character YAML → profile.md → story_spine + relationship_spine → 13 downstream files、すべて AI 駆動 + validator hard-fail</div>
+      </div>
+      <div class="cap playable">
+        <div class="cap-title">対話プレイ <span class="tag green">遊べる</span></div>
+        <div class="cap-desc">codex / claude エンジン経由のターン進行、PLAYER_INNER_MONOLOGUE 境界、Output Text Completion Gate、Example Anchoring Control</div>
+      </div>
+      <div class="cap playable">
+        <div class="cap-title">継続性ゲート <span class="tag green">遊べる</span></div>
+        <div class="cap-desc">voice continuity validator（soft）/ event card playability validator / profile validator / spine validator / document validator</div>
+      </div>
+      <div class="cap playable">
+        <div class="cap-title">スタイル参照棚 <span class="tag green">遊べる</span></div>
+        <div class="cap-desc">style/defaults（romance/tension/warmth/loss/quiet/landscape）、文豪 9 シチュエーション、Emotional Design 8 原則</div>
+      </div>
+      <div class="cap playable">
+        <div class="cap-title">知識境界 <span class="tag green">遊べる</span></div>
+        <div class="cap-desc">knowledge_state.md（meta/observable/shared/gm_only）、resume 時の HIDDEN 置換、Authorship Boundary</div>
+      </div>
+      <div class="cap partial">
+        <div class="cap-title">10 ターン継続プレイ <span class="tag amber">未確認</span></div>
+        <div class="cap-desc">設計上は通るが、P-001（実機 10 ターン目視）と P-003（resume 1 ターン目目視）が WBS で未消化</div>
+      </div>
+      <div class="cap partial">
+        <div class="cap-title">ログ取り込み <span class="tag amber">opt-in</span></div>
+        <div class="cap-desc">archive-codex-logs で ~/.codex/sessions の rollout JSONL を logs/codex_rollouts へコピー（手動実行）</div>
+      </div>
+      <div class="cap absent">
+        <div class="cap-title">WebUI <span class="tag red">未着手</span></div>
+        <div class="cap-desc">ブラウザでの new / chat / resume / 画像表示はまだ存在しない（CLI のみ）</div>
+      </div>
+      <div class="cap absent">
+        <div class="cap-title">画像生成 <span class="tag red">未着手</span></div>
+        <div class="cap-desc">基準絵 / character_visual.yaml / 採用モデル / 生成タイミング全て未定。商用化最大ボトルネック</div>
+      </div>
+      <div class="cap absent">
+        <div class="cap-title">AI Playtest Smoke <span class="tag red">設計のみ</span></div>
+        <div class="cap-desc">AI_PLAYTEST_PLAN.md に persona 4 種（normal / passive / boundary / attacker）・評価項目・report 形式を定義済み。実装コードは無い</div>
+      </div>
+      <div class="cap absent">
+        <div class="cap-title">課金 / 規約 / マーケ <span class="tag red">未着手</span></div>
+        <div class="cap-desc">価格・決済方式・利用規約・返金方針・LP・サンプル素材すべて未着手（P1）</div>
+      </div>
+      <div class="cap absent">
+        <div class="cap-title">Safety / Abuse Prevention <span class="tag red">未着手</span></div>
+        <div class="cap-desc">LLM Runtime Isolation、session認可、context最小化、path traversal対策、structured output検証、出力filter、log redaction、attacker playtest が未実装（β前 P0中心）</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 完了済み機能 -->
+  <section>
+    <h2><span class="num">2</span>完了済み機能（IMPLEMENTATION_HISTORY 抜粋）</h2>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">
+      設計と基盤は厚い。下は <b>主要 done 項目</b>（Wave 1〜16 + Y-F〜Y-H、Q&A 再設計、AI 駆動化、validator 群）。
+    </p>
+    <div class="done-list">
+      <div class="done-item"><span class="check">✓</span>concept / growth basis（CORE_CONCEPT 正本化）</div>
+      <div class="done-item"><span class="check">✓</span>save/resume 軽量読み順</div>
+      <div class="done-item"><span class="check">✓</span>startup 分岐 / state scaffold</div>
+      <div class="done-item"><span class="check">✓</span>style defaults 6 種 + 文豪 9 シチュ</div>
+      <div class="done-item"><span class="check">✓</span>Emotional Design Principles 8 原則</div>
+      <div class="done-item"><span class="check">✓</span>New Session Initialization（Q1-Q9 + 補足質問）</div>
+      <div class="done-item"><span class="check">✓</span>Wave 11: AI 駆動 story / relationship spine</div>
+      <div class="done-item"><span class="check">✓</span>Wave 12.1: AI 駆動 LILIA Persona Profile</div>
+      <div class="done-item"><span class="check">✓</span>Wave 12.2: 13 downstream files の AI 駆動生成</div>
+      <div class="done-item"><span class="check">✓</span>Wave 13: Voice Continuity Gate Validator</div>
+      <div class="done-item"><span class="check">✓</span>Wave 14: Event Card Playability Validator</div>
+      <div class="done-item"><span class="check">✓</span>Wave 15: Engine Runner Refactor（codex/claude）</div>
+      <div class="done-item"><span class="check">✓</span>Wave 16: Opening Pattern Stock Integration</div>
+      <div class="done-item"><span class="check">✓</span>Wave Y-F: Auto-save Chain Closure</div>
+      <div class="done-item"><span class="check">✓</span>Wave Y-H: Codex Rollout Logs Archive</div>
+      <div class="done-item"><span class="check">✓</span>apply-turn MVP / scene-tick MVP</div>
+      <div class="done-item"><span class="check">✓</span>autosave counter（interval_turns=10）</div>
+      <div class="done-item"><span class="check">✓</span>knowledge_state（meta/observable/shared/gm_only）</div>
+      <div class="done-item"><span class="check">✓</span>PLAYER_INNER_MONOLOGUE 境界</div>
+      <div class="done-item"><span class="check">✓</span>5 層 self-understanding 参照導線</div>
+      <div class="done-item"><span class="check">✓</span>Story / Relationship Accumulation Loop docs</div>
+      <div class="done-item"><span class="check">✓</span>Crisis / Combat / Ability Constraint Loop docs</div>
+      <div class="done-item"><span class="check">✓</span>50 作品参考カタログ + structure / pattern stock</div>
+      <div class="done-item"><span class="check">✓</span>Echo Awareness / Decision Awareness</div>
+      <div class="done-item"><span class="check">✓</span>Output Text Completion Gate</div>
+      <div class="done-item"><span class="check">✓</span>First Scene Quality Gate</div>
+      <div class="done-item"><span class="check">✓</span>Example Anchoring Control（generator 共通参照）</div>
+      <div class="done-item"><span class="check">✓</span>Hidden 深化ベクトル 6 軸（軸名修正済）</div>
+      <div class="done-item"><span class="check">✓</span>lilia_name / lilia_display_name の作中名分離</div>
+      <div class="done-item"><span class="check">✓</span>MVP Playtest（PASS）+ full loop manual smoke</div>
+    </div>
+  </section>
+
+  <!-- 3. リリースまでの残作業 -->
+  <section>
+    <h2><span class="num">3</span>商用βリリースまでの残作業（WBS）</h2>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">
+      <code style="color:var(--accent);">RELEASE_WBS.md</code> から、カテゴリ別に未消化タスクを集計。
+      <span class="priority p0">P0</span>=リリース不能になる、<span class="priority p1">P1</span>=β品質に必要。
+    </p>
+
+    <div class="progress-section" style="margin-bottom:16px;">
+      <div class="bar-row">
+        <div class="bar-name">Commercial スコープ確定<span class="meta">C-001 / C-002 / C-003</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 3</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">プレイ実機確認<span class="meta">P-001〜P-004</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 4</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">AI Playtest Smoke<span class="meta">AI-001〜AI-008</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 8</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">画像 PoC<span class="meta">IMG-001〜IMG-005</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 5</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">WebUI<span class="meta">WEB-001〜WEB-005</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 5</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">課金 / 規約<span class="meta">PAY-001〜PAY-004</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 4</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">マーケ素材<span class="meta">MKT-001〜MKT-004</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 4</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">テスト / Go-NoGo<span class="meta">REL-001〜REL-003</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 3</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">Safety / Abuse Prevention<span class="meta">SEC-000〜SEC-008</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 9</div>
+      </div>
+      <div class="bar-row" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">
+        <div class="bar-name" style="font-weight:600;">商用β WBS 全体</div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:1%;"></div></div>
+        <div class="bar-pct" style="font-weight:600;">0 / 45</div>
+      </div>
+    </div>
+
+    <h3>P0（リリース不能ライン）— 34 件</h3>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">A. 商用方針確定</span><span class="count">3 件 · P0</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">C-001</span><span class="priority p0">P0</span><span>商用βスコープ確定（COMMERCIALIZATION_ROADMAP に明文化）</span></div>
+        <div class="wbs-task"><span class="id">C-002</span><span class="priority p0">P0</span><span>1 ヒロイン方針確定 / 現実路線の範囲</span></div>
+        <div class="wbs-task"><span class="id">C-003</span><span class="priority p0">P0</span><span>異界 / 能力オプション後回し明文化</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">B. プレイ実機確認</span><span class="count">4 件 · P0</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">P-001</span><span class="priority p0">P0</span><span>1 ヒロイン実機プレイ 10 ターン（new → first scene → 10 turns 破綻なし）</span></div>
+        <div class="wbs-task"><span class="id">P-002</span><span class="priority p0">P0</span><span>save / apply-turn 確認（Save Mode 入り、必要 state 更新）</span></div>
+        <div class="wbs-task"><span class="id">P-003</span><span class="priority p0">P0</span><span>resume 1 ターン目確認（声・距離・余韻が戻る）</span></div>
+        <div class="wbs-task"><span class="id">P-004</span><span class="priority p0">P0</span><span>event_card playable 確認（今触れる可視イベント）</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">C. AI Playtest Smoke 実装</span><span class="count">8 件 · P0</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">AI-001</span><span class="priority p0">P0</span><span>AI Playtest Plan 作成 <span class="tag green">設計済</span></span></div>
+        <div class="wbs-task"><span class="id">AI-002</span><span class="priority p0">P0</span><span>AI Player Persona 定義（normal / passive / boundary / attacker）<span class="tag green">設計済</span></span></div>
+        <div class="wbs-task"><span class="id">AI-003</span><span class="priority p0">P0</span><span>./lilia ai-playtest 実装（GM↔AIPlayer 交互進行）</span></div>
+        <div class="wbs-task"><span class="id">AI-004</span><span class="priority p0">P0</span><span>transcript 保存（Markdown / JSONL）</span></div>
+        <div class="wbs-task"><span class="id">AI-005</span><span class="priority p0">P0</span><span>scene-tick 連動</span></div>
+        <div class="wbs-task"><span class="id">AI-006</span><span class="priority p0">P0</span><span>apply-turn 連動</span></div>
+        <div class="wbs-task"><span class="id">AI-007</span><span class="priority p0">P0</span><span>resume 検証</span></div>
+        <div class="wbs-task"><span class="id">AI-008</span><span class="priority p0">P0</span><span>Playtest Report 生成（PASS/WARN/FAIL）</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">D. 画像 PoC（最大ボトルネック）</span><span class="count">5 件 · P0</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">IMG-001</span><span class="priority p0">P0</span><span>画像用キャラ正本作成（基準絵 1 枚以上）</span></div>
+        <div class="wbs-task"><span class="id">IMG-002</span><span class="priority p0">P0</span><span>character_visual.yaml 作成（髪・目・体型・服装・style）</span></div>
+        <div class="wbs-task"><span class="id">IMG-003</span><span class="priority p0">P0</span><span>画像 PoC 10 シーン × 3 枚 = 30 枚（同一人物性評価）</span></div>
+        <div class="wbs-task"><span class="id">IMG-004</span><span class="priority p0">P0</span><span>採用画像モデル決定（OpenAI / Gemini / 他）</span></div>
+        <div class="wbs-task"><span class="id">IMG-005</span><span class="priority p0">P0</span><span>画像生成タイミング定義（初登場 / 場面転換 / 関係節目 / 明示要求）</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">E. WebUI</span><span class="count">5 件（P0×4, P1×1）</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">WEB-001</span><span class="priority p0">P0</span><span>WebUI PoC（ブラウザで 1 セッション開始）</span></div>
+        <div class="wbs-task"><span class="id">WEB-002</span><span class="priority p0">P0</span><span>チャット画面（GM / LILIA 出力 + ユーザー入力）</span></div>
+        <div class="wbs-task"><span class="id">WEB-003</span><span class="priority p0">P0</span><span>resume 画面（既存セッション再開）</span></div>
+        <div class="wbs-task"><span class="id">WEB-004</span><span class="priority p0">P0</span><span>画像表示枠（会話中に画像表示）</span></div>
+        <div class="wbs-task"><span class="id">WEB-005</span><span class="priority p1">P1</span><span>エラー表示（生成失敗 / 保存失敗）</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">F. 身内 / 外部テスト → Go/NoGo</span><span class="count">3 件 · P0</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">REL-001</span><span class="priority p0">P0</span><span>身内テスト 5 人以上、離脱点記録</span></div>
+        <div class="wbs-task"><span class="id">REL-002</span><span class="priority p0">P0</span><span>外部テスト 5 人以上（忖度の少ないユーザー）</span></div>
+        <div class="wbs-task"><span class="id">REL-003</span><span class="priority p0">P0</span><span>Go / No-Go 判定</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">G. Safety / Abuse Prevention（β前 P0×7, Phase 1 P1×2）</span><span class="count">9 件</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">SEC-000</span><span class="priority p0">P0</span><span>LLM Runtime Isolation（ユーザー向けLLMに shell / filesystem / repo root / source code / secrets / 他ユーザーsession へのアクセスを渡さない）</span></div>
+        <div class="wbs-task"><span class="id">SEC-001</span><span class="priority p0">P0</span><span>Session Authorization（user_id → session_id の所有権チェックをserver側で強制）</span></div>
+        <div class="wbs-task"><span class="id">SEC-002</span><span class="priority p0">P0</span><span>Context Minimization（そのターンに必要なstate sliceだけをLLMへ渡す）</span></div>
+        <div class="wbs-task"><span class="id">SEC-003</span><span class="priority p0">P0</span><span>Path Traversal Protection（ユーザー入力からsession pathを直接作らずbase dir外に出ない）</span></div>
+        <div class="wbs-task"><span class="id">SEC-004</span><span class="priority p0">P0</span><span>Structured Output Validation（LLM出力action/schemaをallowlist検証）</span></div>
+        <div class="wbs-task"><span class="id">SEC-005</span><span class="priority p1">P1</span><span>Output Safety Filter（system prompt / secret / 他ユーザー情報 / 規約NGを出力直前で止める）</span></div>
+        <div class="wbs-task"><span class="id">SEC-006</span><span class="priority p1">P1</span><span>Log Redaction（prompt全文 / system prompt / secret / 他ユーザーsessionをログ保存しない）</span></div>
+        <div class="wbs-task"><span class="id">SEC-007</span><span class="priority p0">P0</span><span>Prompt Injection Playtest（attacker personaでsecret / 他session / 画像prompt汚染を検証）</span></div>
+        <div class="wbs-task"><span class="id">SEC-008</span><span class="priority p0">P0</span><span>Security Review Before Paid Beta（権限・session分離・prompt/context・ログ設計をレビュー）</span></div>
+      </div>
+    </div>
+
+    <h3>P1（β品質に必要）— 11 件</h3>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">H. 課金 / 利用規約</span><span class="count">4 件 · P1</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">PAY-001</span><span class="priority p1">P1</span><span>β価格決定（月額 or 買い切り）</span></div>
+        <div class="wbs-task"><span class="id">PAY-002</span><span class="priority p1">P1</span><span>決済方式決定（Stripe / BOOTH / 手動）</span></div>
+        <div class="wbs-task"><span class="id">PAY-003</span><span class="priority p1">P1</span><span>利用規約ドラフト</span></div>
+        <div class="wbs-task"><span class="id">PAY-004</span><span class="priority p1">P1</span><span>返金 / キャンセル方針</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">I. マーケティング素材</span><span class="count">4 件 · P1</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">MKT-001</span><span class="priority p1">P1</span><span>β募集文（X / Discord / note）</span></div>
+        <div class="wbs-task"><span class="id">MKT-002</span><span class="priority p1">P1</span><span>LP 作成（価値・価格・参加方法）</span></div>
+        <div class="wbs-task"><span class="id">MKT-003</span><span class="priority p1">P1</span><span>サンプル会話作成</span></div>
+        <div class="wbs-task"><span class="id">MKT-004</span><span class="priority p1">P1</span><span>サンプル画像作成（初登場 / 関係節目）</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 8 週スケジュール -->
+  <section>
+    <h2><span class="num">4</span>8 週スケジュール（RELEASE_WBS）</h2>
+    <div class="schedule">
+      <div class="schedule-row">
+        <div class="week">Week 1</div>
+        <ul><li>商用βスコープ確定</li><li>WBS 作成</li><li>実装済み棚卸し</li><li>初期ヒロイン決定</li></ul>
+      </div>
+      <div class="schedule-row">
+        <div class="week">Week 2</div>
+        <ul><li>画像 PoC 開始</li><li>キャラ正本絵作成</li><li>OpenAI / Gemini 比較</li><li>10 シーン画像テスト</li></ul>
+      </div>
+      <div class="schedule-row">
+        <div class="week">Week 3</div>
+        <ul><li>画像プロンプトテンプレート</li><li>画像生成タイミング定義</li><li>1 ヒロイン 10 ターン実機プレイ</li></ul>
+      </div>
+      <div class="schedule-row">
+        <div class="week">Week 4</div>
+        <ul><li>WebUI 最小 PoC</li><li>LLM Runtime Isolation 設計</li><li>Session Authorization / Context Minimization 設計</li><li>チャット画面</li><li>session 作成</li><li>resume 表示</li></ul>
+      </div>
+      <div class="schedule-row">
+        <div class="week">Week 5</div>
+        <ul><li>WebUI ↔ apply-newgame / resume / scene-tick 接続</li><li>本番 LLM runtime と開発用 agent の分離</li><li>Path Traversal Protection</li><li>Structured Output Validation</li><li>画像表示枠</li><li>エラー表示</li></ul>
+      </div>
+      <div class="schedule-row">
+        <div class="week">Week 6</div>
+        <ul><li>課金方式決定</li><li>利用規約</li><li>Output Safety Filter</li><li>Log Redaction</li><li>Prompt Injection Playtest</li><li>Security Design Review</li><li>β募集 LP / 投稿素材</li><li>身内テスト</li></ul>
+      </div>
+      <div class="schedule-row">
+        <div class="week">Week 7</div>
+        <ul><li>外部テスト 5〜10 人</li><li>バグ修正</li><li>画像安定性改善</li><li>Go / No-Go 判定</li></ul>
+      </div>
+      <div class="schedule-row">
+        <div class="week">Week 8</div>
+        <ul><li>有料β 20〜50 人募集</li><li>運用開始</li><li>継続率 / 離脱点記録</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Go / No-Go -->
+  <section>
+    <h2><span class="num">5</span>Go / No-Go 条件</h2>
+    <div class="gono go">
+      <div class="col col-go">
+        <h3>Go（有料β開始の条件）</h3>
+        <ul>
+          <li>画像なしでも自分が継続して遊びたい</li>
+          <li>WebUI で 10 ターン以上自然に遊べる</li>
+          <li>resume で声・距離・余韻が戻る</li>
+          <li>節目画像が同一キャラとして許容できる</li>
+          <li>ユーザー向け LLM runtime が shell / repo / secrets / 他ユーザー session から分離されている</li>
+          <li>有料β 20 人募集できる状態</li>
+        </ul>
+      </div>
+      <div class="col col-nogo">
+        <h3>No-Go（延期の条件）</h3>
+        <ul>
+          <li>初回 scene 後に何をすればいいか分からない</li>
+          <li>ヒロインの声が毎回変わる</li>
+          <li>resume で関係が巻き戻る</li>
+          <li>画像が毎回別人に見える</li>
+          <li>WebUI の導入で詰まる</li>
+          <li>ユーザー向け LLM が repo、source code、secrets、他ユーザー session に到達できる</li>
+          <li>利用規約 / 決済が未整備</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. 最短経路 -->
+  <section>
+    <h2><span class="num">6</span>最短ルートの推奨優先順位</h2>
+    <div class="progress-section">
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.8;">
+        <p><b style="color:var(--accent);">①</b> &nbsp;<b>SEC-000（LLM Runtime Isolation）</b><br>
+        WebUI 本番では、ユーザー向け LLM に shell / filesystem / repo root / source code / secrets / 他ユーザー session への権限を渡さない。ここが曖昧なまま WebUI を公開しない。</p>
+
+        <p style="margin-top:10px;"><b style="color:var(--accent);">②</b> &nbsp;<b>P-001〜P-004（実機 10 ターン目視確認）</b><br>
+        既存基盤がそのまま遊べることを確認。崩れたらここで全方針が変わる。コードは追加せず CLI を回すだけ。</p>
+
+        <p style="margin-top:10px;"><b style="color:var(--accent);">③</b> &nbsp;<b>AI Playtest Smoke（AI-003〜AI-008）</b><br>
+        手作業の P-001 を反復可能にする。attacker persona を含め、prompt injection / secret要求 / 他session要求 / 画像prompt汚染をSEC-007として確認する。</p>
+
+        <p style="margin-top:10px;"><b style="color:var(--accent);">④</b> &nbsp;<b>画像 PoC（IMG-001〜IMG-005）と WebUI PoC（WEB-001〜WEB-002）を並行</b><br>
+        どちらも独立した未知。先に詰まる方を優先判断する。画像は商用化最大ボトルネック、WebUI は β 体験の必須条件。</p>
+
+        <p style="margin-top:10px;"><b style="color:var(--accent);">⑤</b> &nbsp;<b>課金 / 規約 / Safety 検知 / マーケ素材（PAY + SEC + MKT）</b><br>
+        利用規約、出力filter、log redaction、β前 Security Review を WebUI 作業と並行して詰める。</p>
+
+        <p style="margin-top:10px;"><b style="color:var(--accent);">⑥</b> &nbsp;<b>身内 → 外部テスト → Go/NoGo（REL）</b><br>
+        外部テストの忖度なしフィードバックでリリース可否を最終判断。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Generated 2026-05-07 · LILIA Status Dashboard ·
+    出典: COMMERCIALIZATION_ROADMAP.md / RELEASE_WBS.md / IMPLEMENTATION_HISTORY.md / AI_PLAYTEST_PLAN.md / docs/ROADMAP.md / docs/HANDOFF.md
+  </footer>
+
+</div>
+</body>
+</html>

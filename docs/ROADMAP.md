@@ -2,7 +2,7 @@
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
 思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex rollout logの運用は `docs/CODEX_ROLLOUT_LOGS.md` を正本にする。
-小規模商用化、WebUI有料ベータ、画像生成付きプレイ、BOOTH / DLsite / 月額モデルの検証順は `docs/COMMERCIALIZATION_ROADMAP.md` を正本にする。
+小規模商用化、WebUI有料ベータ、画像生成付きプレイ、BOOTH / DLsite / 月額モデルの検証順は `COMMERCIALIZATION_ROADMAP.md` を正本にする。
 商用化、リリースWBS、実装履歴、AI Playtest Smoke はトップレベルの `COMMERCIALIZATION_ROADMAP.md`、`RELEASE_WBS.md`、`IMPLEMENTATION_HISTORY.md`、`AI_PLAYTEST_PLAN.md` を参照する。
 
 ## 1. Goal
@@ -398,6 +398,77 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - ダイス機構: 何面ダイス、確率の塩梅、適用シーンの基準、結果の物語反映方法。
 - GraphRAG: 導入タイミング（複数ヒロイン Wave 後、長期セッション運用後）。
 - 行動選択肢 3 つ提示の基準: 番号メニュー禁止（inner-galge 採用）と矛盾する可能性あり。設計が要る。
+
+## 保留事項（Pending Items, 2026-05-07 整理）
+
+以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。複数ヒロイン実装より前に判断する必要のあるものと、Phase 3 以降に持ち越すものが混在する。
+
+### P-A. テンポ管理（何をどこまでどう出すか）
+
+Wave Y-A の延長。inner-galge runtime.md からの移植で、出力ボリューム・密度の制御を扱う。Wave Y-B1（ヒロイン第一反応情報の抽象レベル分離）で症状の一部は改善されたため優先度は低いが、未着手。
+
+仮案（要確定）:
+
+- 1 ターンの地の文+台詞の分量上限（数字未定）
+- 描写の濃さの段階分け（First Scene 級の濃度を毎ターン出さない）
+- 沈黙 / 余白の使い方（毎ターン全部埋めない、感情の余韻を残す）
+- 場面転換の頻度（連続ターンでだらだら同じ場面に留まらない基準、数字未定）
+- 通常ターン軽量化ルール（First Scene Quality Gate / Output Text Completion Gate と対になる、平常時の軽さ基準）
+
+### P-B. Hidden 深化ベクトル運用
+
+`templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）の運用ロジックが未確定。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項。
+
+未確定:
+
+- 0-5 数値運用 vs 自然言語運用 vs ハイブリッド
+- 各値の定義
+- Intimacy Stage との連動
+- 開放条件（最初から動く / 深化段階以降のみ）
+- 上がり方の目安リスト
+- AFFINITY 5 相当との接続
+
+### P-C. 深化タグ（Deepening Tags）機械チェック
+
+inner-galge デフォルト 14 タグ（初夜、秘密の共有、個人ストーリー解決、能力共鳴、同行宣言、摩擦の処理、共同体合意、役割確立、他者の席の承認、情報共有合意、不在時連携、離脱自由の確認、裏切りと復縁、新たな秘密）と、ヒロインごとの追加機構の実装。LILIA の `relationship.md` に枠は記述済みだが、デフォルトリストとヒロイン追加機構、解放条件の自動評価は未実装。
+
+### P-D. 3 本フック運用（戦闘なし版）
+
+inner-galge runtime.md からの移植。メイン事件フック / ヒロイン関係フック / 探索・生活フックの 3 方向を並列管理する。
+
+仮案（要確定）:
+
+- メイン事件フック（街・職場・依頼・小さな事件）
+- ヒロイン関係フック（LILIA との距離、約束、揺れ）
+- 探索・生活フック（家、街、季節、生活変化）
+- タイプ被り禁止（3 本とも恋愛系・戦闘系にしない）
+- 1 本を追うと残りが悪化する選択コスト構造
+- 戦闘システムは分離し、イベント駆動のフック管理に絞る
+
+初回スタート時の story 生成は、3 本フックの選択（土地・職場・関係起点など）に応じて再生成する。
+
+### P-E. 世界移動・物語射程の境界（仮案、要確定）
+
+3 本フックと連動する未確定事項。プレイヤーが「沖縄に行く」「北極に行く」など story_spine 外の宣言をした時にどこまで許容するか。「プレイヤー宣言応答ルール」（行 397）と交差する。
+
+仮案 4 段階:
+
+| Level | 例 | 扱い |
+|---|---|---|
+| A. 自然な範囲 | 同じ街の別の場所、近所への外出 | 自由に許容 |
+| B. 関係段階で許容判定 | 別都市への小旅行、泊まりがけ | Intimacy Stage / Consent Stage が満たないと「行けない理由」をヒロインが返す |
+| C. 物語射程の外 | 沖縄、北海道（現実圏内だが story_spine 外） | ヒロインは付いてこない、行くなら主人公単独 → 関係も物語も止まる小芝居になる |
+| D. 世界観違反 | 北極、宇宙、突然の超能力発動 | GM がメタ介入で「この作品では起きない」とソフトに止める |
+
+A/B はヒロインの自然反応、C は GM が「行けるが関係も物語も止まる」ことを示唆、D だけ GM のメタガード、という方向で仮置きする。確定は Player Action Prompt 改修（Wave 17 候補）と合わせて検討する。
+
+### P-F. NPC 昇格（ヒロイン非昇格仕様）
+
+NPC Tiering（Tier 0-5、段階的昇格）と昇格条件の保存先。ただし複数ヒロインは Phase 3 以降のため、初期実装では「**NPC はヒロインに昇格しない**」仕様で進める。Tier 1〜4 の範囲（一時接触 → 場面 → 再登場 → キー NPC）だけを扱い、ヒロイン枠は固定 1 名。複数ヒロイン Wave で改めて昇格条件を設計する。
+
+### P-G. 軽量 Integrity Audit Tool
+
+`docs/INTEGRITY_AUDIT_20260505.md` を生成した手順を `tools/audit/integrity_audit.py` として定型化し、コマンド一発で再実行できる状態にする。docs / prompt / templates / tools の横断整合性チェック、原則と実装のズレ検出、orphan 検出、参照切れ検出を扱う。GraphRAG はオーバースペック判定済み（中期再検討）。
 
 ## 3. Completed Foundation
 

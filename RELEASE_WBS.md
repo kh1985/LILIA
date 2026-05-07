@@ -30,7 +30,7 @@
 | P-003 | resume 1ターン目確認 | todo | P0 |  |  | resume後に声・距離・余韻が戻る |
 | P-004 | event_card playable確認 | todo | P0 |  |  | event_cardが今触れる可視イベントになっている |
 | AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
-| AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary の3種が定義済み |
+| AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker の4種が定義済み |
 | AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |
 | AI-004 | transcript保存 | todo | P0 |  |  | GM出力、AI Player入力、turn番号がMarkdownまたはJSONLで保存される |
 | AI-005 | scene-tick連動 | todo | P0 |  |  | 各ターン後にscene-tickが実行される |
@@ -49,8 +49,17 @@
 | WEB-005 | エラー表示 | todo | P1 |  |  | 生成失敗や保存失敗がユーザーに分かる |
 | PAY-001 | β価格決定 | todo | P1 |  |  | 月額または買い切りβ価格が決まっている |
 | PAY-002 | 決済方式決定 | todo | P1 |  |  | Stripe / BOOTH / 手動決済のどれで始めるか決まっている |
-| PAY-003 | 利用規約ドラフト | todo | P1 |  |  | β公開に耐える最低限の規約がある |
+| PAY-003 | 利用規約ドラフト | todo | P1 |  |  | β公開に耐える最低限の規約があり、人格破壊試行・規約違反誘導・未成年描写要求・暴力描写要求の禁止を含む |
 | PAY-004 | 返金方針 | todo | P1 |  |  | β利用者向けの返金・キャンセル方針がある |
+| SEC-000 | LLM Runtime Isolation | todo | P0 |  |  | WebUI本番のユーザー向けLLMが、shell・filesystem・repo root・source code・API key・他ユーザーsessionへアクセスできない |
+| SEC-001 | Session Authorization | todo | P0 |  |  | user_id -> session_id の所有権チェックをサーバー側で強制し、LLMが他ユーザーsessionを参照できない |
+| SEC-002 | Context Minimization | todo | P0 |  |  | LLMに渡すcontextがそのターンに必要なstate sliceだけになっており、repo docs全文・system prompt全文・secretを含まない |
+| SEC-003 | Path Traversal Protection | todo | P0 |  |  | ユーザー入力からsession pathを直接作らず、base dir外に出られない |
+| SEC-004 | Structured Output Validation | todo | P0 |  |  | LLM出力のaction/schemaをallowlistで検証し、任意path・任意command・他ユーザーsession操作を実行しない |
+| SEC-005 | Output Safety Filter | todo | P1 |  |  | system prompt・secret・他ユーザー情報・規約NG出力を出力直前で止める |
+| SEC-006 | Log Redaction | todo | P1 |  |  | prompt全文・system prompt・secret・他ユーザーsession・repo内部情報をログ保存しない |
+| SEC-007 | Prompt Injection Playtest | todo | P0 |  |  | AI Playtestで脱獄・他session要求・secret要求・画像prompt汚染を投げても漏洩しない |
+| SEC-008 | Security Review Before Paid Beta | todo | P0 |  |  | β前に権限・session分離・prompt/context・ログ設計をレビュー済み |
 | MKT-001 | β募集文作成 | todo | P1 |  |  | X / Discord / note で募集できる文章がある |
 | MKT-002 | LP作成 | todo | P1 |  |  | LILIAの価値、価格、参加方法が分かるページがある |
 | MKT-003 | サンプル会話作成 | todo | P1 |  |  | マーケに使える短い会話ログがある |
@@ -84,6 +93,8 @@ Week 3:
 Week 4:
 
 - WebUI最小PoC
+- LLM Runtime Isolation 設計 (SEC-000)
+- Session Authorization / Context Minimization 設計 (SEC-001 / SEC-002)
 - チャット画面
 - session作成
 - resume表示
@@ -91,6 +102,8 @@ Week 4:
 Week 5:
 
 - WebUIから apply-newgame / resume / scene-tick 接続
+- 本番LLM runtime と開発用agentの分離 (SEC-000)
+- Path Traversal Protection / Structured Output Validation (SEC-003 / SEC-004)
 - 画像表示枠
 - エラー表示
 
@@ -98,6 +111,9 @@ Week 6:
 
 - 課金方式決定
 - 利用規約
+- Output Safety Filter / Log Redaction (SEC-005 / SEC-006)
+- Prompt Injection Playtest (SEC-007)
+- Security Review Before Paid Beta (SEC-008)
 - β募集LP / 投稿素材
 - 身内テスト
 
