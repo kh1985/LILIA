@@ -343,8 +343,8 @@ footer {
       </div>
       <div class="stat">
         <div class="label">商用β WBS</div>
-        <div class="value">0 / 51</div>
-        <div class="note">P0+P1 タスクは全件 todo（Three Hook SpineをP0追加）</div>
+        <div class="value">1 / 59</div>
+        <div class="note">P-001 done、Three Hook + Tempo Guard + Story ContinuationをP0追加</div>
       </div>
       <div class="stat">
         <div class="label">想定スケジュール</div>
@@ -401,9 +401,9 @@ footer {
         <span class="step gap">画像生成</span>
         <span class="step gap">AI Playtest Smoke</span>
         <span class="step gap">Three Hook Spine</span>
+        <span class="step gap">Story Continuation</span>
         <span class="step gap">LLM Runtime Isolation</span>
         <span class="step gap">課金 / 利用規約</span>
-        <span class="step gap">10 ターン実機 P0 確認</span>
       </div>
     </div>
 
@@ -433,9 +433,9 @@ footer {
         <div class="cap-title">知識境界 <span class="tag green">遊べる</span></div>
         <div class="cap-desc">knowledge_state.md（meta/observable/shared/gm_only）、resume 時の HIDDEN 置換、Authorship Boundary</div>
       </div>
-      <div class="cap partial">
-        <div class="cap-title">10 ターン継続プレイ <span class="tag amber">未確認</span></div>
-        <div class="cap-desc">設計上は通るが、P-001（実機 10 ターン目視）と P-003（resume 1 ターン目目視）が WBS で未消化</div>
+      <div class="cap playable">
+        <div class="cap-title">10 ターン継続プレイ <span class="tag green">確認済</span></div>
+        <div class="cap-desc">P-001 は done。次は P-002（save/apply-turn）、P-003（resume 1ターン目）、P-004（event_card playable）の目視確認</div>
       </div>
       <div class="cap partial">
         <div class="cap-title">ログ取り込み <span class="tag amber">opt-in</span></div>
@@ -451,11 +451,15 @@ footer {
       </div>
       <div class="cap absent">
         <div class="cap-title">AI Playtest Smoke <span class="tag red">設計のみ</span></div>
-        <div class="cap-desc">AI_PLAYTEST_PLAN.md に persona 5 種（normal / passive / boundary / attacker / wanderer）・評価項目・report 形式を定義済み。実装コードは無い</div>
+        <div class="cap-desc">AI_PLAYTEST_PLAN.md に persona 6 種（normal / passive / boundary / attacker / wanderer / traveler）・評価項目・report 形式を定義済み。実装コードは無い</div>
       </div>
       <div class="cap absent">
         <div class="cap-title">Three Hook Spine <span class="tag red">未着手</span></div>
-        <div class="cap-desc">Main / Relationship / Life-Exploration の3本hookを初期生成し、脱線入力をどれかへ吸着させるβ前P0。ゲーム進行の破綻防止用</div>
+        <div class="cap-desc">Main / Relationship / Life-Exploration の3本hookを初期生成し、脱線入力をどれかへ吸着させるβ前P0。Lightweight Tempo Guard も含む</div>
+      </div>
+      <div class="cap absent">
+        <div class="cap-title">Story Continuation / Travel Branch <span class="tag red">未着手</span></div>
+        <div class="cap-desc">初期story完了後の次arc生成、沖縄/NY等の大移動branch、LILIA同行可否、未解決arc最大2本管理、100ターン級smokeが未実装</div>
       </div>
       <div class="cap absent">
         <div class="cap-title">課金 / 規約 / マーケ <span class="tag red">未着手</span></div>
@@ -524,8 +528,8 @@ footer {
       </div>
       <div class="bar-row">
         <div class="bar-name">プレイ実機確認<span class="meta">P-001〜P-004</span></div>
-        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
-        <div class="bar-pct">0 / 4</div>
+        <div class="bar-track"><div class="bar-fill done" style="width:25%;"></div></div>
+        <div class="bar-pct">1 / 4</div>
       </div>
       <div class="bar-row">
         <div class="bar-name">AI Playtest Smoke<span class="meta">AI-001〜AI-008</span></div>
@@ -533,9 +537,14 @@ footer {
         <div class="bar-pct">0 / 8</div>
       </div>
       <div class="bar-row">
-        <div class="bar-name">Three Hook Spine<span class="meta">HOOK-001〜HOOK-006</span></div>
+        <div class="bar-name">Three Hook Spine<span class="meta">HOOK-001〜HOOK-007</span></div>
         <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
-        <div class="bar-pct">0 / 6</div>
+        <div class="bar-pct">0 / 7</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-name">Story Continuation / Travel Branch<span class="meta">ARC-001〜ARC-007</span></div>
+        <div class="bar-track"><div class="bar-fill empty" style="width:5%;"></div></div>
+        <div class="bar-pct">0 / 7</div>
       </div>
       <div class="bar-row">
         <div class="bar-name">画像 PoC<span class="meta">IMG-001〜IMG-005</span></div>
@@ -569,12 +578,12 @@ footer {
       </div>
       <div class="bar-row" style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px;">
         <div class="bar-name" style="font-weight:600;">商用β WBS 全体</div>
-        <div class="bar-track"><div class="bar-fill empty" style="width:1%;"></div></div>
-        <div class="bar-pct" style="font-weight:600;">0 / 51</div>
+        <div class="bar-track"><div class="bar-fill done" style="width:2%;"></div></div>
+        <div class="bar-pct" style="font-weight:600;">1 / 59</div>
       </div>
     </div>
 
-    <h3>P0（リリース不能ライン）— 40 件</h3>
+    <h3>P0（リリース不能ライン）— 48 件</h3>
 
     <div class="wbs-cat">
       <div class="wbs-head"><span class="title">A. 商用方針確定</span><span class="count">3 件 · P0</span></div>
@@ -588,7 +597,7 @@ footer {
     <div class="wbs-cat">
       <div class="wbs-head"><span class="title">B. プレイ実機確認</span><span class="count">4 件 · P0</span></div>
       <div class="wbs-body">
-        <div class="wbs-task"><span class="id">P-001</span><span class="priority p0">P0</span><span>1 ヒロイン実機プレイ 10 ターン（new → first scene → 10 turns 破綻なし）</span></div>
+        <div class="wbs-task"><span class="id">P-001</span><span class="priority p0">P0</span><span>1 ヒロイン実機プレイ 10 ターン（new → first scene → 10 turns 破綻なし）<span class="tag green">done</span></span></div>
         <div class="wbs-task"><span class="id">P-002</span><span class="priority p0">P0</span><span>save / apply-turn 確認（Save Mode 入り、必要 state 更新）</span></div>
         <div class="wbs-task"><span class="id">P-003</span><span class="priority p0">P0</span><span>resume 1 ターン目確認（声・距離・余韻が戻る）</span></div>
         <div class="wbs-task"><span class="id">P-004</span><span class="priority p0">P0</span><span>event_card playable 確認（今触れる可視イベント）</span></div>
@@ -596,7 +605,7 @@ footer {
     </div>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">C. Three Hook Spine MVP</span><span class="count">6 件 · P0</span></div>
+      <div class="wbs-head"><span class="title">C. Three Hook Spine MVP</span><span class="count">7 件 · P0</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">HOOK-001</span><span class="priority p0">P0</span><span>Three Hook Spine設計確定（Main / Relationship / Life-Exploration の責務と状態遷移）</span></div>
         <div class="wbs-task"><span class="id">HOOK-002</span><span class="priority p0">P0</span><span>3本hook初期生成（newgame / downstream docs 生成時に初期化）</span></div>
@@ -604,14 +613,28 @@ footer {
         <div class="wbs-task"><span class="id">HOOK-004</span><span class="priority p0">P0</span><span>story_deck hook保持（残り2本のhookと状態を保持）</span></div>
         <div class="wbs-task"><span class="id">HOOK-005</span><span class="priority p0">P0</span><span>apply-turn hook更新（進行 / 保留 / 背景化 / 悪化を保存）</span></div>
         <div class="wbs-task"><span class="id">HOOK-006</span><span class="priority p0">P0</span><span>wanderer playtest（脱線入力を3本hookのどれかへ自然に戻す）</span></div>
+        <div class="wbs-task"><span class="id">HOOK-007</span><span class="priority p0">P0</span><span>Lightweight Tempo Guard（1ターンの前景hook、描写量、問い、場面転換、次beatを絞る）</span></div>
       </div>
     </div>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">D. AI Playtest Smoke 実装</span><span class="count">8 件 · P0</span></div>
+      <div class="wbs-head"><span class="title">D. Story Continuation / Travel Branch</span><span class="count">7 件 · P0</span></div>
+      <div class="wbs-body">
+        <div class="wbs-task"><span class="id">ARC-001</span><span class="priority p0">P0</span><span>Story Completion判定（解決 / 保留 / 背景化 / 悪化 / 完了）</span></div>
+        <div class="wbs-task"><span class="id">ARC-002</span><span class="priority p0">P0</span><span>Next Story Arc生成（関係・記憶・未回収札から次storyを作る）</span></div>
+        <div class="wbs-task"><span class="id">ARC-003</span><span class="priority p0">P0</span><span>Travel / Location Branch（沖縄・鹿児島・NY等の大移動をbranch化）</span></div>
+        <div class="wbs-task"><span class="id">ARC-004</span><span class="priority p0">P0</span><span>Heroine Agency on Travel（同行 / 非同行 / 条件 / 保留を人格として返す）</span></div>
+        <div class="wbs-task"><span class="id">ARC-005</span><span class="priority p0">P0</span><span>Open Arc Limit（未解決遠出branchを最大2本まで管理）</span></div>
+        <div class="wbs-task"><span class="id">ARC-006</span><span class="priority p0">P0</span><span>Long-run AI Playtest（100ターン級smoke）</span></div>
+        <div class="wbs-task"><span class="id">ARC-007</span><span class="priority p0">P0</span><span>High-intimacy Manual Run（長期手動プレイで関係成熟後を確認）</span></div>
+      </div>
+    </div>
+
+    <div class="wbs-cat">
+      <div class="wbs-head"><span class="title">E. AI Playtest Smoke 実装</span><span class="count">8 件 · P0</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">AI-001</span><span class="priority p0">P0</span><span>AI Playtest Plan 作成 <span class="tag green">設計済</span></span></div>
-        <div class="wbs-task"><span class="id">AI-002</span><span class="priority p0">P0</span><span>AI Player Persona 定義（normal / passive / boundary / attacker / wanderer）<span class="tag green">設計済</span></span></div>
+        <div class="wbs-task"><span class="id">AI-002</span><span class="priority p0">P0</span><span>AI Player Persona 定義（normal / passive / boundary / attacker / wanderer / traveler）<span class="tag green">設計済</span></span></div>
         <div class="wbs-task"><span class="id">AI-003</span><span class="priority p0">P0</span><span>./lilia ai-playtest 実装（GM↔AIPlayer 交互進行）</span></div>
         <div class="wbs-task"><span class="id">AI-004</span><span class="priority p0">P0</span><span>transcript 保存（Markdown / JSONL）</span></div>
         <div class="wbs-task"><span class="id">AI-005</span><span class="priority p0">P0</span><span>scene-tick 連動</span></div>
@@ -622,7 +645,7 @@ footer {
     </div>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">E. 画像 PoC（最大ボトルネック）</span><span class="count">5 件 · P0</span></div>
+      <div class="wbs-head"><span class="title">F. 画像 PoC（最大ボトルネック）</span><span class="count">5 件 · P0</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">IMG-001</span><span class="priority p0">P0</span><span>画像用キャラ正本作成（基準絵 1 枚以上）</span></div>
         <div class="wbs-task"><span class="id">IMG-002</span><span class="priority p0">P0</span><span>character_visual.yaml 作成（髪・目・体型・服装・style）</span></div>
@@ -633,7 +656,7 @@ footer {
     </div>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">F. WebUI</span><span class="count">5 件（P0×4, P1×1）</span></div>
+      <div class="wbs-head"><span class="title">G. WebUI</span><span class="count">5 件（P0×4, P1×1）</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">WEB-001</span><span class="priority p0">P0</span><span>WebUI PoC（ブラウザで 1 セッション開始）</span></div>
         <div class="wbs-task"><span class="id">WEB-002</span><span class="priority p0">P0</span><span>チャット画面（GM / LILIA 出力 + ユーザー入力）</span></div>
@@ -644,7 +667,7 @@ footer {
     </div>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">G. 身内 / 外部テスト → Go/NoGo</span><span class="count">3 件 · P0</span></div>
+      <div class="wbs-head"><span class="title">H. 身内 / 外部テスト → Go/NoGo</span><span class="count">3 件 · P0</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">REL-001</span><span class="priority p0">P0</span><span>身内テスト 5 人以上、離脱点記録</span></div>
         <div class="wbs-task"><span class="id">REL-002</span><span class="priority p0">P0</span><span>外部テスト 5 人以上（忖度の少ないユーザー）</span></div>
@@ -653,7 +676,7 @@ footer {
     </div>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">H. Safety / Abuse Prevention（β前 P0×7, Phase 1 P1×2）</span><span class="count">9 件</span></div>
+      <div class="wbs-head"><span class="title">I. Safety / Abuse Prevention（β前 P0×7, Phase 1 P1×2）</span><span class="count">9 件</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">SEC-000</span><span class="priority p0">P0</span><span>LLM Runtime Isolation（ユーザー向けLLMに shell / filesystem / repo root / source code / secrets / 他ユーザーsession へのアクセスを渡さない）</span></div>
         <div class="wbs-task"><span class="id">SEC-001</span><span class="priority p0">P0</span><span>Session Authorization（user_id → session_id の所有権チェックをserver側で強制）</span></div>
@@ -670,7 +693,7 @@ footer {
     <h3>P1（β品質に必要）— 11 件</h3>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">I. 課金 / 利用規約</span><span class="count">4 件 · P1</span></div>
+      <div class="wbs-head"><span class="title">J. 課金 / 利用規約</span><span class="count">4 件 · P1</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">PAY-001</span><span class="priority p1">P1</span><span>β価格決定（月額 or 買い切り）</span></div>
         <div class="wbs-task"><span class="id">PAY-002</span><span class="priority p1">P1</span><span>決済方式決定（Stripe / BOOTH / 手動）</span></div>
@@ -680,7 +703,7 @@ footer {
     </div>
 
     <div class="wbs-cat">
-      <div class="wbs-head"><span class="title">J. マーケティング素材</span><span class="count">4 件 · P1</span></div>
+      <div class="wbs-head"><span class="title">K. マーケティング素材</span><span class="count">4 件 · P1</span></div>
       <div class="wbs-body">
         <div class="wbs-task"><span class="id">MKT-001</span><span class="priority p1">P1</span><span>β募集文（X / Discord / note）</span></div>
         <div class="wbs-task"><span class="id">MKT-002</span><span class="priority p1">P1</span><span>LP 作成（価値・価格・参加方法）</span></div>
@@ -704,19 +727,19 @@ footer {
       </div>
       <div class="schedule-row">
         <div class="week">Week 3</div>
-        <ul><li>画像プロンプトテンプレート</li><li>画像生成タイミング定義</li><li>1 ヒロイン 10 ターン実機プレイ</li><li>3本hook初期生成</li><li>Active Hook接続</li></ul>
+        <ul><li>画像プロンプトテンプレート</li><li>画像生成タイミング定義</li><li>1 ヒロイン 10 ターン実機プレイ</li><li>3本hook初期生成</li><li>Active Hook接続</li><li>Tempo Guard</li><li>Story Completion / Next Arc設計</li></ul>
       </div>
       <div class="schedule-row">
         <div class="week">Week 4</div>
-        <ul><li>WebUI 最小 PoC</li><li>LLM Runtime Isolation 設計</li><li>Session Authorization / Context Minimization 設計</li><li>story_deck hook保持</li><li>apply-turn hook更新</li><li>チャット画面</li><li>session 作成</li><li>resume 表示</li></ul>
+        <ul><li>WebUI 最小 PoC</li><li>LLM Runtime Isolation 設計</li><li>Session Authorization / Context Minimization 設計</li><li>story_deck hook保持</li><li>apply-turn hook更新</li><li>Travel Branch / Heroine Agency</li><li>チャット画面</li><li>session 作成</li><li>resume 表示</li></ul>
       </div>
       <div class="schedule-row">
         <div class="week">Week 5</div>
-        <ul><li>WebUI ↔ apply-newgame / resume / scene-tick 接続</li><li>本番 LLM runtime と開発用 agent の分離</li><li>Path Traversal Protection</li><li>Structured Output Validation</li><li>wanderer playtest</li><li>画像表示枠</li><li>エラー表示</li></ul>
+        <ul><li>WebUI ↔ apply-newgame / resume / scene-tick 接続</li><li>本番 LLM runtime と開発用 agent の分離</li><li>Path Traversal Protection</li><li>Structured Output Validation</li><li>wanderer / traveler playtest</li><li>Open Arc Limit / 100ターン級smoke</li><li>画像表示枠</li><li>エラー表示</li></ul>
       </div>
       <div class="schedule-row">
         <div class="week">Week 6</div>
-        <ul><li>課金方式決定</li><li>利用規約</li><li>Output Safety Filter</li><li>Log Redaction</li><li>Prompt Injection Playtest</li><li>Security Design Review</li><li>β募集 LP / 投稿素材</li><li>身内テスト</li></ul>
+        <ul><li>課金方式決定</li><li>利用規約</li><li>Output Safety Filter</li><li>Log Redaction</li><li>Prompt Injection Playtest</li><li>Security Design Review</li><li>High-intimacy Manual Run</li><li>β募集 LP / 投稿素材</li><li>身内テスト</li></ul>
       </div>
       <div class="schedule-row">
         <div class="week">Week 7</div>
@@ -740,6 +763,8 @@ footer {
           <li>WebUI で 10 ターン以上自然に遊べる</li>
           <li>resume で声・距離・余韻が戻る</li>
           <li>脱線しても Three Hook Spine のどれかへ自然に戻れる</li>
+          <li>初期story完了後に次のstory arcが生成される</li>
+          <li>大移動宣言をbranchとして扱い、LILIAの同行可否が人格と関係に沿う</li>
           <li>節目画像が同一キャラとして許容できる</li>
           <li>ユーザー向け LLM runtime が shell / repo / secrets / 他ユーザー session から分離されている</li>
           <li>有料β 20 人募集できる状態</li>
@@ -752,6 +777,8 @@ footer {
           <li>ヒロインの声が毎回変わる</li>
           <li>resume で関係が巻き戻る</li>
           <li>少し生活行動や別場所へ脱線しただけでゲーム進行が止まる</li>
+          <li>初期storyが終わった後に次の入口が消える</li>
+          <li>親密度や理由なしにLILIAがどこへでも同行して人格が壊れる</li>
           <li>画像が毎回別人に見える</li>
           <li>WebUI の導入で詰まる</li>
           <li>ユーザー向け LLM が repo、source code、secrets、他ユーザー session に到達できる</li>
@@ -769,22 +796,25 @@ footer {
         <p><b style="color:var(--accent);">①</b> &nbsp;<b>SEC-000（LLM Runtime Isolation）</b><br>
         WebUI 本番では、ユーザー向け LLM に shell / filesystem / repo root / source code / secrets / 他ユーザー session への権限を渡さない。ここが曖昧なまま WebUI を公開しない。</p>
 
-        <p style="margin-top:10px;"><b style="color:var(--accent);">②</b> &nbsp;<b>P-001〜P-004（実機 10 ターン目視確認）</b><br>
-        既存基盤がそのまま遊べることを確認。崩れたらここで全方針が変わる。コードは追加せず CLI を回すだけ。</p>
+        <p style="margin-top:10px;"><b style="color:var(--accent);">②</b> &nbsp;<b>P-002〜P-004（save / resume / event_card 目視確認）</b><br>
+        P-001 は done。次は既存基盤の保存、再開、可視イベントがそのまま遊べることを確認する。</p>
 
-        <p style="margin-top:10px;"><b style="color:var(--accent);">③</b> &nbsp;<b>Three Hook Spine MVP（HOOK-001〜HOOK-006）</b><br>
-        Main / Relationship / Life-Exploration の3本hookを持ち、脱線入力をどれかへ吸着させる。ここがないと少し横道に逸れただけでゲームとして破綻する。</p>
+        <p style="margin-top:10px;"><b style="color:var(--accent);">③</b> &nbsp;<b>Three Hook Spine MVP（HOOK-001〜HOOK-007）</b><br>
+        Main / Relationship / Life-Exploration の3本hookを持ち、脱線入力をどれかへ吸着させる。Lightweight Tempo Guard で1ターンの前景hookと情報量を絞る。</p>
 
-        <p style="margin-top:10px;"><b style="color:var(--accent);">④</b> &nbsp;<b>AI Playtest Smoke（AI-003〜AI-008）</b><br>
+        <p style="margin-top:10px;"><b style="color:var(--accent);">④</b> &nbsp;<b>Story Continuation / Travel Branch（ARC-001〜ARC-007）</b><br>
+        初期storyが閉じた後の次arc生成、沖縄/NYなどの大移動branch、LILIAの同行可否、未解決arc上限、100ターン級smokeを入れる。ここがないと長く遊ぶほど世界がほどける。</p>
+
+        <p style="margin-top:10px;"><b style="color:var(--accent);">⑤</b> &nbsp;<b>AI Playtest Smoke（AI-003〜AI-008）</b><br>
         手作業の P-001 を反復可能にする。attacker persona を含め、prompt injection / secret要求 / 他session要求 / 画像prompt汚染をSEC-007として確認する。</p>
 
-        <p style="margin-top:10px;"><b style="color:var(--accent);">⑤</b> &nbsp;<b>画像 PoC（IMG-001〜IMG-005）と WebUI PoC（WEB-001〜WEB-002）を並行</b><br>
+        <p style="margin-top:10px;"><b style="color:var(--accent);">⑥</b> &nbsp;<b>画像 PoC（IMG-001〜IMG-005）と WebUI PoC（WEB-001〜WEB-002）を並行</b><br>
         どちらも独立した未知。先に詰まる方を優先判断する。画像は商用化最大ボトルネック、WebUI は β 体験の必須条件。</p>
 
-        <p style="margin-top:10px;"><b style="color:var(--accent);">⑥</b> &nbsp;<b>課金 / 規約 / Safety 検知 / マーケ素材（PAY + SEC + MKT）</b><br>
+        <p style="margin-top:10px;"><b style="color:var(--accent);">⑦</b> &nbsp;<b>課金 / 規約 / Safety 検知 / マーケ素材（PAY + SEC + MKT）</b><br>
         利用規約、出力filter、log redaction、β前 Security Review を WebUI 作業と並行して詰める。</p>
 
-        <p style="margin-top:10px;"><b style="color:var(--accent);">⑦</b> &nbsp;<b>身内 → 外部テスト → Go/NoGo（REL）</b><br>
+        <p style="margin-top:10px;"><b style="color:var(--accent);">⑧</b> &nbsp;<b>身内 → 外部テスト → Go/NoGo（REL）</b><br>
         外部テストの忖度なしフィードバックでリリース可否を最終判断。</p>
       </div>
     </div>

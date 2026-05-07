@@ -29,7 +29,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / Wave Y-FでGM prompt上の scene-tick -> apply-turn 連鎖を必須化済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / event/story_deck/profile初期生成コード接続済み / story_spine・relationship_spine は Wave 11 でAI駆動化済み / ましろ・つむぎ・全Qおまかせ smoke 通過
-- Three Hook Spine MVP: β前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook を持ち、脱線入力をどれかへ吸着させる。実装タスクは `RELEASE_WBS.md` の `HOOK-001〜HOOK-006` を正本にする
+- Three Hook Spine MVP: β前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook を持ち、脱線入力をどれかへ吸着させる。Lightweight Tempo Guard も含め、実装タスクは `RELEASE_WBS.md` の `HOOK-001〜HOOK-007` を正本にする
+- Story Continuation / Travel Branch MVP: β前P0。初期story完了後の次arc生成、大移動branch、LILIA同行可否、未解決arc最大2本、100ターン級smokeを `RELEASE_WBS.md` の `ARC-001〜ARC-007` で管理する
 - Story Reference Engine 強制導線: prompt 接続済み
 - 5層 self-understanding 参照導線: prompt 接続済み
 - Deepening Tags 評価基準: GROWTH_UPDATE_LOOP + relationship template 接続済み
@@ -402,11 +403,11 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 保留事項（Pending Items, 2026-05-07 整理）
 
-以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。ただし P-D は 2026-05-07 時点でβ前P0へ格上げ済みで、詳細実装タスクは `RELEASE_WBS.md` を正本にする。
+以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。ただし P-D と Story Continuation / Travel Branch は 2026-05-07 時点でβ前P0へ格上げ済みで、詳細実装タスクは `RELEASE_WBS.md` を正本にする。
 
 ### P-A. テンポ管理（何をどこまでどう出すか）
 
-Wave Y-A の延長。inner-galge runtime.md からの移植で、出力ボリューム・密度の制御を扱う。Wave Y-B1（ヒロイン第一反応情報の抽象レベル分離）で症状の一部は改善されたため優先度は低いが、未着手。
+Wave Y-A の延長。inner-galge runtime.md からの移植で、出力ボリューム・密度の制御を扱う。重いテンポチューニングは未着手だが、β前は Lightweight Tempo Guard を Three Hook Spine に含めて P0 扱いにする。
 
 仮案（要確定）:
 
@@ -415,6 +416,13 @@ Wave Y-A の延長。inner-galge runtime.md からの移植で、出力ボリュ
 - 沈黙 / 余白の使い方（毎ターン全部埋めない、感情の余韻を残す）
 - 場面転換の頻度（連続ターンでだらだら同じ場面に留まらない基準、数字未定）
 - 通常ターン軽量化ルール（First Scene Quality Gate / Output Text Completion Gate と対になる、平常時の軽さ基準）
+
+β前の最小採用:
+
+- `HOOK-007` として、1ターンに前景化するhookは1本までにする
+- 3本hookを毎ターン全部提示しない
+- 1ターン内の問い、次beat、場面転換、説明量を増やしすぎない
+- 本格的な文量スコア化、濃度段階、場面転換頻度の数値化は Phase 1 以降に残す
 
 ### P-B. Hidden 深化ベクトル運用
 
@@ -448,11 +456,27 @@ MVP方針:
 - プレイヤーが脱線したら、3本のどれかに吸着させる
 - `current/event_card.md` は今触れる1本を Active Hook として前景化する
 - 残り2本は `story/story_deck.md` に候補として保持する
+- Lightweight Tempo Guard として、1ターンに前景化するhookは1本に絞り、3本を毎ターン全部提示しない
+- 1ターン内の問い、次beat、場面転換、説明量を増やしすぎない
 - 1 本を追うと残りが保留、背景化、悪化する選択コスト構造
 - 戦闘システムは分離し、イベント駆動のフック管理に絞る
 
 初回スタート時の story 生成は、3 本フックの選択（土地・職場・関係起点など）に応じて再生成する。
 AI Playtest には `wanderer` persona を追加し、生活行動、別場所への移動、関係イベント無視、雑談などの脱線入力を試す。
+
+### P-D2. Story Continuation / Travel Branch MVP [β前P0]
+
+初期story_spineが閉じた後に何も起きなくなる状態はβでは不可とする。
+LILIAは固定ADVではなく、ユーザーの選択、移動、会話、関係の蓄積によって次のstoryが立ち上がるAI恋愛ADVとして扱う。
+
+MVP方針:
+
+- `current/story_spine.md` / `current/event_card.md` / `story/story_deck.md` / Three Hook state から、現在storyの状態を解決、保留、背景化、悪化、完了のどれかに判定する。
+- storyが閉じた場合、`relationship.md`、`memory.md`、`beliefs.md`、`story/story_deck.md` の未回収札から次の story arc と event_card 候補を生成する。
+- 沖縄、鹿児島、ニューヨーク、北極などの大移動宣言は即拒否しない。費用、時間、仕事、約束、LILIAの生活、同行理由を持つ Travel / Location Branch として扱う。
+- LILIAは人格を持つため、親密度や関係理由が薄い時は同行しない、保留する、条件を出す、連絡だけにする判断をしてよい。
+- 未解決の遠出 / branch は最大2本まで保持する。3本目を開く前に既存arcの解決、保留、帰還、背景化を促す。
+- AI Playtest には `traveler` persona を追加し、100ターン級smokeで story完了後の次arc生成、travel branch、resume継続を検証する。
 
 ### P-E. 世界移動・物語射程の境界（仮案、要確定）
 

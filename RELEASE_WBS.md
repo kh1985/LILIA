@@ -25,7 +25,7 @@
 | C-001 | 商用βスコープ確定 | todo | P0 |  |  | 初期βで作るもの・作らないものが COMMERCIALIZATION_ROADMAP.md に明文化されている |
 | C-002 | 1ヒロイン方針確定 | todo | P0 |  |  | 初期βで使うヒロインと現実路線の範囲が決まっている |
 | C-003 | 異界 / 能力オプション後回し明文化 | todo | P0 |  |  | 初期βでは実装しないことが明記されている |
-| P-001 | 1ヒロイン実機プレイ10ターン | todo | P0 |  |  | new → first scene → 10 turns が破綻しない |
+| P-001 | 1ヒロイン実機プレイ10ターン | done | P0 |  |  | new → first scene → 10 turns が破綻しない |
 | P-002 | save / apply-turn 確認 | todo | P0 |  |  | Save Modeに入り、apply-turnで必要stateが更新される |
 | P-003 | resume 1ターン目確認 | todo | P0 |  |  | resume後に声・距離・余韻が戻る |
 | P-004 | event_card playable確認 | todo | P0 |  |  | event_cardが今触れる可視イベントになっている |
@@ -35,8 +35,16 @@
 | HOOK-004 | story_deck hook保持 | todo | P0 |  |  | story/story_deck.md に残り2本のhookと状態が保持される |
 | HOOK-005 | apply-turn hook更新 | todo | P0 |  |  | Save Mode / apply-turn で hook の進行・保留・背景化・悪化を更新できる |
 | HOOK-006 | wanderer playtest | todo | P0 |  |  | AI Playtestで脱線入力を試し、3本hookのどれかに自然に戻れる |
+| HOOK-007 | Lightweight Tempo Guard | todo | P0 |  |  | 1ターンに前景化するhookは1本、描写量・問い・場面転換・次beatが重くなりすぎない |
+| ARC-001 | Story Completion判定 | todo | P0 |  |  | Reveal Ladder / event_card / story_deck から、現在のstoryが解決・保留・背景化・悪化・完了のどれか判定できる |
+| ARC-002 | Next Story Arc生成 | todo | P0 |  |  | 現在storyが閉じた後、LILIAとの関係・記憶・未回収札から次のstory_spine / event_card候補を生成できる |
+| ARC-003 | Travel / Location Branch | todo | P0 |  |  | 沖縄・鹿児島・ニューヨーク等の大移動宣言を即拒否せず、費用・時間・理由・LILIA同行可否を含むbranchとして扱える |
+| ARC-004 | Heroine Agency on Travel | todo | P0 |  |  | 親密度や関係理由が薄い時、LILIAが同行しない・保留する・条件を出す判断を人格として返せる |
+| ARC-005 | Open Arc Limit | todo | P0 |  |  | 未解決の遠出 / branch は最大2本まで保持し、3本目は既存arcの解決・保留・帰還を促す |
+| ARC-006 | Long-run AI Playtest | todo | P0 |  |  | normal / wanderer で100ターン級smokeを実行し、story完了後の次arc生成とresumeが破綻しない |
+| ARC-007 | High-intimacy Manual Run | todo | P0 |  |  | ユーザー本人が長期手動プレイし、関係が深まった後の声・境界線・同行判断・新story生成を確認する |
 | AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
-| AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer の5種が定義済み |
+| AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer / traveler の6種が定義済み |
 | AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |
 | AI-004 | transcript保存 | todo | P0 |  |  | GM出力、AI Player入力、turn番号がMarkdownまたはJSONLで保存される |
 | AI-005 | scene-tick連動 | todo | P0 |  |  | 各ターン後にscene-tickが実行される |
@@ -96,7 +104,8 @@ Week 3:
 - 画像プロンプトテンプレート作成
 - 画像生成タイミング定義
 - 1ヒロイン10ターン実機プレイ
-- 3本hook初期生成 / Active Hook接続 (HOOK-002 / HOOK-003)
+- 3本hook初期生成 / Active Hook接続 / Tempo Guard (HOOK-002 / HOOK-003 / HOOK-007)
+- Story Completion判定 / Next Story Arc生成設計 (ARC-001 / ARC-002)
 
 Week 4:
 
@@ -104,6 +113,7 @@ Week 4:
 - LLM Runtime Isolation 設計 (SEC-000)
 - Session Authorization / Context Minimization 設計 (SEC-001 / SEC-002)
 - story_deck hook保持 / apply-turn hook更新 (HOOK-004 / HOOK-005)
+- Travel / Location Branch と Heroine Agency on Travel (ARC-003 / ARC-004)
 - チャット画面
 - session作成
 - resume表示
@@ -114,6 +124,7 @@ Week 5:
 - 本番LLM runtime と開発用agentの分離 (SEC-000)
 - Path Traversal Protection / Structured Output Validation (SEC-003 / SEC-004)
 - wanderer playtest (HOOK-006)
+- Open Arc Limit / Long-run AI Playtest (ARC-005 / ARC-006)
 - 画像表示枠
 - エラー表示
 
@@ -124,6 +135,7 @@ Week 6:
 - Output Safety Filter / Log Redaction (SEC-005 / SEC-006)
 - Prompt Injection Playtest (SEC-007)
 - Security Review Before Paid Beta (SEC-008)
+- High-intimacy Manual Run (ARC-007)
 - β募集LP / 投稿素材
 - 身内テスト
 

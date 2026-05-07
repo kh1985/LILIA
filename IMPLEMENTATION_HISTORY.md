@@ -84,10 +84,11 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 
 ## 4.1 Pending Items（2026-05-07 整理、詳細は docs/ROADMAP.md 「保留事項」を正本）
 
-- P-A. テンポ管理（何をどこまでどう出すか）: 1 ターン分量上限、描写濃度の段階分け、沈黙の扱い、場面転換頻度、通常ターン軽量化ルール。仮案あり、要確定。Wave Y-A の延長。Wave Y-B1 で症状一部改善のため優先度低
+- P-A. テンポ管理（何をどこまでどう出すか）: 重い文量スコア化や濃度段階は未確定。ただしβ前の最小版として Lightweight Tempo Guard を Three Hook Spine に含め、`HOOK-007` で管理する
 - P-B. Hidden 深化ベクトル運用: 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）の 0-5 数値運用 vs 自然言語運用 vs ハイブリッドの選択
 - P-C. 深化タグ機械チェック: inner-galge デフォルト 14 タグ + ヒロイン追加機構の解放条件自動評価
-- P-D. 3 本フック運用（戦闘なし版）: 2026-05-07 にβ前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook の3方向並列、Active Hook、story_deck保持、apply-turn更新、wanderer playtest を `RELEASE_WBS.md` の `HOOK-001〜HOOK-006` で管理する
+- P-D. 3 本フック運用（戦闘なし版）: 2026-05-07 にβ前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook の3方向並列、Active Hook、story_deck保持、apply-turn更新、wanderer playtest、Lightweight Tempo Guard を `RELEASE_WBS.md` の `HOOK-001〜HOOK-007` で管理する
+- Story Continuation / Travel Branch MVP: 2026-05-07 にβ前P0として追加。初期story完了後の次arc生成、大移動branch、LILIA同行可否、未解決arc最大2本、100ターン級smokeを `RELEASE_WBS.md` の `ARC-001〜ARC-007` で管理する
 - P-E. 世界移動・物語射程の境界（仮案）: 自然範囲 / 関係段階判定 / 射程外 / 世界観違反の 4 段階。Player Action Prompt 改修（Wave 17 候補）と合わせて確定する
 - P-F. NPC 昇格（ヒロイン非昇格仕様）: 初期実装では NPC はヒロインに昇格しない。Tier 1〜4 の範囲だけ扱い、複数ヒロイン Wave で改めて昇格条件を設計
 - P-G. 軽量 Integrity Audit Tool: `docs/INTEGRITY_AUDIT_20260505.md` の手動監査手順を `tools/audit/integrity_audit.py` として定型化
@@ -105,3 +106,4 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - 運用ログ / 障害対応
 - AI Playtest Smoke
 - Three Hook Spine MVP
+- Story Continuation / Travel Branch MVP
