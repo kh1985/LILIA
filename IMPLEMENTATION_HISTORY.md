@@ -85,7 +85,7 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 
 ## 4.1 Pending Items（2026-05-07 整理、詳細は docs/ROADMAP.md 「保留事項」を正本）
 
-- P-A. テンポ管理（何をどこまでどう出すか）: 重い文量スコア化や濃度段階は未確定。ただしβ前の最小版として Lightweight Tempo Guard を Three Hook Spine に含め、`HOOK-007` で管理する
+- P-A. テンポ管理（何をどこまでどう出すか）: 重い文量スコア化や濃度段階は未確定。ただしβ前の最小版として Lightweight Tempo Guard を `PLAY_MODE_SPEC.md` に追加予定。Play Modeでの出力量、質問数、前景化hook数、返答入口を制御し、既存の `prompt/core.md` の質問過多防止ルールを具体化する。WBS上は `HOOK-007` と `TEMPO-001〜TEMPO-005` で管理する
 - P-B. Hidden 深化ベクトル運用: 初期βでは本格運用しない。通常進行メーターにせず、深い関係に到達した後の将来の質的管理候補として保持する
 - P-C. 深化タグ機械チェック: inner-galge デフォルト 14 タグ + ヒロイン追加機構の解放条件自動評価
 - P-D. 3 本フック運用（戦闘なし版）: 2026-05-07 にβ前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook の3方向並列、Active Hook、story_deck保持、apply-turn更新、wanderer playtest、Lightweight Tempo Guard を `RELEASE_WBS.md` の `HOOK-001〜HOOK-007` で管理する
