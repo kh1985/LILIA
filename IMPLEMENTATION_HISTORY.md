@@ -87,7 +87,7 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - P-A. テンポ管理（何をどこまでどう出すか）: 1 ターン分量上限、描写濃度の段階分け、沈黙の扱い、場面転換頻度、通常ターン軽量化ルール。仮案あり、要確定。Wave Y-A の延長。Wave Y-B1 で症状一部改善のため優先度低
 - P-B. Hidden 深化ベクトル運用: 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）の 0-5 数値運用 vs 自然言語運用 vs ハイブリッドの選択
 - P-C. 深化タグ機械チェック: inner-galge デフォルト 14 タグ + ヒロイン追加機構の解放条件自動評価
-- P-D. 3 本フック運用（戦闘なし版）: メイン事件 / ヒロイン関係 / 探索・生活の 3 方向並列、タイプ被り禁止、選択コスト構造、初回 story 生成との接続
+- P-D. 3 本フック運用（戦闘なし版）: 2026-05-07 にβ前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook の3方向並列、Active Hook、story_deck保持、apply-turn更新、wanderer playtest を `RELEASE_WBS.md` の `HOOK-001〜HOOK-006` で管理する
 - P-E. 世界移動・物語射程の境界（仮案）: 自然範囲 / 関係段階判定 / 射程外 / 世界観違反の 4 段階。Player Action Prompt 改修（Wave 17 候補）と合わせて確定する
 - P-F. NPC 昇格（ヒロイン非昇格仕様）: 初期実装では NPC はヒロインに昇格しない。Tier 1〜4 の範囲だけ扱い、複数ヒロイン Wave で改めて昇格条件を設計
 - P-G. 軽量 Integrity Audit Tool: `docs/INTEGRITY_AUDIT_20260505.md` の手動監査手順を `tools/audit/integrity_audit.py` として定型化
@@ -104,3 +104,4 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - LP / マーケ素材
 - 運用ログ / 障害対応
 - AI Playtest Smoke
+- Three Hook Spine MVP

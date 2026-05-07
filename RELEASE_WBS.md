@@ -29,8 +29,14 @@
 | P-002 | save / apply-turn 確認 | todo | P0 |  |  | Save Modeに入り、apply-turnで必要stateが更新される |
 | P-003 | resume 1ターン目確認 | todo | P0 |  |  | resume後に声・距離・余韻が戻る |
 | P-004 | event_card playable確認 | todo | P0 |  |  | event_cardが今触れる可視イベントになっている |
+| HOOK-001 | Three Hook Spine設計確定 | todo | P0 |  |  | Main Hook / Relationship Hook / Life-Exploration Hook の責務と状態遷移が明文化されている |
+| HOOK-002 | 3本hook初期生成 | todo | P0 |  |  | newgame / downstream docs生成時に3本hookが初期化される |
+| HOOK-003 | Active Hook接続 | todo | P0 |  |  | current/event_card.md に Active Hook があり、今触れる1本を前景化できる |
+| HOOK-004 | story_deck hook保持 | todo | P0 |  |  | story/story_deck.md に残り2本のhookと状態が保持される |
+| HOOK-005 | apply-turn hook更新 | todo | P0 |  |  | Save Mode / apply-turn で hook の進行・保留・背景化・悪化を更新できる |
+| HOOK-006 | wanderer playtest | todo | P0 |  |  | AI Playtestで脱線入力を試し、3本hookのどれかに自然に戻れる |
 | AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
-| AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker の4種が定義済み |
+| AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer の5種が定義済み |
 | AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |
 | AI-004 | transcript保存 | todo | P0 |  |  | GM出力、AI Player入力、turn番号がMarkdownまたはJSONLで保存される |
 | AI-005 | scene-tick連動 | todo | P0 |  |  | 各ターン後にscene-tickが実行される |
@@ -83,18 +89,21 @@ Week 2:
 - キャラ正本絵作成
 - OpenAI / Gemini 比較
 - 10シーン画像テスト
+- Three Hook Spine設計確定 (HOOK-001)
 
 Week 3:
 
 - 画像プロンプトテンプレート作成
 - 画像生成タイミング定義
 - 1ヒロイン10ターン実機プレイ
+- 3本hook初期生成 / Active Hook接続 (HOOK-002 / HOOK-003)
 
 Week 4:
 
 - WebUI最小PoC
 - LLM Runtime Isolation 設計 (SEC-000)
 - Session Authorization / Context Minimization 設計 (SEC-001 / SEC-002)
+- story_deck hook保持 / apply-turn hook更新 (HOOK-004 / HOOK-005)
 - チャット画面
 - session作成
 - resume表示
@@ -104,6 +113,7 @@ Week 5:
 - WebUIから apply-newgame / resume / scene-tick 接続
 - 本番LLM runtime と開発用agentの分離 (SEC-000)
 - Path Traversal Protection / Structured Output Validation (SEC-003 / SEC-004)
+- wanderer playtest (HOOK-006)
 - 画像表示枠
 - エラー表示
 

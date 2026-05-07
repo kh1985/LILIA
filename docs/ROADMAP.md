@@ -29,6 +29,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
 - Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / Wave Y-FでGM prompt上の scene-tick -> apply-turn 連鎖を必須化済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / event/story_deck/profile初期生成コード接続済み / story_spine・relationship_spine は Wave 11 でAI駆動化済み / ましろ・つむぎ・全Qおまかせ smoke 通過
+- Three Hook Spine MVP: β前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook を持ち、脱線入力をどれかへ吸着させる。実装タスクは `RELEASE_WBS.md` の `HOOK-001〜HOOK-006` を正本にする
 - Story Reference Engine 強制導線: prompt 接続済み
 - 5層 self-understanding 参照導線: prompt 接続済み
 - Deepening Tags 評価基準: GROWTH_UPDATE_LOOP + relationship template 接続済み
@@ -401,7 +402,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 保留事項（Pending Items, 2026-05-07 整理）
 
-以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。複数ヒロイン実装より前に判断する必要のあるものと、Phase 3 以降に持ち越すものが混在する。
+以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。ただし P-D は 2026-05-07 時点でβ前P0へ格上げ済みで、詳細実装タスクは `RELEASE_WBS.md` を正本にする。
 
 ### P-A. テンポ管理（何をどこまでどう出すか）
 
@@ -432,20 +433,26 @@ Wave Y-A の延長。inner-galge runtime.md からの移植で、出力ボリュ
 
 inner-galge デフォルト 14 タグ（初夜、秘密の共有、個人ストーリー解決、能力共鳴、同行宣言、摩擦の処理、共同体合意、役割確立、他者の席の承認、情報共有合意、不在時連携、離脱自由の確認、裏切りと復縁、新たな秘密）と、ヒロインごとの追加機構の実装。LILIA の `relationship.md` に枠は記述済みだが、デフォルトリストとヒロイン追加機構、解放条件の自動評価は未実装。
 
-### P-D. 3 本フック運用（戦闘なし版）
+### P-D. 3 本フック運用（戦闘なし版） [β前P0へ格上げ]
 
 inner-galge runtime.md からの移植。メイン事件フック / ヒロイン関係フック / 探索・生活フックの 3 方向を並列管理する。
+これは「追加の面白さ」ではなく、プレイヤーが少し脱線してもゲームとして破綻しないためのβ前P0である。
 
-仮案（要確定）:
+MVP方針:
 
 - メイン事件フック（街・職場・依頼・小さな事件）
 - ヒロイン関係フック（LILIA との距離、約束、揺れ）
 - 探索・生活フック（家、街、季節、生活変化）
 - タイプ被り禁止（3 本とも恋愛系・戦闘系にしない）
-- 1 本を追うと残りが悪化する選択コスト構造
+- どれか1本は「今すぐ触れる」状態にする
+- プレイヤーが脱線したら、3本のどれかに吸着させる
+- `current/event_card.md` は今触れる1本を Active Hook として前景化する
+- 残り2本は `story/story_deck.md` に候補として保持する
+- 1 本を追うと残りが保留、背景化、悪化する選択コスト構造
 - 戦闘システムは分離し、イベント駆動のフック管理に絞る
 
 初回スタート時の story 生成は、3 本フックの選択（土地・職場・関係起点など）に応じて再生成する。
+AI Playtest には `wanderer` persona を追加し、生活行動、別場所への移動、関係イベント無視、雑談などの脱線入力を試す。
 
 ### P-E. 世界移動・物語射程の境界（仮案、要確定）
 

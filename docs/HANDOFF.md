@@ -14,6 +14,7 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - ストーリーは主役ではなく、関係と人格の出方を変化させる装置として扱う。
 - 最初は1人のLILIAとの関係が面白いことを優先する。
 - 官能寄りの表現技法は削除しない。成人・合意・相互性・関係段階・境界線を守ったうえで、LILIAの重要な魅力として活かす。
+- 3本フック運用（Main Hook / Relationship Hook / Life-Exploration Hook）はβ前P0。少し脱線してもゲームとして破綻しないための進行骨格として扱う。
 
 ## 3. 現在の実装状況
 
@@ -40,6 +41,7 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `tests/resume_smoke/manual_checklist.md` と `tests/resume_smoke/sample_session.md` を追加済み。手動smokeの確認項目と、非正史サンプルを置く。
 - `tests/full_loop/manual_checklist.md` を追加済み。new / profile / first scene / Play Mode / scene-tick / apply-turn / resume を1本で確認する手動smoke手順である。
 - `docs/ROADMAP.md` を作成済み。長期実装順とMVP境界の正本として、マイルストーン、現在地、次タスクを管理する。
+- 商用β向けにトップレベル `COMMERCIALIZATION_ROADMAP.md` / `RELEASE_WBS.md` / `IMPLEMENTATION_HISTORY.md` / `AI_PLAYTEST_PLAN.md` / `STATUS_DASHBOARD.html` を追加済み。Three Hook Spine MVP は `RELEASE_WBS.md` の `HOOK-001〜HOOK-006` でβ前P0管理する。
 - 旧LIRIA / inner-galge zip調査に基づき、`docs/ROADMAP.md` に Style Defaults / Intimacy Defaults Completion、New Session Initialization、Event Card Playability Gate、Voice Continuity Gate、Romance / Intimacy Growth Loop、World Autonomy / Pressure Loop、Crisis / Combat / Ability Constraint Loop、Integrity Checks、Launcher / CLI、Visual / Manga Pipeline の順番を反映済み。
 - `prompt/style_reference.md` と `templates/session/style/` を作成済み。参照小説・参照作品から本文ではなく表現軸を抽出し、Light Story Reference Pass としてnew初回scene前や必要時だけ使う方針を定義済み。
 - root `style/defaults/` を作成済み。romance / tension / warmth / loss / quiet / landscape の場面別Style Defaultsを、作者別メソッドの直接模倣ではなく表現技法・温度・視点距離・余白の参照棚として移植済み。
