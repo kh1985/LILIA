@@ -17,6 +17,7 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - 3本フック運用（Main Hook / Relationship Hook / Life-Exploration Hook）はβ前P0。少し脱線してもゲームとして破綻しないための進行骨格として扱う。
 - テンポ管理の軽量版は Three Hook Spine に含める。1ターンで前景化するhookを1本に絞り、3本hookを毎ターン全部提示しない。
 - Story Continuation / Travel Branch はβ前P0。初期story完了後も次arcを生成し、沖縄/NY等の大移動をbranchとして扱い、LILIAの同行可否を人格・関係・生活理由から判断する。
+- Story Function Framework は固定プロットではなく、story_spine現在地、event_card品質、Play Modeの問い、AI Playtestのscene変化を診断するために使う。
 
 ## 3. 現在の実装状況
 
@@ -39,6 +40,8 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `templates/session/current/decision_index.md` を新規追加済み。
 - `prompt/core.md` に Echo Awareness と Decision Awareness を追加済み。
 - `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を作成済み。イベントがLILIAとの関係の物語として積み重なる仕組み、Story Reference Engine、NPC tier、World Autonomy / Pressureの位置づけを定義する正本。
+- `docs/STORY_FUNCTION_FRAMEWORK.md` を作成済み。物語を変化、問い、筋立て・感情・意味の三層、十五機能の現在地診断として扱い、固定プロット順として強制しない。
+- `PLAY_MODE_SPEC.md` を作成済み。Play Modeでは設定説明より問い、行動入口、scene入口/出口の変化を優先する。
 - `references/story_media_stock.md` を新規追加（LIRIAから移植）。Event Creation Procedure から参照される50作品の研究棚。
 - `tests/resume_smoke/manual_checklist.md` と `tests/resume_smoke/sample_session.md` を追加済み。手動smokeの確認項目と、非正史サンプルを置く。
 - `tests/full_loop/manual_checklist.md` を追加済み。new / profile / first scene / Play Mode / scene-tick / apply-turn / resume を1本で確認する手動smoke手順である。

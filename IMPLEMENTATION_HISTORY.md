@@ -93,6 +93,12 @@ LILIAの実装済み内容を把握し、今後の商用化WBSと重複開発を
 - P-F. NPC 昇格（ヒロイン非昇格仕様）: 初期実装では NPC はヒロインに昇格しない。Tier 1〜4 の範囲だけ扱い、複数ヒロイン Wave で改めて昇格条件を設計
 - P-G. 軽量 Integrity Audit Tool: `docs/INTEGRITY_AUDIT_20260505.md` の手動監査手順を `tools/audit/integrity_audit.py` として定型化
 
+## 4.2 Referenced Creative Frameworks
+
+- 小説を書くための設計ノート由来の Story Function Framework を設計正本として追加予定。
+- 固定プロットではなく、LILIA向けのscene診断・event_card品質確認・AI Playtest評価へ転用する。
+- 十五機能は順番強制ではなく、story_spine現在地、scene入口/出口の変化、筋立て・感情・意味の三層確認に使う。
+
 ## 5. Commercialization Gap
 
 - WebUI

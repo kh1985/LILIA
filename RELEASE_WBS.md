@@ -43,6 +43,12 @@
 | ARC-005 | Open Arc Limit | todo | P0 |  |  | 未解決の遠出 / branch は最大2本まで保持し、3本目は既存arcの解決・保留・帰還を促す |
 | ARC-006 | Long-run AI Playtest | todo | P0 |  |  | normal / wanderer で100ターン級smokeを実行し、story完了後の次arc生成とresumeが破綻しない |
 | ARC-007 | High-intimacy Manual Run | todo | P0 |  |  | ユーザー本人が長期手動プレイし、関係が深まった後の声・境界線・同行判断・新story生成を確認する |
+| STORY-001 | STORY_FUNCTION_FRAMEWORK.md 作成 | todo | P1 |  |  | 15機能、三層構造、scene機能、LILIA用読み替えが定義されている |
+| STORY-002 | story_spineへStory Function Position追加検討 | todo | P1 |  |  | current_function / next_function_candidate / do_not_jump_to の導入方針が決まっている |
+| STORY-003 | event_cardへScene Function追加検討 | todo | P1 |  |  | scene_goal / obstacle / expected_change / withheld_information の導入方針が決まっている |
+| STORY-004 | AI PlaytestへScene Change Check追加 | todo | P1 |  |  | 入口と出口で何が変わったかを評価できる |
+| STORY-005 | PLAY_MODE_SPECへ「情報ではなく問い」ルール追加 | todo | P0 |  |  | GMが設定説明より問い・行動・衝突を優先するルールがある |
+| STORY-006 | Story Functionを固定プロット化しないルール追加 | todo | P0 |  |  | 十五機能を順番強制せず、診断と生成補助に限定することが明文化されている |
 | AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
 | AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer / traveler の6種が定義済み |
 | AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |

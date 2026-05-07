@@ -23,11 +23,13 @@ LILIAは、会話、選択、物語を記憶し、関係性と人格の出方が
 - growth update: `docs/GROWTH_UPDATE_LOOP.md`
 - voice continuity: `docs/VOICE_CONTINUITY.md`
 - romance / intimacy growth: `docs/ROMANCE_INTIMACY_GROWTH.md`
+- story function framework: `docs/STORY_FUNCTION_FRAMEWORK.md`
 - style reference: `prompt/style_reference.md`
 - save / resume: `prompt/save_resume.md`
 
 この文書は、event、story、story reference、NPC tier、World Autonomy / Pressureの位置づけの正本である。
 event_cardの必須項目は `docs/EVENT_CARD_PLAYABILITY.md`、保存更新先は `docs/GROWTH_UPDATE_LOOP.md` を優先する。
+story / scene の機能診断、十五機能のLILIA用読み替え、三層構造、scene入口/出口の変化確認は `docs/STORY_FUNCTION_FRAMEWORK.md` を参照する。
 
 ## 3. Event / Story の違い
 
@@ -231,6 +233,8 @@ event_cardやstory_deckへ新しい出来事を置く前に、以下を短く見
 - ユーザーは何に触れる？
 - 何が残る？
 - 次回どう戻ってくる？
+
+eventを作る時は、筋立て・感情・意味の三層が揃っているかを確認する。状況だけ進むevent、感情だけ動くscene、意味だけ語る出力は弱い。
 
 答えられない場合は、出来事を大きくするのではなく、LILIAの関係に刺さる入口へ小さく直す。
 
