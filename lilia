@@ -20,6 +20,22 @@ from tools.common.engine_runner import (
     resolve_engine,
     run_engine as run_engine_cli,
 )
+from tools.playtest.judge import (
+    JudgeError,
+    JudgeParseError,
+    build_judge_prompt,
+    parse_judge_response,
+    render_judge_error_md,
+    render_judge_report_md,
+)
+from tools.playtest.menu import (
+    ENGINE_CHOICES,
+    PERSONA_CHOICES,
+    parse_turns_or_default,
+    parse_yes_no,
+    resolve_choice,
+    resolve_menu_action,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -150,7 +166,13 @@ Usage:
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
-  ./lilia ai-playtest <session_name> --persona normal|passive|boundary --turns 10 [--engine codex|claude|auto] [--verbose | --quiet]
+  ./lilia ai-playtest <session_name> --persona normal|passive|boundary --turns 10 [--engine codex|claude|auto] [--judge] [--verbose | --quiet]
+  ./lilia menu                     対話式の日本語開発メニューを起動する (alias: dev-menu)
+  ./lilia dev-test <session_name> [--persona normal] [--turns 10] [--engine auto] [--no-judge]
+  ./lilia dev-smoke <session_name> [--turns 3] [--engine auto] [--no-judge]
+  ./lilia dev-last
+  ./lilia dev-clean-runs [--days 7|3|0] [--yes]
+  ./lilia dev-status
 
 This launcher creates and inspects local session scaffolds only.
 AI one-shot execution runs only when --run is explicit.
@@ -3746,12 +3768,13 @@ AI_PLAYTEST_GM_INSTRUCTION = (
 
 def parse_ai_playtest_options(
     args: list[str],
-) -> tuple[list[str], str, int, str, bool, bool]:
+) -> tuple[list[str], str, int, str, bool, bool, bool]:
     persona = "normal"
     turns = 10
     engine = "auto"
     verbose = False
     quiet = False
+    judge = False
     cleaned: list[str] = []
     index = 0
     while index < len(args):
@@ -3788,6 +3811,8 @@ def parse_ai_playtest_options(
             verbose = True
         elif arg == "--quiet":
             quiet = True
+        elif arg == "--judge":
+            judge = True
         else:
             cleaned.append(arg)
         index += 1
@@ -3804,7 +3829,7 @@ def parse_ai_playtest_options(
         die("--engine must be codex, claude, or auto")
     if verbose and quiet:
         die("choose either --verbose or --quiet, not both")
-    return cleaned, persona, turns, engine, verbose, quiet
+    return cleaned, persona, turns, engine, verbose, quiet, judge
 
 
 def ai_playtest_run_dir(persona: str, session_name: str) -> Path:
@@ -3911,19 +3936,131 @@ def write_ai_playtest_error(
     path.write_text(body, encoding="utf-8")
 
 
-def command_ai_playtest(args: list[str]) -> None:
-    cleaned, persona, turns, requested_engine, verbose, quiet = parse_ai_playtest_options(args)
-    if len(cleaned) != 1:
-        die("ai-playtest requires <session_name>")
-    session_name = cleaned[0]
-    src_session = resolve_session(session_name)
+def run_ai_playtest_judge(
+    *,
+    run_dir: Path,
+    transcript_md: Path,
+    persona: str,
+    turns_completed: int,
+    turns_requested: int,
+    source_session: str,
+    engine: str,
+    timeout: float,
+    started_at: str,
+    verbose: bool,
+    quiet: bool,
+) -> None:
+    """Run the AI Judge over a completed run and write report.md / judge_error.md.
 
-    engine = resolve_engine(requested_engine)
-    if engine is None:
-        die(
-            "no AI CLI found for ai-playtest. install codex or claude, "
-            f"or pass --engine codex|claude (requested: {requested_engine})."
+    Read-only with respect to saves/ and run_dir/session/. Only writes
+    report.md or judge_error.md inside run_dir.
+    """
+
+    report_path = run_dir / "report.md"
+    error_path = run_dir / "judge_error.md"
+
+    if not quiet:
+        print(f"judge: persona={persona} turns={turns_completed} engine={engine} ...", flush=True)
+
+    if turns_completed < 1:
+        judged_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+        error = JudgeError("no completed turns to judge")
+        error_path.write_text(
+            render_judge_error_md(
+                persona=persona,
+                turns_completed=turns_completed,
+                turns_requested=turns_requested,
+                source_session=source_session,
+                engine=engine,
+                started_at=started_at,
+                judged_at=judged_at,
+                error=error,
+            ),
+            encoding="utf-8",
         )
+        if not quiet:
+            print(f"judge skipped: {error}")
+            print(f"judge error: {error_path.relative_to(ROOT)}")
+        return
+
+    transcript_text = transcript_md.read_text(encoding="utf-8")
+    judge_prompt = build_judge_prompt(
+        persona=persona,
+        turns_completed=turns_completed,
+        transcript_md_text=transcript_text,
+    )
+
+    raw_response: Optional[str] = None
+    try:
+        raw_response = run_engine_cli(engine, judge_prompt, timeout=timeout, root=ROOT)
+        parsed = parse_judge_response(raw_response)
+    except (EngineRunnerError, EngineTimeoutError, JudgeParseError, Exception) as exc:
+        judged_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+        error_path.write_text(
+            render_judge_error_md(
+                persona=persona,
+                turns_completed=turns_completed,
+                turns_requested=turns_requested,
+                source_session=source_session,
+                engine=engine,
+                started_at=started_at,
+                judged_at=judged_at,
+                error=exc,
+                raw_response=raw_response,
+            ),
+            encoding="utf-8",
+        )
+        if not quiet:
+            print(f"judge failed: {type(exc).__name__}: {exc}")
+            print(f"judge error: {error_path.relative_to(ROOT)}")
+            print("transcript is preserved.")
+        if verbose and raw_response is not None:
+            print("--- raw judge response ---")
+            print(raw_response)
+            print("--- end raw judge response ---", flush=True)
+        return
+
+    judged_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    report_md = render_judge_report_md(
+        parsed,
+        persona=persona,
+        turns_completed=turns_completed,
+        turns_requested=turns_requested,
+        source_session=source_session,
+        engine=engine,
+        started_at=started_at,
+        judged_at=judged_at,
+    )
+    report_path.write_text(report_md, encoding="utf-8")
+
+    if not quiet:
+        print(f"judge result: {parsed['result']}")
+        print(f"report: {report_path.relative_to(ROOT)}")
+    if verbose:
+        print("--- raw judge response ---")
+        print(raw_response or "")
+        print("--- end raw judge response ---", flush=True)
+
+
+def run_ai_playtest_session(
+    *,
+    src_session: Path,
+    persona: str,
+    turns: int,
+    requested_engine: str,
+    engine: str,
+    verbose: bool,
+    quiet: bool,
+    judge: bool,
+) -> Path:
+    """Run an AI playtest from start to finish. Returns the run_dir path.
+
+    Used both by ``command_ai_playtest`` and by the dev menu / dev-smoke
+    helpers so they can drive the same code path without subprocesses.
+    Engine failures still call ``sys.exit(1)`` to preserve the existing
+    ai-playtest exit semantics; callers that want to keep going (the menu)
+    are expected to catch ``SystemExit``.
+    """
 
     run_dir = ai_playtest_run_dir(persona, src_session.name)
     run_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -3936,6 +4073,7 @@ def command_ai_playtest(args: list[str]) -> None:
     transcript_md = run_dir / "transcript.md"
     error_path = run_dir / "error.md"
 
+    started_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     transcript_md.write_text(
         "\n".join(
             [
@@ -3947,7 +4085,7 @@ def command_ai_playtest(args: list[str]) -> None:
                 f"- turns_requested: {turns}",
                 f"- engine_requested: {requested_engine}",
                 f"- engine_resolved: {engine}",
-                f"- started_at: {datetime.now(timezone.utc).astimezone().isoformat(timespec='seconds')}",
+                f"- started_at: {started_at}",
                 "",
             ]
         ),
@@ -4025,6 +4163,701 @@ def command_ai_playtest(args: list[str]) -> None:
     print(f"transcript: {transcript_md.relative_to(ROOT)}")
     print(f"jsonl:      {transcript_jsonl.relative_to(ROOT)}")
 
+    if judge:
+        run_ai_playtest_judge(
+            run_dir=run_dir,
+            transcript_md=transcript_md,
+            persona=persona,
+            turns_completed=completed_turns,
+            turns_requested=turns,
+            source_session=str(src_session.relative_to(ROOT)),
+            engine=engine,
+            timeout=timeout,
+            started_at=started_at,
+            verbose=verbose,
+            quiet=quiet,
+        )
+
+    return run_dir
+
+
+def command_ai_playtest(args: list[str]) -> None:
+    cleaned, persona, turns, requested_engine, verbose, quiet, judge = parse_ai_playtest_options(args)
+    if len(cleaned) != 1:
+        die("ai-playtest requires <session_name>")
+    session_name = cleaned[0]
+    src_session = resolve_session(session_name)
+
+    engine = resolve_engine(requested_engine)
+    if engine is None:
+        die(
+            "no AI CLI found for ai-playtest. install codex or claude, "
+            f"or pass --engine codex|claude (requested: {requested_engine})."
+        )
+
+    run_ai_playtest_session(
+        src_session=src_session,
+        persona=persona,
+        turns=turns,
+        requested_engine=requested_engine,
+        engine=engine,
+        verbose=verbose,
+        quiet=quiet,
+        judge=judge,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Dev menu / dev-* commands
+# ---------------------------------------------------------------------------
+
+
+def _format_session_size(path: Path) -> int:
+    total = 0
+    try:
+        for child in path.rglob("*"):
+            if child.is_file():
+                try:
+                    total += child.stat().st_size
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    return total
+
+
+def _format_size_h(num_bytes: int) -> str:
+    units = ("B", "KB", "MB", "GB")
+    size = float(num_bytes)
+    unit_idx = 0
+    while size >= 1024 and unit_idx < len(units) - 1:
+        size /= 1024
+        unit_idx += 1
+    return f"{size:.1f}{units[unit_idx]}"
+
+
+def _runs_dir() -> Path:
+    return PLAYTESTS_DIR / "runs"
+
+
+def _list_run_dirs() -> list[Path]:
+    runs_dir = _runs_dir()
+    if not runs_dir.exists():
+        return []
+    return sorted(
+        [path for path in runs_dir.iterdir() if path.is_dir()],
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+
+def _read_input(prompt: str) -> str:
+    """Read a single line from stdin, prompting once. Returns '' on EOF."""
+
+    try:
+        return input(prompt)
+    except EOFError:
+        return ""
+
+
+def _extract_report_summary(report_path: Path) -> str:
+    """Pull just the '## Summary' section out of a judge report."""
+
+    try:
+        text = report_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return f"(report読み込み失敗: {exc})"
+    lines = text.splitlines()
+    in_summary = False
+    out: list[str] = []
+    for line in lines:
+        if line.startswith("## Summary"):
+            in_summary = True
+            out.append(line)
+            continue
+        if in_summary:
+            if line.startswith("## "):
+                break
+            out.append(line)
+    return "\n".join(out).rstrip() or "(Summary section not found)"
+
+
+def _show_session_picker(prompt: str = "セッション > ") -> Optional[Path]:
+    sessions = session_candidates()
+    if not sessions:
+        print("saves/ にセッションがありません。")
+        return None
+    print()
+    print("利用可能なセッション:")
+    for idx, path in enumerate(sessions, start=1):
+        data = read_session_json(path)
+        phase = data.get("apply_newgame_phase", "-")
+        print(f"  {idx}. {path.name}  (phase={phase})")
+    raw = _read_input(prompt).strip()
+    if not raw:
+        print("キャンセルしました。")
+        return None
+    if raw.isdigit():
+        idx = int(raw) - 1
+        if 0 <= idx < len(sessions):
+            return sessions[idx]
+        print(f"範囲外の番号です: {raw}")
+        return None
+    for path in sessions:
+        if path.name == raw:
+            return path
+    print(f"そのセッションは見つかりません: {raw}")
+    return None
+
+
+def _menu_run_one(
+    *,
+    src_session: Path,
+    persona: str,
+    turns: int,
+    requested_engine: str,
+    judge: bool,
+) -> Optional[Path]:
+    """Resolve engine + run one ai-playtest. Returns run_dir or None on failure.
+
+    Catches ``SystemExit`` so the menu loop survives engine-level failures.
+    """
+
+    engine = resolve_engine(requested_engine)
+    if engine is None:
+        print(
+            f"AI CLI が見つかりません (要求: {requested_engine})。"
+            " codex か claude をインストールしてください。"
+        )
+        return None
+    try:
+        return run_ai_playtest_session(
+            src_session=src_session,
+            persona=persona,
+            turns=turns,
+            requested_engine=requested_engine,
+            engine=engine,
+            verbose=False,
+            quiet=False,
+            judge=judge,
+        )
+    except SystemExit as exc:
+        print(f"ai-playtest が途中で終了しました (exit={exc.code}).")
+        return None
+
+
+def menu_action_new() -> None:
+    print()
+    print("[新規テストセッション自動作成]")
+    print("MVPでは未実装です。次のステップ案:")
+    print("- AIに簡易answers.mdを生成させる")
+    print("- session名を dev_YYYYMMDD_HHMMSS で自動採番")
+    print("- ./lilia apply-newgame でファイル整備")
+    print("- first scene生成までを自動化")
+    print("当面は ./lilia new または ./lilia apply-newgame を直接ご利用ください。")
+
+
+def menu_action_playtest() -> None:
+    print()
+    print("[既存セッションでAIプレイテスト]")
+    src_session = _show_session_picker()
+    if src_session is None:
+        return
+
+    print()
+    print("persona:")
+    for number, value in PERSONA_CHOICES:
+        print(f"  {number}. {value}")
+    persona_raw = _read_input("persona (default 1=normal) > ")
+    persona = resolve_choice(persona_raw, PERSONA_CHOICES)
+    if persona is None:
+        print(f"未知のpersonaです: {persona_raw}")
+        return
+
+    turns_raw = _read_input("turns (default 10) > ")
+    try:
+        turns = parse_turns_or_default(turns_raw, 10)
+    except ValueError as exc:
+        print(f"turnsの値が不正です: {exc}")
+        return
+
+    print()
+    print("engine:")
+    for number, value in ENGINE_CHOICES:
+        print(f"  {number}. {value}")
+    engine_raw = _read_input("engine (default 1=auto) > ")
+    requested_engine = resolve_choice(engine_raw, ENGINE_CHOICES)
+    if requested_engine is None:
+        print(f"未知のengineです: {engine_raw}")
+        return
+
+    judge_raw = _read_input("judge を実行しますか? [Y/n] > ")
+    judge = parse_yes_no(judge_raw, True)
+
+    print()
+    print(
+        f"実行内容: ai-playtest {src_session.name} --persona {persona} "
+        f"--turns {turns} --engine {requested_engine}"
+        f"{' --judge' if judge else ''}"
+    )
+    confirm_raw = _read_input("実行しますか? [Y/n] > ")
+    if not parse_yes_no(confirm_raw, True):
+        print("キャンセルしました。")
+        return
+
+    run_dir = _menu_run_one(
+        src_session=src_session,
+        persona=persona,
+        turns=turns,
+        requested_engine=requested_engine,
+        judge=judge,
+    )
+    if run_dir is None:
+        return
+    print()
+    print(f"完了: {run_dir.relative_to(ROOT)}")
+    transcript = run_dir / "transcript.md"
+    if transcript.exists():
+        print(f"  transcript: {transcript.relative_to(ROOT)}")
+    report = run_dir / "report.md"
+    if report.exists():
+        print(f"  report:     {report.relative_to(ROOT)}")
+
+
+def menu_action_smoke() -> None:
+    print()
+    print("[まとめてSmokeテスト (normal / passive / boundary)]")
+    src_session = _show_session_picker()
+    if src_session is None:
+        return
+
+    turns_raw = _read_input("turns_per_persona (default 3) > ")
+    try:
+        turns = parse_turns_or_default(turns_raw, 3)
+    except ValueError as exc:
+        print(f"turnsの値が不正です: {exc}")
+        return
+
+    print()
+    print("engine:")
+    for number, value in ENGINE_CHOICES:
+        print(f"  {number}. {value}")
+    engine_raw = _read_input("engine (default 1=auto) > ")
+    requested_engine = resolve_choice(engine_raw, ENGINE_CHOICES)
+    if requested_engine is None:
+        print(f"未知のengineです: {engine_raw}")
+        return
+
+    judge_raw = _read_input("judge を実行しますか? [Y/n] > ")
+    judge = parse_yes_no(judge_raw, True)
+
+    print()
+    print(
+        f"3 personas (normal/passive/boundary) を turns={turns} engine={requested_engine}"
+        f"{' --judge' if judge else ''} で実行します"
+    )
+    confirm_raw = _read_input("実行しますか? [Y/n] > ")
+    if not parse_yes_no(confirm_raw, True):
+        print("キャンセルしました。")
+        return
+
+    results: list[tuple[str, Optional[Path]]] = []
+    for persona in ("normal", "passive", "boundary"):
+        print()
+        print(f"--- smoke: persona={persona} ---")
+        run_dir = _menu_run_one(
+            src_session=src_session,
+            persona=persona,
+            turns=turns,
+            requested_engine=requested_engine,
+            judge=judge,
+        )
+        results.append((persona, run_dir))
+        if run_dir is None:
+            print(f"persona={persona} の実行に失敗しました。次のpersonaへ進みます。")
+
+    print()
+    print("Smoke完了:")
+    for persona, run_dir in results:
+        if run_dir is None:
+            print(f"- {persona}:   FAILED")
+        else:
+            print(f"- {persona}:   {run_dir.relative_to(ROOT)}")
+
+
+def menu_action_last() -> None:
+    print()
+    print("[最新のテスト結果]")
+    runs = _list_run_dirs()
+    if not runs:
+        print("playtests/runs にrunがありません。")
+        return
+    latest = runs[0]
+    print(f"最新run: {latest.relative_to(ROOT)}")
+    transcript = latest / "transcript.md"
+    report = latest / "report.md"
+    if transcript.exists():
+        print(f"  transcript: {transcript.relative_to(ROOT)}")
+    else:
+        print("  transcript.md なし")
+    if report.exists():
+        print(f"  report:     {report.relative_to(ROOT)}")
+        print()
+        print(_extract_report_summary(report))
+    else:
+        print("  report.md なし (judge未実行か失敗)")
+        judge_error = latest / "judge_error.md"
+        if judge_error.exists():
+            print(f"  judge_error: {judge_error.relative_to(ROOT)}")
+
+
+def menu_action_clean() -> None:
+    print()
+    print("[playtests/runs を掃除する]")
+    print("  1. 7日より古いrunを候補にする")
+    print("  2. 3日より古いrunを候補にする")
+    print("  3. 全runを候補にする")
+    print("  4. キャンセル")
+    raw = _read_input("> ").strip()
+    if raw in {"4", "cancel", "キャンセル", ""}:
+        print("キャンセルしました。")
+        return
+    days_map = {"1": 7, "2": 3, "3": 0}
+    if raw not in days_map:
+        print(f"未知の選択です: {raw}")
+        return
+    days = days_map[raw]
+
+    candidates = _collect_clean_candidates(days)
+    if not candidates:
+        print("候補となるrunはありません。")
+        return
+
+    total = 0
+    print()
+    print(f"対象: {len(candidates)} run (>= {days}日経過)")
+    for path, size in candidates:
+        total += size
+        print(f"  {path.relative_to(ROOT)}  ({_format_size_h(size)})")
+    print(f"合計サイズ: {_format_size_h(total)}")
+    print()
+    print("削除する場合は半角大文字で 'DELETE' と入力してください。")
+    print("それ以外の入力はdry-run扱いで何もしません。")
+    confirm = _read_input("> ").strip()
+    if confirm != "DELETE":
+        print("dry-run: 何も削除していません。")
+        return
+    deleted = 0
+    for path, _ in candidates:
+        try:
+            shutil.rmtree(path)
+            deleted += 1
+        except OSError as exc:
+            print(f"削除失敗: {path.relative_to(ROOT)}: {exc}")
+    print(f"削除: {deleted}/{len(candidates)} run")
+
+
+def _collect_clean_candidates(min_age_days: int) -> list[tuple[Path, int]]:
+    runs = _list_run_dirs()
+    if not runs:
+        return []
+    cutoff = datetime.now(timezone.utc).timestamp() - (min_age_days * 86400)
+    candidates: list[tuple[Path, int]] = []
+    for path in runs:
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue
+        if mtime <= cutoff:
+            candidates.append((path, _format_session_size(path)))
+    return candidates
+
+
+def menu_action_saves_view() -> None:
+    print()
+    print("[saves の不要セッション候補を見る]")
+    sessions = session_candidates()
+    if not sessions:
+        print("saves/ にセッションはありません。")
+        return
+    print(f"{'SESSION':<28} {'PHASE':<14} {'AUTOSAVE':<10} {'SIZE':>10}  MTIME")
+    for path in sessions:
+        data = read_session_json(path)
+        phase = data.get("apply_newgame_phase") or "-"
+        autosave = str(data.get("autosave_required", "-"))
+        size = _format_session_size(path)
+        try:
+            mtime = datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds")
+        except OSError:
+            mtime = "-"
+        has_json = "ok" if (path / "session.json").exists() else "MISSING"
+        print(
+            f"{path.name:<28} {phase[:14]:<14} {autosave[:10]:<10} {_format_size_h(size):>10}  {mtime}  json={has_json}"
+        )
+    print()
+    print("saves削除は未実装です。事故防止のため、現時点では候補表示のみです。")
+    # TODO: saves削除機能を入れる時は二重確認 + autosave_required=false 必須 + 完全パス入力等で事故防止する。
+
+
+def menu_action_list() -> None:
+    print()
+    print("[セッション一覧]")
+    command_list_sessions()
+
+
+_MENU_HEADER = (
+    "\n"
+    "LILIA 開発メニュー\n"
+    "\n"
+    "  1. 新規テストセッションを自動作成する\n"
+    "  2. 既存セッションでAIプレイテストを実行する\n"
+    "  3. 既存セッションでまとめてSmokeテストを実行する\n"
+    "  4. 最新のテスト結果を見る\n"
+    "  5. playtests/runs を掃除する\n"
+    "  6. saves の不要セッション候補を見る\n"
+    "  7. セッション一覧を見る\n"
+    "  0. 終了\n"
+    "\n"
+    "番号を入力してください。\n"
+    "「テスト」「スモーク」「掃除」「一覧」「最新」「新規」「終了」など日本語でも入力できます。\n"
+)
+
+
+def command_menu(args: list[str]) -> None:
+    if args:
+        die("menu は引数を取りません")
+    actions = {
+        "new": menu_action_new,
+        "playtest": menu_action_playtest,
+        "smoke": menu_action_smoke,
+        "last": menu_action_last,
+        "clean": menu_action_clean,
+        "saves": menu_action_saves_view,
+        "list": menu_action_list,
+    }
+    while True:
+        print(_MENU_HEADER)
+        raw = _read_input("> ")
+        action = resolve_menu_action(raw)
+        if action is None:
+            print(f"認識できませんでした: {raw!r}。もう一度入力してください。")
+            continue
+        if action == "quit":
+            print("終了します。")
+            return
+        handler = actions.get(action)
+        if handler is None:
+            print(f"未対応のactionです: {action}")
+            continue
+        try:
+            handler()
+        except KeyboardInterrupt:
+            print("\n中断しました。メニューに戻ります。")
+        except SystemExit as exc:
+            print(f"\n途中で終了しました (exit={exc.code})。メニューに戻ります。")
+        print()
+        print("-" * 60)
+
+
+# --- Non-interactive dev-* commands ---------------------------------------
+
+
+def _ensure_judge_default(args: list[str]) -> list[str]:
+    """Add --judge unless --no-judge or --judge already present."""
+
+    if "--no-judge" in args:
+        return [a for a in args if a != "--no-judge"]
+    if "--judge" in args:
+        return list(args)
+    return list(args) + ["--judge"]
+
+
+def _ensure_default_flag(args: list[str], flag: str, value: str) -> list[str]:
+    """If neither ``flag`` nor ``flag=`` appears in args, append ``flag value``."""
+
+    for arg in args:
+        if arg == flag or arg.startswith(f"{flag}="):
+            return list(args)
+    return list(args) + [flag, value]
+
+
+def command_dev_test(args: list[str]) -> None:
+    """Wrapper around ai-playtest with dev-friendly defaults."""
+
+    final = list(args)
+    final = _ensure_default_flag(final, "--persona", "normal")
+    final = _ensure_default_flag(final, "--turns", "10")
+    final = _ensure_default_flag(final, "--engine", "auto")
+    final = _ensure_judge_default(final)
+    command_ai_playtest(final)
+
+
+def parse_dev_smoke_options(args: list[str]) -> tuple[list[str], int, str, bool]:
+    """Parse dev-smoke flags. Returns ``(positional, turns, engine, judge)``."""
+
+    turns = 3
+    engine = "auto"
+    judge = True
+    cleaned: list[str] = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--turns":
+            index += 1
+            if index >= len(args):
+                die("--turns requires a value")
+            try:
+                turns = int(args[index])
+            except ValueError:
+                die("--turns must be a positive integer")
+        elif arg.startswith("--turns="):
+            try:
+                turns = int(arg.split("=", 1)[1])
+            except ValueError:
+                die("--turns must be a positive integer")
+        elif arg == "--engine":
+            index += 1
+            if index >= len(args):
+                die("--engine requires codex, claude, or auto")
+            engine = args[index]
+        elif arg.startswith("--engine="):
+            engine = arg.split("=", 1)[1]
+        elif arg == "--no-judge":
+            judge = False
+        elif arg == "--judge":
+            judge = True
+        else:
+            cleaned.append(arg)
+        index += 1
+    if turns < 1:
+        die("--turns must be a positive integer")
+    if engine not in {"auto", "codex", "claude"}:
+        die("--engine must be codex, claude, or auto")
+    return cleaned, turns, engine, judge
+
+
+def command_dev_smoke(args: list[str]) -> None:
+    cleaned, turns, requested_engine, judge = parse_dev_smoke_options(args)
+    if len(cleaned) != 1:
+        die("dev-smoke requires <session_name>")
+    src_session = resolve_session(cleaned[0])
+    engine = resolve_engine(requested_engine)
+    if engine is None:
+        die(
+            "no AI CLI found for dev-smoke. install codex or claude, "
+            f"or pass --engine codex|claude (requested: {requested_engine})."
+        )
+
+    results: list[tuple[str, Optional[Path]]] = []
+    for persona in ("normal", "passive", "boundary"):
+        print()
+        print(f"=== dev-smoke: persona={persona} turns={turns} engine={engine} ===")
+        try:
+            run_dir = run_ai_playtest_session(
+                src_session=src_session,
+                persona=persona,
+                turns=turns,
+                requested_engine=requested_engine,
+                engine=engine,
+                verbose=False,
+                quiet=False,
+                judge=judge,
+            )
+        except SystemExit as exc:
+            print(f"persona={persona} の実行が失敗しました (exit={exc.code}).")
+            results.append((persona, None))
+            continue
+        results.append((persona, run_dir))
+
+    print()
+    print("Smoke完了:")
+    for persona, run_dir in results:
+        if run_dir is None:
+            print(f"- {persona}:   FAILED")
+        else:
+            print(f"- {persona}:   {run_dir.relative_to(ROOT)}")
+
+
+def command_dev_last(args: list[str]) -> None:
+    if args:
+        die("dev-last は引数を取りません")
+    menu_action_last()
+
+
+def parse_dev_clean_options(args: list[str]) -> tuple[int, bool]:
+    days = 7
+    yes = False
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--days":
+            index += 1
+            if index >= len(args):
+                die("--days requires a value")
+            try:
+                days = int(args[index])
+            except ValueError:
+                die("--days must be a non-negative integer")
+        elif arg.startswith("--days="):
+            try:
+                days = int(arg.split("=", 1)[1])
+            except ValueError:
+                die("--days must be a non-negative integer")
+        elif arg == "--yes":
+            yes = True
+        elif arg == "--dry-run":
+            yes = False
+        else:
+            die(f"unknown dev-clean-runs option: {arg}")
+        index += 1
+    if days < 0:
+        die("--days must be a non-negative integer")
+    return days, yes
+
+
+def command_dev_clean_runs(args: list[str]) -> None:
+    days, yes = parse_dev_clean_options(args)
+    candidates = _collect_clean_candidates(days)
+    if not candidates:
+        print(f"対象となるrunはありません (>= {days}日経過)。")
+        return
+    total = 0
+    print(f"対象: {len(candidates)} run (>= {days}日経過)")
+    for path, size in candidates:
+        total += size
+        print(f"  {path.relative_to(ROOT)}  ({_format_size_h(size)})")
+    print(f"合計サイズ: {_format_size_h(total)}")
+    if not yes:
+        print()
+        print("dry-run: 何も削除していません (実行するには --yes を付けてください)。")
+        return
+    deleted = 0
+    for path, _ in candidates:
+        try:
+            shutil.rmtree(path)
+            deleted += 1
+        except OSError as exc:
+            print(f"削除失敗: {path.relative_to(ROOT)}: {exc}")
+    print(f"削除: {deleted}/{len(candidates)} run")
+
+
+def command_dev_status(args: list[str]) -> None:
+    if args:
+        die("dev-status は引数を取りません")
+    sessions = session_candidates()
+    runs = _list_run_dirs()
+    print(f"saves/    sessions: {len(sessions)}")
+    print(f"playtests/runs: {len(runs)}")
+    if runs:
+        latest = runs[0]
+        report = latest / "report.md"
+        try:
+            mtime = datetime.fromtimestamp(latest.stat().st_mtime).isoformat(timespec="seconds")
+        except OSError:
+            mtime = "-"
+        print(f"  latest run: {latest.relative_to(ROOT)} ({mtime})")
+        print(f"  report:     {'ok' if report.exists() else 'missing'}")
+
 
 def command_format_input(args: list[str]) -> None:
     if args:
@@ -4066,6 +4899,18 @@ def main(argv: list[str]) -> None:
         command_scene_tick(args)
     elif command == "ai-playtest":
         command_ai_playtest(args)
+    elif command in {"menu", "dev-menu", "開発メニュー", "テストモード"}:
+        command_menu(args)
+    elif command == "dev-test":
+        command_dev_test(args)
+    elif command == "dev-smoke":
+        command_dev_smoke(args)
+    elif command == "dev-last":
+        command_dev_last(args)
+    elif command == "dev-clean-runs":
+        command_dev_clean_runs(args)
+    elif command == "dev-status":
+        command_dev_status(args)
     else:
         usage()
         die(f"unknown command: {command}")
