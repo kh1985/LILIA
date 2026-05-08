@@ -166,10 +166,13 @@ Usage:
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
-  ./lilia ai-playtest <session_name> --persona normal|passive|boundary --turns 10 [--engine codex|claude|auto] [--judge] [--verbose | --quiet]
+  ./lilia ai-playtest <session_name> --persona normal|passive|boundary --turns 10 [--engine codex|claude|auto] [--judge | --no-judge] [--verbose | --quiet]
+  ./lilia growth-smoke <session_name> [--persona normal] [--segments 3] [--turns-per-segment 10] [--engine codex|claude|auto] [--judge | --no-judge] [--judge-engine codex|claude|auto] [--verbose | --quiet]
+  ./lilia long-growth <session_name> ...   growth-smoke の alias
   ./lilia menu                     対話式の日本語開発メニューを起動する (alias: dev-menu)
   ./lilia dev-test <session_name> [--persona normal] [--turns 10] [--engine auto] [--no-judge]
   ./lilia dev-smoke <session_name> [--turns 3] [--engine auto] [--no-judge]
+  ./lilia dev-growth <session_name> [--segments 3] [--turns-per-segment 10] [--engine auto] [--judge | --no-judge]
   ./lilia dev-last
   ./lilia dev-clean-runs [--days 7|3|0] [--yes]
   ./lilia dev-status
@@ -3774,7 +3777,9 @@ def parse_ai_playtest_options(
     engine = "auto"
     verbose = False
     quiet = False
-    judge = False
+    judge = True
+    judge_seen = False
+    no_judge_seen = False
     cleaned: list[str] = []
     index = 0
     while index < len(args):
@@ -3812,11 +3817,17 @@ def parse_ai_playtest_options(
         elif arg == "--quiet":
             quiet = True
         elif arg == "--judge":
+            judge_seen = True
             judge = True
+        elif arg == "--no-judge":
+            no_judge_seen = True
+            judge = False
         else:
             cleaned.append(arg)
         index += 1
 
+    if judge_seen and no_judge_seen:
+        die("choose either --judge or --no-judge, not both")
     if persona not in AI_PLAYTEST_SUPPORTED_PERSONAS:
         supported = "/".join(sorted(AI_PLAYTEST_SUPPORTED_PERSONAS))
         die(
@@ -4042,6 +4053,119 @@ def run_ai_playtest_judge(
         print("--- end raw judge response ---", flush=True)
 
 
+def run_ai_playtest_segment(
+    *,
+    run_dir: Path,
+    session_path: Path,
+    transcript_title: str,
+    source_session_label: str,
+    run_session_label: str,
+    persona: str,
+    turns: int,
+    requested_engine: str,
+    engine: str,
+    verbose: bool,
+    quiet: bool,
+    history: list[dict[str, str]],
+    turn_offset: int = 0,
+) -> tuple[Path, Path, int, str]:
+    """Run one playtest segment against an existing session copy.
+
+    ``history`` is mutated in place so growth-smoke can carry conversation
+    continuity across segment directories while keeping transcripts separate.
+    """
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+    transcript_jsonl = run_dir / "transcript.jsonl"
+    transcript_md = run_dir / "transcript.md"
+    error_path = run_dir / "error.md"
+
+    started_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    transcript_md.write_text(
+        "\n".join(
+            [
+                f"# {transcript_title}",
+                "",
+                f"- source_session: {source_session_label}",
+                f"- run_session: {run_session_label}",
+                f"- persona: {persona}",
+                f"- turns_requested: {turns}",
+                f"- engine_requested: {requested_engine}",
+                f"- engine_resolved: {engine}",
+                f"- history_turns_before_segment: {turn_offset}",
+                f"- started_at: {started_at}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    timeout = engine_timeout_seconds()
+    completed_turns = 0
+
+    for local_turn in range(1, turns + 1):
+        global_turn = turn_offset + local_turn
+        if not quiet:
+            print(f"turn {local_turn}/{turns} (global {global_turn}): GM ...", flush=True)
+        if not history:
+            gm_history = []
+            player_boundary: Optional[str] = None
+        else:
+            last_player = history[-1]
+            if last_player["role"] == "player":
+                player_boundary = format_player_input_boundary(last_player["text"])
+                gm_history = history[:-1]
+            else:
+                player_boundary = None
+                gm_history = history
+
+        gm_prompt = build_ai_playtest_gm_prompt(session_path, gm_history, player_boundary)
+        try:
+            gm_text = run_engine_cli(engine, gm_prompt, timeout=timeout, root=ROOT)
+        except (EngineRunnerError, EngineTimeoutError, Exception) as exc:
+            write_ai_playtest_error(error_path, turn=local_turn, role="gm", error=exc)
+            if not quiet:
+                print(f"ai-playtest failed at turn {local_turn} (gm): {exc}")
+                print(f"run dir: {run_dir.relative_to(ROOT)}")
+                print(f"transcript: {transcript_md.relative_to(ROOT)}")
+                print(f"error: {error_path.relative_to(ROOT)}")
+            sys.exit(1)
+
+        history.append({"turn": global_turn, "role": "gm", "text": gm_text})
+        append_ai_playtest_jsonl(transcript_jsonl, global_turn, "gm", gm_text)
+        append_ai_playtest_md(transcript_md, global_turn, "gm", gm_text)
+        if verbose:
+            print(f"--- GM turn {global_turn} ---")
+            print(gm_text)
+            print("--- end GM ---", flush=True)
+
+        if not quiet:
+            print(f"turn {local_turn}/{turns} (global {global_turn}): PLAYER ...", flush=True)
+        player_prompt = build_ai_playtest_player_prompt(persona, history[:-1], gm_text)
+        try:
+            player_text = run_engine_cli(engine, player_prompt, timeout=timeout, root=ROOT)
+        except (EngineRunnerError, EngineTimeoutError, Exception) as exc:
+            write_ai_playtest_error(error_path, turn=local_turn, role="player", error=exc)
+            if not quiet:
+                print(f"ai-playtest failed at turn {local_turn} (player): {exc}")
+                print(f"run dir: {run_dir.relative_to(ROOT)}")
+                print(f"transcript: {transcript_md.relative_to(ROOT)}")
+                print(f"error: {error_path.relative_to(ROOT)}")
+            sys.exit(1)
+
+        history.append({"turn": global_turn, "role": "player", "text": player_text})
+        append_ai_playtest_jsonl(transcript_jsonl, global_turn, "player", player_text)
+        append_ai_playtest_md(transcript_md, global_turn, "player", player_text)
+        if verbose:
+            print(f"--- PLAYER turn {global_turn} ---")
+            print(player_text)
+            print("--- end PLAYER ---", flush=True)
+
+        completed_turns = local_turn
+
+    return transcript_md, transcript_jsonl, completed_turns, started_at
+
+
 def run_ai_playtest_session(
     *,
     src_session: Path,
@@ -4069,93 +4193,26 @@ def run_ai_playtest_session(
     dst_session = run_dir / "session"
     shutil.copytree(src_session, dst_session)
 
-    transcript_jsonl = run_dir / "transcript.jsonl"
-    transcript_md = run_dir / "transcript.md"
-    error_path = run_dir / "error.md"
-
-    started_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
-    transcript_md.write_text(
-        "\n".join(
-            [
-                "# AI Playtest Transcript",
-                "",
-                f"- source_session: {src_session.relative_to(ROOT)}",
-                f"- run_session: {dst_session.relative_to(ROOT)}",
-                f"- persona: {persona}",
-                f"- turns_requested: {turns}",
-                f"- engine_requested: {requested_engine}",
-                f"- engine_resolved: {engine}",
-                f"- started_at: {started_at}",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
     if not quiet:
         print(f"ai-playtest start: persona={persona} turns={turns} engine={engine} (requested {requested_engine})")
         print(f"source session: {src_session.relative_to(ROOT)}")
         print(f"run dir:        {run_dir.relative_to(ROOT)}")
 
     history: list[dict[str, str]] = []
-    timeout = engine_timeout_seconds()
-    completed_turns = 0
-
-    for turn in range(1, turns + 1):
-        if not quiet:
-            print(f"turn {turn}/{turns}: GM ...", flush=True)
-        if turn == 1:
-            gm_history = []
-            player_boundary: Optional[str] = None
-        else:
-            last_player = history[-1]
-            assert last_player["role"] == "player"
-            player_boundary = format_player_input_boundary(last_player["text"])
-            gm_history = history[:-1]
-
-        gm_prompt = build_ai_playtest_gm_prompt(dst_session, gm_history, player_boundary)
-        try:
-            gm_text = run_engine_cli(engine, gm_prompt, timeout=timeout, root=ROOT)
-        except (EngineRunnerError, EngineTimeoutError, Exception) as exc:
-            write_ai_playtest_error(error_path, turn=turn, role="gm", error=exc)
-            if not quiet:
-                print(f"ai-playtest failed at turn {turn} (gm): {exc}")
-                print(f"run dir: {run_dir.relative_to(ROOT)}")
-                print(f"transcript: {transcript_md.relative_to(ROOT)}")
-                print(f"error: {error_path.relative_to(ROOT)}")
-            sys.exit(1)
-
-        history.append({"turn": turn, "role": "gm", "text": gm_text})
-        append_ai_playtest_jsonl(transcript_jsonl, turn, "gm", gm_text)
-        append_ai_playtest_md(transcript_md, turn, "gm", gm_text)
-        if verbose:
-            print(f"--- GM turn {turn} ---")
-            print(gm_text)
-            print("--- end GM ---", flush=True)
-
-        if not quiet:
-            print(f"turn {turn}/{turns}: PLAYER ...", flush=True)
-        player_prompt = build_ai_playtest_player_prompt(persona, history[:-1], gm_text)
-        try:
-            player_text = run_engine_cli(engine, player_prompt, timeout=timeout, root=ROOT)
-        except (EngineRunnerError, EngineTimeoutError, Exception) as exc:
-            write_ai_playtest_error(error_path, turn=turn, role="player", error=exc)
-            if not quiet:
-                print(f"ai-playtest failed at turn {turn} (player): {exc}")
-                print(f"run dir: {run_dir.relative_to(ROOT)}")
-                print(f"transcript: {transcript_md.relative_to(ROOT)}")
-                print(f"error: {error_path.relative_to(ROOT)}")
-            sys.exit(1)
-
-        history.append({"turn": turn, "role": "player", "text": player_text})
-        append_ai_playtest_jsonl(transcript_jsonl, turn, "player", player_text)
-        append_ai_playtest_md(transcript_md, turn, "player", player_text)
-        if verbose:
-            print(f"--- PLAYER turn {turn} ---")
-            print(player_text)
-            print("--- end PLAYER ---", flush=True)
-
-        completed_turns = turn
+    transcript_md, transcript_jsonl, completed_turns, started_at = run_ai_playtest_segment(
+        run_dir=run_dir,
+        session_path=dst_session,
+        transcript_title="AI Playtest Transcript",
+        source_session_label=str(src_session.relative_to(ROOT)),
+        run_session_label=str(dst_session.relative_to(ROOT)),
+        persona=persona,
+        turns=turns,
+        requested_engine=requested_engine,
+        engine=engine,
+        verbose=verbose,
+        quiet=quiet,
+        history=history,
+    )
 
     if not quiet:
         print(f"ai-playtest complete: {completed_turns}/{turns} turns")
@@ -4172,7 +4229,7 @@ def run_ai_playtest_session(
             turns_requested=turns,
             source_session=str(src_session.relative_to(ROOT)),
             engine=engine,
-            timeout=timeout,
+            timeout=engine_timeout_seconds(),
             started_at=started_at,
             verbose=verbose,
             quiet=quiet,
@@ -4204,6 +4261,372 @@ def command_ai_playtest(args: list[str]) -> None:
         verbose=verbose,
         quiet=quiet,
         judge=judge,
+    )
+
+
+def growth_run_dir(persona: str, session_name: str) -> Path:
+    timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d_%H%M%S")
+    return PLAYTESTS_DIR / "growth_runs" / f"{timestamp}_{persona}_{session_name}"
+
+
+def parse_growth_smoke_options(
+    args: list[str],
+) -> tuple[list[str], str, int, int, str, bool, str | None, bool, bool]:
+    persona = "normal"
+    segments = 3
+    turns_per_segment = 10
+    engine = "auto"
+    judge = True
+    judge_engine: str | None = None
+    verbose = False
+    quiet = False
+    judge_seen = False
+    no_judge_seen = False
+    cleaned: list[str] = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--persona":
+            index += 1
+            if index >= len(args):
+                die("--persona requires a value")
+            persona = args[index]
+        elif arg.startswith("--persona="):
+            persona = arg.split("=", 1)[1]
+        elif arg == "--segments":
+            index += 1
+            if index >= len(args):
+                die("--segments requires a value")
+            try:
+                segments = int(args[index])
+            except ValueError:
+                die("--segments must be a positive integer")
+        elif arg.startswith("--segments="):
+            try:
+                segments = int(arg.split("=", 1)[1])
+            except ValueError:
+                die("--segments must be a positive integer")
+        elif arg == "--turns-per-segment":
+            index += 1
+            if index >= len(args):
+                die("--turns-per-segment requires a value")
+            try:
+                turns_per_segment = int(args[index])
+            except ValueError:
+                die("--turns-per-segment must be a positive integer")
+        elif arg.startswith("--turns-per-segment="):
+            try:
+                turns_per_segment = int(arg.split("=", 1)[1])
+            except ValueError:
+                die("--turns-per-segment must be a positive integer")
+        elif arg == "--engine":
+            index += 1
+            if index >= len(args):
+                die("--engine requires codex, claude, or auto")
+            engine = args[index]
+        elif arg.startswith("--engine="):
+            engine = arg.split("=", 1)[1]
+        elif arg == "--judge-engine":
+            index += 1
+            if index >= len(args):
+                die("--judge-engine requires codex, claude, or auto")
+            judge_engine = args[index]
+        elif arg.startswith("--judge-engine="):
+            judge_engine = arg.split("=", 1)[1]
+        elif arg == "--judge":
+            judge_seen = True
+            judge = True
+        elif arg == "--no-judge":
+            no_judge_seen = True
+            judge = False
+        elif arg == "--verbose":
+            verbose = True
+        elif arg == "--quiet":
+            quiet = True
+        else:
+            cleaned.append(arg)
+        index += 1
+
+    if judge_seen and no_judge_seen:
+        die("choose either --judge or --no-judge, not both")
+    if persona != "normal":
+        die("growth-smoke MVPでは --persona normal のみサポートしています")
+    if segments < 1:
+        die("--segments must be a positive integer")
+    if turns_per_segment < 1:
+        die("--turns-per-segment must be a positive integer")
+    if engine not in {"auto", "codex", "claude"}:
+        die("--engine must be codex, claude, or auto")
+    if judge_engine is not None and judge_engine not in {"auto", "codex", "claude"}:
+        die("--judge-engine must be codex, claude, or auto")
+    if verbose and quiet:
+        die("choose either --verbose or --quiet, not both")
+    return cleaned, persona, segments, turns_per_segment, engine, judge, judge_engine, verbose, quiet
+
+
+def _read_report_result(report_path: Path) -> tuple[str, str]:
+    if not report_path.exists():
+        return "NO_JUDGE", ""
+    try:
+        text = report_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return "WARN", f"report read failed: {exc}"
+    result_match = re.search(r"^- Result:\s*(PASS|WARN|FAIL)\s*$", text, re.MULTILINE)
+    result = result_match.group(1) if result_match else "WARN"
+    summary = ""
+    summary_match = re.search(r"## Summary\s*(.*?)(?:\n## |\Z)", text, re.DOTALL)
+    if summary_match:
+        for line in summary_match.group(1).splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("- "):
+                summary = " ".join(stripped.split())
+                break
+    return result, summary[:120]
+
+
+def render_growth_summary_md(
+    *,
+    result: str,
+    source_session: str,
+    run_session: str,
+    persona: str,
+    engine: str,
+    segments: int,
+    turns_per_segment: int,
+    judge_enabled: bool,
+    segment_rows: list[dict[str, str]],
+) -> str:
+    total_turns = segments * turns_per_segment
+    rows = "\n".join(
+        f"| {row['segment']} | {row['result']} | {row['notes'] or ''} | {row['report']} |"
+        for row in segment_rows
+    )
+    if not rows:
+        rows = "| - | FAIL | no segment completed | - |"
+
+    return (
+        "# LILIA Growth Smoke Summary\n\n"
+        "## Summary\n"
+        f"- Result: {result}\n"
+        f"- Source session: {source_session}\n"
+        f"- Run session: {run_session}\n"
+        f"- Persona: {persona}\n"
+        f"- Engine: {engine}\n"
+        f"- Segments: {segments}\n"
+        f"- Turns per segment: {turns_per_segment}\n"
+        f"- Total turns: {total_turns}\n"
+        f"- Judge: {'enabled' if judge_enabled else 'disabled'}\n"
+        "- Summary mode: aggregate summary, not LLM cross-segment summary.\n\n"
+        "## Segment Results\n\n"
+        "| Segment | Result | Notes | Report |\n"
+        "|---|---|---|---|\n"
+        f"{rows}\n\n"
+        "## Growth Observations\n\n"
+        "- 関係が進んだ兆候: Human review required. 各segment transcript/reportを横断して確認する。\n"
+        "- 早すぎる兆候: Judge report の Relationship change grounding / Over-leading を確認する。\n"
+        "- 遅すぎる兆候: transcript上で前の出来事が次segmentに戻っているか確認する。\n"
+        "- 前の出来事が後に戻った箇所: segment_002以降のGM第一声と前segment末尾を確認する。\n"
+        "- ヒロインの声が変化した箇所: Voice continuity notes と transcript を確認する。\n"
+        "- 境界線が保たれていた箇所: boundary / consent / refusal / pause の扱いを確認する。\n"
+        "- story arcが進んだ/閉じた/停滞した箇所: event_card入口と会話上の未回収札を確認する。\n\n"
+        "## Memory Candidates\n\n"
+        "- memory / relationship / beliefs / hotset に残すべき候補は、人間が transcript.md と report.md から抽出する。\n"
+        "- MVPでは本番sessionにもrun sessionにも apply-turn 反映しない。\n\n"
+        "## Human Review Recommendation\n\n"
+        "- WARN / FAIL のsegmentを優先して読む。\n"
+        "- 全segment PASS の場合は segment_002 以降を読み、前segmentの出来事が自然に戻っているか確認する。\n\n"
+        "## Future TODO\n\n"
+        "- apply-turn / resume segment boundary\n"
+        "- segment boundaryで memory / relationship / beliefs / hotset を更新する\n"
+        "- resume後の1ターン目を検証する\n"
+        "- mixed persona\n"
+        "- passive / boundary persona\n"
+        "- judge-engine分離の強化\n"
+        "- model指定: --model / --gm-model / --player-model / --judge-model\n"
+        "- LILIA_CLAUDE_MODEL / LILIA_CODEX_MODEL\n"
+        "- codex reasoning effort は既存の LILIA_CODEX_REASONING_EFFORT に従う\n"
+    )
+
+
+def _overall_growth_result(segment_rows: list[dict[str, str]], judge_enabled: bool) -> str:
+    if not segment_rows:
+        return "FAIL"
+    if any(row["result"] == "FAIL" for row in segment_rows):
+        return "FAIL"
+    if any(row["result"] in {"WARN", "NO_JUDGE"} for row in segment_rows):
+        return "WARN" if judge_enabled else "PASS"
+    return "PASS"
+
+
+def run_growth_smoke(
+    *,
+    src_session: Path,
+    persona: str,
+    segments: int,
+    turns_per_segment: int,
+    requested_engine: str,
+    engine: str,
+    judge: bool,
+    requested_judge_engine: str,
+    judge_engine: str,
+    verbose: bool,
+    quiet: bool,
+) -> Path:
+    run_dir = growth_run_dir(persona, src_session.name)
+    run_dir.parent.mkdir(parents=True, exist_ok=True)
+    if run_dir.exists():
+        die(f"growth run directory already exists: {run_dir}")
+    dst_session = run_dir / "session"
+    shutil.copytree(src_session, dst_session)
+
+    if not quiet:
+        print(
+            f"growth-smoke start: persona={persona} segments={segments} "
+            f"turns_per_segment={turns_per_segment} engine={engine} "
+            f"judge={'on' if judge else 'off'}"
+        )
+        print(f"source session: {src_session.relative_to(ROOT)}")
+        print(f"run dir:        {run_dir.relative_to(ROOT)}")
+
+    global_history: list[dict[str, str]] = []
+    segment_rows: list[dict[str, str]] = []
+    growth_error_path = run_dir / "growth_error.md"
+
+    try:
+        for segment_index in range(1, segments + 1):
+            segment_name = f"segment_{segment_index:03d}"
+            segment_dir = run_dir / segment_name
+            if not quiet:
+                print()
+                print(f"=== {segment_name}: {turns_per_segment} turns ===")
+            history_before = len([entry for entry in global_history if entry["role"] == "gm"])
+            transcript_md, _, completed_turns, started_at = run_ai_playtest_segment(
+                run_dir=segment_dir,
+                session_path=dst_session,
+                transcript_title=f"LILIA Growth Smoke Transcript {segment_index:03d}",
+                source_session_label=str(src_session.relative_to(ROOT)),
+                run_session_label=str(dst_session.relative_to(ROOT)),
+                persona=persona,
+                turns=turns_per_segment,
+                requested_engine=requested_engine,
+                engine=engine,
+                verbose=verbose,
+                quiet=quiet,
+                history=global_history,
+                turn_offset=history_before,
+            )
+            row = {
+                "segment": f"{segment_index:03d}",
+                "result": "NO_JUDGE",
+                "notes": "",
+                "report": "",
+            }
+            if judge:
+                run_ai_playtest_judge(
+                    run_dir=segment_dir,
+                    transcript_md=transcript_md,
+                    persona=persona,
+                    turns_completed=completed_turns,
+                    turns_requested=turns_per_segment,
+                    source_session=str(src_session.relative_to(ROOT)),
+                    engine=judge_engine,
+                    timeout=engine_timeout_seconds(),
+                    started_at=started_at,
+                    verbose=verbose,
+                    quiet=quiet,
+                )
+                report_path = segment_dir / "report.md"
+                error_path = segment_dir / "judge_error.md"
+                if report_path.exists():
+                    result, notes = _read_report_result(report_path)
+                    row["result"] = result
+                    row["notes"] = notes
+                    row["report"] = f"{segment_name}/report.md"
+                elif error_path.exists():
+                    row["result"] = "WARN"
+                    row["notes"] = "judge failed; see judge_error.md"
+                    row["report"] = f"{segment_name}/judge_error.md"
+            else:
+                row["report"] = "-"
+            segment_rows.append(row)
+    except BaseException as exc:
+        growth_error_path.write_text(
+            "# LILIA Growth Smoke Error\n\n"
+            f"- error_type: {type(exc).__name__}\n"
+            f"- error: {exc}\n"
+            f"- timestamp: {datetime.now(timezone.utc).astimezone().isoformat(timespec='seconds')}\n"
+            "- transcript files already written are preserved.\n",
+            encoding="utf-8",
+        )
+        raise
+    finally:
+        result = _overall_growth_result(segment_rows, judge)
+        (run_dir / "growth_summary.md").write_text(
+            render_growth_summary_md(
+                result=result,
+                source_session=str(src_session.relative_to(ROOT)),
+                run_session=str(dst_session.relative_to(ROOT)),
+                persona=persona,
+                engine=engine,
+                segments=segments,
+                turns_per_segment=turns_per_segment,
+                judge_enabled=judge,
+                segment_rows=segment_rows,
+            ),
+            encoding="utf-8",
+        )
+
+    if not quiet:
+        print()
+        print("growth-smoke complete")
+    print(f"run dir:        {run_dir.relative_to(ROOT)}")
+    print(f"growth summary: {(run_dir / 'growth_summary.md').relative_to(ROOT)}")
+    return run_dir
+
+
+def command_growth_smoke(args: list[str]) -> None:
+    (
+        cleaned,
+        persona,
+        segments,
+        turns_per_segment,
+        requested_engine,
+        judge,
+        requested_judge_engine,
+        verbose,
+        quiet,
+    ) = parse_growth_smoke_options(args)
+    if len(cleaned) != 1:
+        die("growth-smoke requires <session_name>")
+    src_session = resolve_session(cleaned[0])
+    engine = resolve_engine(requested_engine)
+    if engine is None:
+        die(
+            "no AI CLI found for growth-smoke. install codex or claude, "
+            f"or pass --engine codex|claude (requested: {requested_engine})."
+        )
+    requested_judge_engine_final = requested_judge_engine or requested_engine
+    judge_engine = engine
+    if judge:
+        resolved_judge = resolve_engine(requested_judge_engine_final)
+        if resolved_judge is None:
+            die(
+                "no AI CLI found for growth-smoke judge. install codex or claude, "
+                f"or pass --judge-engine codex|claude (requested: {requested_judge_engine_final})."
+            )
+        judge_engine = resolved_judge
+    run_growth_smoke(
+        src_session=src_session,
+        persona=persona,
+        segments=segments,
+        turns_per_segment=turns_per_segment,
+        requested_engine=requested_engine,
+        engine=engine,
+        judge=judge,
+        requested_judge_engine=requested_judge_engine_final,
+        judge_engine=judge_engine,
+        verbose=verbose,
+        quiet=quiet,
     )
 
 
@@ -4240,8 +4663,23 @@ def _runs_dir() -> Path:
     return PLAYTESTS_DIR / "runs"
 
 
+def _growth_runs_dir() -> Path:
+    return PLAYTESTS_DIR / "growth_runs"
+
+
 def _list_run_dirs() -> list[Path]:
     runs_dir = _runs_dir()
+    if not runs_dir.exists():
+        return []
+    return sorted(
+        [path for path in runs_dir.iterdir() if path.is_dir()],
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+
+def _list_growth_run_dirs() -> list[Path]:
+    runs_dir = _growth_runs_dir()
     if not runs_dir.exists():
         return []
     return sorted(
@@ -4349,12 +4787,63 @@ def _menu_run_one(
 def menu_action_new() -> None:
     print()
     print("[新規テストセッション自動作成]")
-    print("MVPでは未実装です。次のステップ案:")
-    print("- AIに簡易answers.mdを生成させる")
-    print("- session名を dev_YYYYMMDD_HHMMSS で自動採番")
-    print("- ./lilia apply-newgame でファイル整備")
-    print("- first scene生成までを自動化")
-    print("当面は ./lilia new または ./lilia apply-newgame を直接ご利用ください。")
+    print("answers.md を全項目「おまかせ」で生成し、apply-newgame まで自動実行します。")
+
+    print()
+    print("engine:")
+    for number, value in ENGINE_CHOICES:
+        print(f"  {number}. {value}")
+    engine_raw = _read_input("engine (default 1=auto) > ")
+    requested_engine = resolve_choice(engine_raw, ENGINE_CHOICES)
+    if requested_engine is None:
+        print(f"未知のengineです: {engine_raw}")
+        return
+
+    open_raw = _read_input("first scene までエンジンに生成させますか? [y/N] > ")
+    do_open = parse_yes_no(open_raw, False)
+
+    name = f"dev_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    print()
+    print("実行内容:")
+    print(f"  session_name : {name}")
+    print(f"  answers      : 全 Q を「おまかせ」で生成")
+    print(f"  apply-newgame: engine={requested_engine}")
+    print(f"  first scene  : {'生成する (run_engine)' if do_open else 'スキップ'}")
+    confirm_raw = _read_input("実行しますか? [Y/n] > ")
+    if not parse_yes_no(confirm_raw, True):
+        print("キャンセルしました。")
+        return
+
+    try:
+        session_path = create_session(name)
+    except SystemExit as exc:
+        print(f"セッション作成に失敗しました: {exc}")
+        return
+    print(f"created: {session_path.relative_to(ROOT)}")
+
+    answers = {int(q["number"]): "おまかせ" for q in NEWGAME_QUESTIONS}
+    answers_path = write_interactive_answers_file(session_path, answers)
+    print(f"answers: {answers_path.relative_to(ROOT)}")
+
+    try:
+        command_apply_newgame([session_path.name, str(answers_path), "--engine", requested_engine])
+    except SystemExit as exc:
+        print(f"apply-newgame に失敗しました: {exc}")
+        return
+
+    if do_open:
+        print()
+        print("--- first scene 生成 ---")
+        try:
+            run_engine(requested_engine, session_path, build_new_prompt_bundle(session_path))
+        except SystemExit as exc:
+            print(f"first scene 生成に失敗しました: {exc}")
+            return
+
+    print()
+    print(f"完了: {session_path.relative_to(ROOT)}")
+    print(f"次のステップ: ./lilia ai-playtest {session_path.name} --persona normal --turns 10")
 
 
 def menu_action_playtest() -> None:
@@ -4398,7 +4887,7 @@ def menu_action_playtest() -> None:
     print(
         f"実行内容: ai-playtest {src_session.name} --persona {persona} "
         f"--turns {turns} --engine {requested_engine}"
-        f"{' --judge' if judge else ''}"
+        f"{' --judge' if judge else ' --no-judge'}"
     )
     confirm_raw = _read_input("実行しますか? [Y/n] > ")
     if not parse_yes_no(confirm_raw, True):
@@ -4454,7 +4943,7 @@ def menu_action_smoke() -> None:
     print()
     print(
         f"3 personas (normal/passive/boundary) を turns={turns} engine={requested_engine}"
-        f"{' --judge' if judge else ''} で実行します"
+        f"{' --judge' if judge else ' --no-judge'} で実行します"
     )
     confirm_raw = _read_input("実行しますか? [Y/n] > ")
     if not parse_yes_no(confirm_raw, True):
@@ -4483,6 +4972,91 @@ def menu_action_smoke() -> None:
             print(f"- {persona}:   FAILED")
         else:
             print(f"- {persona}:   {run_dir.relative_to(ROOT)}")
+
+
+def menu_action_growth() -> None:
+    print()
+    print("[関係成長の長期テスト]")
+    src_session = _show_session_picker()
+    if src_session is None:
+        return
+
+    print()
+    print("persona:")
+    print("  1. normal")
+    persona_raw = _read_input("persona (default 1=normal / MVPはnormalのみ) > ")
+    persona = resolve_choice(persona_raw, (("1", "normal"),))
+    if persona is None:
+        print(f"未知のpersonaです: {persona_raw}")
+        return
+
+    segments_raw = _read_input("segments (default 3) > ")
+    try:
+        segments = parse_turns_or_default(segments_raw, 3)
+    except ValueError as exc:
+        print(f"segmentsの値が不正です: {exc}")
+        return
+
+    turns_raw = _read_input("turns-per-segment (default 10) > ")
+    try:
+        turns_per_segment = parse_turns_or_default(turns_raw, 10)
+    except ValueError as exc:
+        print(f"turns-per-segmentの値が不正です: {exc}")
+        return
+
+    print()
+    print("engine:")
+    for number, value in ENGINE_CHOICES:
+        print(f"  {number}. {value}")
+    engine_raw = _read_input("engine (default 1=auto) > ")
+    requested_engine = resolve_choice(engine_raw, ENGINE_CHOICES)
+    if requested_engine is None:
+        print(f"未知のengineです: {engine_raw}")
+        return
+
+    judge_raw = _read_input("judge を実行しますか? [Y/n] > ")
+    judge = parse_yes_no(judge_raw, True)
+
+    print()
+    print(
+        f"実行内容: growth-smoke {src_session.name} --persona {persona} "
+        f"--segments {segments} --turns-per-segment {turns_per_segment} "
+        f"--engine {requested_engine}{' --judge' if judge else ' --no-judge'}"
+    )
+    confirm_raw = _read_input("実行しますか? [Y/n] > ")
+    if not parse_yes_no(confirm_raw, True):
+        print("キャンセルしました。")
+        return
+
+    engine = resolve_engine(requested_engine)
+    if engine is None:
+        print(
+            f"AI CLI が見つかりません (要求: {requested_engine})。"
+            " codex か claude をインストールしてください。"
+        )
+        return
+    try:
+        run_dir = run_growth_smoke(
+            src_session=src_session,
+            persona=persona,
+            segments=segments,
+            turns_per_segment=turns_per_segment,
+            requested_engine=requested_engine,
+            engine=engine,
+            judge=judge,
+            requested_judge_engine=requested_engine,
+            judge_engine=engine,
+            verbose=False,
+            quiet=False,
+        )
+    except SystemExit as exc:
+        print(f"growth-smoke が途中で終了しました (exit={exc.code}).")
+        return
+    print()
+    print(f"完了: {run_dir.relative_to(ROOT)}")
+    summary = run_dir / "growth_summary.md"
+    if summary.exists():
+        print(f"  growth_summary: {summary.relative_to(ROOT)}")
 
 
 def menu_action_last() -> None:
@@ -4616,16 +5190,19 @@ _MENU_HEADER = (
     "  5. playtests/runs を掃除する\n"
     "  6. saves の不要セッション候補を見る\n"
     "  7. セッション一覧を見る\n"
+    "  8. 関係成長の長期テストを実行する\n"
     "  0. 終了\n"
     "\n"
     "番号を入力してください。\n"
-    "「テスト」「スモーク」「掃除」「一覧」「最新」「新規」「終了」など日本語でも入力できます。\n"
+    "「テスト」「スモーク」「成長」「長期」「掃除」「一覧」「最新」「新規」「終了」など日本語でも入力できます。\n"
 )
 
 
 def command_menu(args: list[str]) -> None:
     if args:
         die("menu は引数を取りません")
+    if not sys.stdin.isatty():
+        die("menu は TTY が必要です。インタラクティブシェルから './lilia menu' を直接起動してください。")
     actions = {
         "new": menu_action_new,
         "playtest": menu_action_playtest,
@@ -4634,12 +5211,16 @@ def command_menu(args: list[str]) -> None:
         "clean": menu_action_clean,
         "saves": menu_action_saves_view,
         "list": menu_action_list,
+        "growth": menu_action_growth,
     }
     while True:
         print(_MENU_HEADER)
         raw = _read_input("> ")
         action = resolve_menu_action(raw)
         if action is None:
+            if raw == "":
+                print("入力が読み取れませんでした (EOF)。終了します。")
+                return
             print(f"認識できませんでした: {raw!r}。もう一度入力してください。")
             continue
         if action == "quit":
@@ -4666,7 +5247,7 @@ def _ensure_judge_default(args: list[str]) -> list[str]:
     """Add --judge unless --no-judge or --judge already present."""
 
     if "--no-judge" in args:
-        return [a for a in args if a != "--no-judge"]
+        return list(args)
     if "--judge" in args:
         return list(args)
     return list(args) + ["--judge"]
@@ -4698,6 +5279,8 @@ def parse_dev_smoke_options(args: list[str]) -> tuple[list[str], int, str, bool]
     turns = 3
     engine = "auto"
     judge = True
+    judge_seen = False
+    no_judge_seen = False
     cleaned: list[str] = []
     index = 0
     while index < len(args):
@@ -4723,14 +5306,18 @@ def parse_dev_smoke_options(args: list[str]) -> tuple[list[str], int, str, bool]
         elif arg.startswith("--engine="):
             engine = arg.split("=", 1)[1]
         elif arg == "--no-judge":
+            no_judge_seen = True
             judge = False
         elif arg == "--judge":
+            judge_seen = True
             judge = True
         else:
             cleaned.append(arg)
         index += 1
     if turns < 1:
         die("--turns must be a positive integer")
+    if judge_seen and no_judge_seen:
+        die("choose either --judge or --no-judge, not both")
     if engine not in {"auto", "codex", "claude"}:
         die("--engine must be codex, claude, or auto")
     return cleaned, turns, engine, judge
@@ -4776,6 +5363,17 @@ def command_dev_smoke(args: list[str]) -> None:
             print(f"- {persona}:   FAILED")
         else:
             print(f"- {persona}:   {run_dir.relative_to(ROOT)}")
+
+
+def command_dev_growth(args: list[str]) -> None:
+    """Wrapper around growth-smoke with dev-friendly defaults."""
+
+    final = list(args)
+    final = _ensure_default_flag(final, "--segments", "3")
+    final = _ensure_default_flag(final, "--turns-per-segment", "10")
+    final = _ensure_default_flag(final, "--engine", "auto")
+    final = _ensure_judge_default(final)
+    command_growth_smoke(final)
 
 
 def command_dev_last(args: list[str]) -> None:
@@ -4899,12 +5497,16 @@ def main(argv: list[str]) -> None:
         command_scene_tick(args)
     elif command == "ai-playtest":
         command_ai_playtest(args)
+    elif command in {"growth-smoke", "long-growth"}:
+        command_growth_smoke(args)
     elif command in {"menu", "dev-menu", "開発メニュー", "テストモード"}:
         command_menu(args)
     elif command == "dev-test":
         command_dev_test(args)
     elif command == "dev-smoke":
         command_dev_smoke(args)
+    elif command == "dev-growth":
+        command_dev_growth(args)
     elif command == "dev-last":
         command_dev_last(args)
     elif command == "dev-clean-runs":

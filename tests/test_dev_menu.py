@@ -31,6 +31,7 @@ from tools.playtest import menu
         ("5", "clean"),
         ("6", "saves"),
         ("7", "list"),
+        ("8", "growth"),
     ],
 )
 def test_resolve_menu_action_numeric(text: str, expected: str) -> None:
@@ -52,6 +53,8 @@ def test_resolve_menu_action_numeric(text: str, expected: str) -> None:
         ("結果", "last"),
         ("レポート", "last"),
         ("新規", "new"),
+        ("成長", "growth"),
+        ("長期", "growth"),
         ("終了", "quit"),
         ("やめる", "quit"),
     ],
@@ -70,6 +73,8 @@ def test_resolve_menu_action_japanese(text: str, expected: str) -> None:
         ("テストして", "playtest"),
         ("掃除して", "clean"),
         ("セッション一覧", "list"),
+        ("growth smoke", "growth"),
+        ("long-growth", "growth"),
     ],
 )
 def test_resolve_menu_action_substring_and_case(text: str, expected: str) -> None:

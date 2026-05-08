@@ -17,6 +17,7 @@ MENU_ACTIONS: tuple[str, ...] = (
     "clean",     # 5. playtests/runs を掃除する
     "saves",     # 6. saves の不要セッション候補を見る
     "list",      # 7. セッション一覧
+    "growth",    # 8. 関係成長の長期テスト
     "quit",      # 0. 終了
 )
 
@@ -29,6 +30,7 @@ MENU_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("quit",     ("0", "q", "quit", "exit", "終了", "やめる", "おわり", "中止")),
     ("new",      ("1", "new", "新規", "作成", "新セッション")),
     ("playtest", ("2", "test", "playtest", "テスト", "プレイテスト")),
+    ("growth",   ("8", "growth", "long", "成長", "長期", "long-growth", "growth-smoke")),
     ("smoke",    ("3", "smoke", "スモーク", "まとめて")),
     ("last",     ("4", "last", "result", "report", "最新", "結果", "レポート")),
     ("clean",    ("5", "clean", "cleanup", "掃除", "クリーン", "クリーンアップ")),

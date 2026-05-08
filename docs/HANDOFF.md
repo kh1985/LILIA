@@ -116,6 +116,8 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `./lilia` は session名未指定時に `session_001` 形式で未使用名を採番し、resume時は最新sessionを検出する。
 - 最小運用確認で、`list-sessions` はresume対象の最新sessionを先頭に出し、`*` で示す形へ調整済み。prompt-onlyにはAIを実行しないmanual prompt bundleであることと、必要ならリダイレクトできる案内を追加済み。
 - `./lilia` に `--run` と `--engine codex|claude|auto` を追加済み。`auto` は codex を優先し、なければ claude を使う。AI CLIへ渡すprompt bundleは一時ファイル経由で渡す。
+- `./lilia growth-smoke` / `./lilia long-growth` / `./lilia dev-growth` を追加済み。AI Playtestの長期成長MVPとして、`playtests/growth_runs/<timestamp>_normal_<session>/` に本番 `saves/<session>` のコピー、segment別 transcript / report、`growth_summary.md` を保存する。MVPでは normal persona のみ、segment間は `global_history` で会話履歴を引き継ぐ。apply-turn / resume による本当のstate成長保存、mixed persona、モデル指定はFuture TODO。
+- AI Playtest / dev-test / dev-smoke / growth-smoke の Judge はデフォルトONに変更済み。`--judge` は後方互換として受け、transcriptだけ欲しい場合は `--no-judge` を使う。`--judge` と `--no-judge` の同時指定はerror。
 - `saves/` は `.gitignore` でgit管理外にしている。AI Harness、自動プレイ生成、大量ログ解析、画像/漫画export、production CI はまだ入れていない。
 
 prompt内の `current/...`、`lilia/main/...`、`story/...`、`archive/...` は、生成されたセッションルートからの相対パスとして扱う。テンプレート上では `templates/session/` 配下に対応する。
