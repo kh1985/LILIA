@@ -36,18 +36,22 @@
 | HOOK-005 | apply-turn hook更新 | todo | P0 |  |  | Save Mode / apply-turn で hook の進行・保留・背景化・悪化を更新できる |
 | HOOK-006 | wanderer playtest | todo | P0 |  |  | AI Playtestで脱線入力を試し、3本hookのどれかに自然に戻れる |
 | HOOK-007 | Lightweight Tempo Guard | todo | P0 |  |  | 1ターンに前景化するhookは原則1本、LILIAからの明示質問は原則1個、通常ターンの文字量目安、場面転換の上限、次に返せる入口、選択肢UIの抑制がPLAY_MODE_SPEC.mdに定義されている |
-| TEMPO-001 | Tempo Guard詳細仕様追加 | todo | P0 |  |  | PLAY_MODE_SPEC.md にTurn Budget / One Foreground Rule / Question Limit / Exit Shape が定義されている |
-| TEMPO-002 | AI Playtest Tempo Guard追加 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md で質問過多・hook過多・説明過多・返答入口不明を評価できる |
+| TEMPO-001 | Tempo Guard詳細仕様追加 | todo | P0 |  |  | PLAY_MODE_SPEC.md にTurn Budget / One Foreground Rule / Question Limit / Exit Shape が定義され、Arc Closure Guardとして余韻過多、同一モチーフ反復、長文低進行を検出する基準がある |
+| TEMPO-002 | AI Playtest Tempo Guard追加 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md で質問過多・hook過多・説明過多・返答入口不明を評価でき、JudgeがArc closure / Scene progressionと10ターン以上同じsceneに留まる場合のWARN基準を扱える |
 | TEMPO-003 | Passive Player Tempo Test | todo | P1 |  |  | passive AI Playerが10turn回っても、返答先に迷わないか確認できる |
 | TEMPO-004 | WebUI Readability Check | todo | P1 |  |  | 通常ターンがWebUI上で読みにくい長さになっていないか評価できる |
 | TEMPO-005 | Choice UI Restraint Rule | todo | P1 |  |  | 毎ターン露骨な選択肢UIを出さず、必要時だけ補助表示する方針がある |
-| ARC-001 | Story Completion判定 | todo | P0 |  |  | Reveal Ladder / event_card / story_deck から、現在のstoryが解決・保留・背景化・悪化・完了のどれか判定できる |
-| ARC-002 | Next Story Arc生成 | todo | P0 |  |  | 現在storyが閉じた後、LILIAとの関係・記憶・未回収札から次のstory_spine / event_card候補を生成できる |
+| ARC-001 | Story Completion判定 | todo | P0 |  |  | Reveal Ladder / event_card / story_deck から、現在のstoryが解決・保留・背景化・悪化・完了のどれか判定でき、別れ、戸が閉まる音、帰宅、就寝、翌朝などのscene closure候補を検出し、closure候補後に余韻が長すぎる場合WARNでき、scene closure / arc closure候補を判断できる |
+| ARC-002 | Next Story Arc生成 | todo | P0 |  |  | 現在storyが閉じた後、LILIAとの関係・記憶・未回収札から次のstory_spine / event_card候補を生成でき、story / scene closure後にmemory候補、next hook、次arc候補を作り、本文を引っ張りすぎず次のplayable入口へ接続できる |
 | ARC-003 | Travel / Location Branch | todo | P0 |  |  | 沖縄・鹿児島・ニューヨーク等の大移動宣言を即拒否せず、費用・時間・理由・LILIA同行可否を含むbranchとして扱える |
 | ARC-004 | Heroine Agency on Travel | todo | P0 |  |  | 親密度や関係理由が薄い時、LILIAが同行しない・保留する・条件を出す判断を人格として返せる |
 | ARC-005 | Open Arc Limit | todo | P0 |  |  | 未解決の遠出 / branch は最大2本まで保持し、3本目は既存arcの解決・保留・帰還を促す |
 | ARC-006 | Long-run AI Playtest | todo | P0 |  |  | normal / wanderer で100ターン級smokeを実行し、story完了後の次arc生成とresumeが破綻しない |
 | ARC-007 | High-intimacy Manual Run | todo | P0 |  |  | ユーザー本人が長期手動プレイし、関係が深まった後の声・境界線・同行判断・新story生成を確認する |
+| ARC-008 | Arc Closure Guard仕様追加 | todo | P0 |  |  | PLAY_MODE_SPEC.mdに、sceneの核成立後に余韻を1〜2ターンで閉じ、memory候補 / next hook / 次arc候補へ移るルールがある |
+| ARC-009 | Arc Closure Judge追加 | todo | P0 |  |  | AI Playtest Judgeが、余韻過多・同一モチーフ反復・長文低進行・closure候補を評価できる |
+| ARC-010 | Closure-to-Hook接続 | todo | P0 |  |  | scene closure後に、次に触れるhookまたは次arc候補を提示できる |
+| ARC-011 | Long Log Tempo Regression | todo | P1 |  |  | 30〜40turn級ログで、closure後に余韻が長すぎないか確認できる |
 | STORY-001 | STORY_FUNCTION_FRAMEWORK.md 作成 | todo | P1 |  |  | 15機能、三層構造、scene機能、LILIA用読み替えが定義されている |
 | STORY-002 | story_spineへStory Function Position追加検討 | todo | P1 |  |  | current_function / next_function_candidate / do_not_jump_to の導入方針が決まっている |
 | STORY-003 | event_cardへScene Function追加検討 | todo | P1 |  |  | scene_goal / obstacle / expected_change / withheld_information の導入方針が決まっている |

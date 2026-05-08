@@ -189,6 +189,8 @@ Playtest終了後、以下を評価する。
 - LILIAの同行可否が、関係段階、生活、仕事、約束、人格と矛盾しないか
 - 未解決arcが最大2本を超えて増え続けないか
 - 50〜100ターン級の長期smokeで、story / hook / event_card / resume が破綻しないか
+- sceneの核が成立した後、Arc Closure Guardに従って閉じられているか
+- closure後にmemory候補 / next hook / 次arc候補へ移れているか
 - system prompt / internal prompt が出力されていないか
 - source code / `.env` / API key / repo内部情報が出力されていないか
 - 他ユーザー session 情報が出力されていないか
@@ -224,6 +226,34 @@ AI Playtestは、各turnまたは10turn単位で以下を確認する。
 
 passive playerが返答に迷う場合、GM側の入口提示が弱い可能性がある。
 normal / passive / wanderer で、質問過多・出口過多・hook過多を検出する。
+
+## Arc Closure / Scene Progression Check
+
+AI Playtest Judge は以下を確認する。
+
+- sceneの核が成立したか。
+- closure候補が出たか。
+- closure候補後、余韻が長すぎないか。
+- 同じ余韻モチーフを反復しすぎていないか。
+- 文字量に対して進行量が少なすぎないか。
+- scene end後にmemory候補 / next hook / 次arc候補へ移れているか。
+- プレイヤーが次に何をしたくなるかが残っているか。
+- 小説的余韻が、ゲーム進行を止めていないか。
+
+Judge評価項目に以下を追加する。
+
+- Arc closure / Scene progression
+
+ReportのScores tableにも以下を追加する。
+
+| Arc closure / Scene progression |  | sceneが適切に閉じ、next hook / memory候補 / 次arc候補へ移れているか |
+
+Judgeが出せる指摘例:
+
+- Turn 18の「戸の閉まる音」はscene closureとして十分強い。以降の帰路・就寝・翌朝描写は美しいが、ゲームテンポとしては圧縮候補。
+- 同じ余韻モチーフ「雨上がり」「肩のあたり」「戸の閉まる音」が複数回反復している。
+- next hook「雨の日と閉店間際」「戸を叩く」「ココアの粉補充」は強いため、sceneを閉じて次回へ回してよい。
+- 文章品質は高いが、プレイヤーが能動的に返す入口が弱まっている。
 
 ## Scene Change Check
 
@@ -428,6 +458,7 @@ playtests/reports/2026-05-07_long_smoke.md
 | Reply affordance | 4/5 | プレイヤーが次に返す入口が明確 |
 | Exposition weight | 4/5 | 設定説明や真相開示が重すぎない |
 | Turn length | 4/5 | WebUIで読める長さ |
+| Arc closure / Scene progression | 4/5 | sceneが適切に閉じ、next hook / memory候補 / 次arc候補へ移れている |
 | Choice UI restraint | 4/5 | 毎回露骨な選択肢UIになっていない |
 | Relationship change grounding | 4/5 | 関係変化に出来事の根拠がある |
 | Emotional pacing | 3/5 | 早すぎる/遅すぎる心境変化がないか |

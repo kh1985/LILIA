@@ -26,6 +26,13 @@ JUDGE_SCORE_ITEMS: tuple[tuple[str, str], ...] = (
 JUDGE_SCORE_KEYS: tuple[str, ...] = tuple(key for key, _ in JUDGE_SCORE_ITEMS)
 _JUDGE_SCORE_LABELS: dict[str, str] = {key: label for key, label in JUDGE_SCORE_ITEMS}
 
+# TODO: Add `arc_closure_scene_progression` to Judge score schema.
+# TODO: Detect closure candidates such as farewell, door closing, returning home, sleeping, next morning, promise formation.
+# TODO: Warn when the same scene continues after closure without next hook.
+# TODO: Warn when the same motif repeats 3+ times.
+# TODO: Warn when output is literary but low in playable progress.
+# TODO: Include closure turn candidates and next hook candidates in report.md.
+
 
 JUDGE_INSTRUCTION = (
     "# AI Playtest Judge\n"
