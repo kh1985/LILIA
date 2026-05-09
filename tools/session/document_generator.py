@@ -757,6 +757,25 @@ opening_caveats:
 17. story/story_deck.md の `## Three Hook Spine` は素材棚である。
     Main / Relationship / Life-Explorationを3択UIとして並べず、現在のActive Hook本体は current/event_card.md へ置く。
     Background Hooks / Candidate Next Hooks は、今すぐPlay Modeで前景化しない候補として短く保持する。
+18. story/story_deck.md の `## Three Hook Spine` では、初期3hookを必ず埋める。
+    空欄、未設定、TODO、placeholderを残さない。profile / character.yaml / story_spine / relationship_spine / Q&Aから短く生成する。
+    - Main Hook: hook_id / status / current_function / current_question / visible_handle / pressure / exit_condition / next_candidate
+      外側の出来事、依頼、小事件、仕事、街の圧、小さな謎を扱う。hook_idは `main_initial_request` のような安定した短いIDにする。
+    - Relationship Hook: hook_id / status / current_function / current_question / relationship_stake / boundary_or_trust_issue / exit_condition / next_candidate
+      好感度や攻略ルートではなく、距離、信頼、境界線、約束、誤解、LILIAが主人公をどう同じ場に置けるかを扱う。
+    - Life-Exploration Hook: hook_id / status / current_function / current_question / available_scope / travel_or_life_option / heroine_attendance / exit_condition / next_candidate
+      生活、場所、移動、帰宅、食事、単独行動、遠出、同行/非同行の受け皿を扱う。初期値は現在の場所・生活圏に自然な入口にする。
+    statusは初期Active Hookに対応する1本だけ `active` 参照にしてよい。それ以外は background / pending など軽い状態にする。
+19. current/event_card.md の `## Active Hook` には、初期sceneで今触れるhookを1本だけ入れる。
+    通常はMain Hookをactiveにする。Q&Aやprofile上、関係起点が強い場合だけRelationship Hookにしてよい。
+    Life Hookをactiveにするのは、初回sceneが移動、再訪、生活導線から始まる場合だけ。
+    `hook_id` は story/story_deck.md 側の対応hookと一致させ、`hook_type` は main / relationship / life のどれかにする。
+20. current/event_card.md の `## Scene Function` には、初回sceneの内部診断を入れる。
+    functionは 起点 / 目標 / 始動 / 試練 を基本にする。初回から奈落 / 選択 / 着地 / 余韻へ飛ばしすぎない。
+    current_question / entry_state / exit_condition / change_delta / next_hook_candidate を必ず埋める。
+    Exit ConditionとChange Deltaは、sceneの入口と出口で何が変われば閉じてよいかを示す。
+21. Three Hook / Story Function / hook_id / status / Scene Function名は内部stateである。
+    Play Mode本文として説明しない。番号付き3択、ボタン、同時質問、管理語の露出として書かない。
 
 ## ファイル間の抽象レベル分離（重要）
 

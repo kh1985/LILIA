@@ -52,6 +52,8 @@ def _knowledge_doc(yaml_block: str) -> str:
 
 def _valid_documents() -> dict[str, str]:
     docs = {path: _doc(path) for path in DOWNSTREAM_SESSION_DOCUMENT_FILES}
+    docs["current/event_card.md"] = _playable_event_card()
+    docs["story/story_deck.md"] = _playable_story_deck()
     docs["current/protagonist.md"] = _doc(
         "current/protagonist.md",
         {
@@ -164,6 +166,50 @@ items:
 """
     )
     return docs
+
+
+def _playable_three_hook_spine() -> str:
+    return """
+### Main Hook
+- hook_id: main_initial_request
+- status: active
+- current_function: 起点
+- current_question: 忘れ物を返す用件が、会釈だけの関係をどう動かすか。
+- visible_handle: カフェの席に残ったイヤホンを本人へ返す。
+- pressure: 本人に直接声をかけるか、店員に預けるかで距離が変わる。
+- exit_condition: イヤホンの扱いが決まり、次に見える反応が出る。
+- next_candidate: 礼の短さや視線の避け方を次の関係入口にする。
+
+### Relationship Hook
+- hook_id: relationship_first_trust
+- status: background
+- current_function: 目標
+- current_question: ユイは主人公を同じ場に置ける相手として見られるか。
+- relationship_stake: 忘れ物を雑に扱わないことが、短い信頼か警戒のどちらかへ残る。
+- boundary_or_trust_issue: 用件以上に踏み込まず、相手が受け取れる距離を守れるか。
+- exit_condition: 返し方によって、ユイの警戒か小さな信頼が見える。
+- next_candidate: 次に会った時の会釈や呼び止め方。
+
+### Life-Exploration Hook
+- hook_id: life_revisit_route
+- status: background
+- current_function: 始動
+- current_question: 仕事帰りの生活導線から、また同じ店へ寄れるか。
+- available_scope: カフェ、駅までの帰路、仕事帰りの寄り道。
+- travel_or_life_option: 店を出る、駅へ戻る、翌日また寄る、一人で帰る。
+- heroine_attendance: 同行は自動成立しない。今回は非同行で、再訪や短い連絡の余地だけ残す。
+- exit_condition: 主人公が帰る/寄る/預けるの生活行動を選べる状態になる。
+- next_candidate: 翌日の同じ時間帯に店へ寄る理由。
+""".strip()
+
+
+def _playable_story_deck(overrides: dict[str, str] | None = None) -> str:
+    body = {heading: "- さくら固有の短い初期値。" for heading in _headings("story/story_deck.md")}
+    body["Three Hook Spine"] = _playable_three_hook_spine()
+    body["Background Hooks"] = "- relationship_first_trust: 今は背景。会釈と警戒の温度として残す。"
+    body["Candidate Next Hooks"] = "- life_revisit_route: 翌日また寄る生活導線。まだactiveではない。"
+    body.update(overrides or {})
+    return _doc("story/story_deck.md", body)
 
 
 def _playable_event_card(overrides: dict[str, str] | None = None) -> str:
@@ -312,6 +358,68 @@ def test_validator_rejects_event_card_with_remnant_unfilled_marker() -> None:
     valid, errors = validate_session_documents(docs, ANSWERS)
     assert not valid
     assert any("未設定 が ## Relationship Stake に残存している" in error for error in errors)
+
+
+def test_validator_rejects_blank_three_hook_spine_field() -> None:
+    docs = _valid_documents()
+    docs["story/story_deck.md"] = _playable_story_deck(
+        {"Three Hook Spine": _playable_three_hook_spine().replace("- hook_id: life_revisit_route", "- hook_id:")}
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("Life-Exploration Hook: hook_id is empty" in error for error in errors)
+
+
+def test_validator_rejects_relationship_hook_affinity_route() -> None:
+    docs = _valid_documents()
+    docs["story/story_deck.md"] = _playable_story_deck(
+        {
+            "Three Hook Spine": _playable_three_hook_spine().replace("短い信頼か警戒", "好感度ルート")
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("affinity/route" in error for error in errors)
+
+
+def test_validator_rejects_mismatched_active_hook_id() -> None:
+    docs = _valid_documents()
+    docs["current/event_card.md"] = _playable_event_card(
+        {
+            "Active Hook": "\n".join(
+                [
+                    "- hook_id: relationship_first_trust",
+                    "- hook_type: main",
+                    "- status: active",
+                    "- foreground_reason: 忘れ物を返す場面を前景化する。",
+                ]
+            )
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("hook_id must match" in error for error in errors)
+
+
+def test_validator_rejects_blank_scene_function_field() -> None:
+    docs = _valid_documents()
+    docs["current/event_card.md"] = _playable_event_card(
+        {
+            "Scene Function": "\n".join(
+                [
+                    "- function: 起点",
+                    "- current_question: 忘れ物をどう扱うか。",
+                    "- entry_state: 会釈だけの距離。",
+                    "- exit_condition:",
+                    "- change_delta: 用件の記憶が加わる。",
+                    "- next_hook_candidate: 礼を言った後の沈黙。",
+                ]
+            )
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("Scene Function: exit_condition is empty" in error for error in errors)
 
 
 def test_validator_pass_for_session_002b_event_card() -> None:

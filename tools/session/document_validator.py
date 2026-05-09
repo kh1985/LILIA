@@ -140,6 +140,7 @@ def validate_session_documents(
         errors,
         original_knowledge_state_md=original_knowledge_state_md,
     )
+    _check_story_deck_three_hook_spine(documents, errors)
     _check_event_card_playability(documents, errors)
     _check_opening_plan_consistency(documents)
 
@@ -504,6 +505,8 @@ def _check_event_card_playability(documents: dict[str, str], errors: list[str]) 
         return
 
     sections = _markdown_sections(content)
+    _check_event_card_hook_scaffold(sections, errors)
+
     unfilled_marker_sections = [
         "表の出来事",
         "Relationship Stake",
@@ -585,6 +588,141 @@ def _check_event_card_playability(documents: dict[str, str], errors: list[str]) 
         errors.append("current/event_card.md: Story Residue の memory/relationship/beliefs/voice すべてが空である")
     elif not residue_values and not _has_event_card_freeform_content(story_residue):
         errors.append("current/event_card.md: Story Residue の memory/relationship/beliefs/voice すべてが空である")
+
+
+def _check_story_deck_three_hook_spine(documents: dict[str, str], errors: list[str]) -> None:
+    content = documents.get("story/story_deck.md", "")
+    if not content.strip():
+        return
+
+    sections = _markdown_sections(content)
+    spine = sections.get("three hook spine", "")
+    if not spine:
+        return
+
+    required_by_hook = {
+        "Main Hook": [
+            "hook_id",
+            "status",
+            "current_function",
+            "current_question",
+            "visible_handle",
+            "pressure",
+            "exit_condition",
+            "next_candidate",
+        ],
+        "Relationship Hook": [
+            "hook_id",
+            "status",
+            "current_function",
+            "current_question",
+            "relationship_stake",
+            "boundary_or_trust_issue",
+            "exit_condition",
+            "next_candidate",
+        ],
+        "Life-Exploration Hook": [
+            "hook_id",
+            "status",
+            "current_function",
+            "current_question",
+            "available_scope",
+            "travel_or_life_option",
+            "heroine_attendance",
+            "exit_condition",
+            "next_candidate",
+        ],
+    }
+
+    for hook_name, fields in required_by_hook.items():
+        hook_body = _markdown_subsection(spine, hook_name)
+        if not hook_body:
+            errors.append(f"story/story_deck.md: Three Hook Spine missing {hook_name}")
+            continue
+        _check_required_field_values(
+            hook_body,
+            fields,
+            f"story/story_deck.md: Three Hook Spine {hook_name}",
+            errors,
+        )
+
+    relationship = _markdown_subsection(spine, "Relationship Hook")
+    if re.search(r"好感度|攻略|ルート|bond|AFFINITY", relationship, flags=re.IGNORECASE):
+        errors.append("story/story_deck.md: Relationship Hook must not become affinity/route tracking")
+
+    active_status_count = sum(
+        1
+        for hook_name in required_by_hook
+        if _extract_subline_value(_markdown_subsection(spine, hook_name), "status") == "active"
+    )
+    if active_status_count > 1:
+        errors.append("story/story_deck.md: Three Hook Spine must not mark multiple hooks active")
+
+    event_sections = _markdown_sections(documents.get("current/event_card.md", ""))
+    active_hook = event_sections.get("active hook", "")
+    event_hook_id = _extract_subline_value(active_hook, "hook_id")
+    event_hook_type = _extract_subline_value(active_hook, "hook_type")
+    story_hook_ids = {
+        "main": _extract_subline_value(_markdown_subsection(spine, "Main Hook"), "hook_id"),
+        "relationship": _extract_subline_value(_markdown_subsection(spine, "Relationship Hook"), "hook_id"),
+        "life": _extract_subline_value(_markdown_subsection(spine, "Life-Exploration Hook"), "hook_id"),
+    }
+    if event_hook_id and event_hook_type in story_hook_ids:
+        story_hook_id = story_hook_ids[event_hook_type]
+        if story_hook_id and not _placeholder_value(story_hook_id) and event_hook_id != story_hook_id:
+            errors.append("current/event_card.md: Active Hook hook_id must match story/story_deck.md hook_id")
+
+
+def _check_event_card_hook_scaffold(sections: dict[str, str], errors: list[str]) -> None:
+    active_hook = sections.get("active hook", "")
+    scene_function = sections.get("scene function", "")
+
+    _check_required_field_values(
+        active_hook,
+        ["hook_id", "hook_type", "status", "foreground_reason"],
+        "current/event_card.md: Active Hook",
+        errors,
+    )
+    hook_type = _extract_subline_value(active_hook, "hook_type")
+    if hook_type and hook_type not in {"main", "relationship", "life"}:
+        errors.append("current/event_card.md: Active Hook hook_type must be main / relationship / life")
+    status = _extract_subline_value(active_hook, "status")
+    if status and status != "active":
+        errors.append("current/event_card.md: Active Hook status must be active")
+
+    _check_required_field_values(
+        scene_function,
+        ["function", "current_question", "entry_state", "exit_condition", "change_delta", "next_hook_candidate"],
+        "current/event_card.md: Scene Function",
+        errors,
+    )
+
+
+def _check_required_field_values(
+    section: str,
+    fields: list[str],
+    location: str,
+    errors: list[str],
+) -> None:
+    for field in fields:
+        value = _extract_subline_value(section, re.escape(field))
+        if value is None or _placeholder_value(value):
+            errors.append(f"{location}: {field} is empty")
+
+
+def _markdown_subsection(markdown: str, heading: str) -> str:
+    pattern = re.compile(rf"^###\s+{re.escape(heading)}\s*$", re.MULTILINE)
+    match = pattern.search(markdown)
+    if not match:
+        return ""
+    next_heading = re.search(r"^###\s+.+?\s*$", markdown[match.end() :], re.MULTILINE)
+    end = match.end() + next_heading.start() if next_heading else len(markdown)
+    return markdown[match.end() : end].strip()
+
+
+def _placeholder_value(value: str) -> bool:
+    normalized = value.strip().lower()
+    return normalized in {"", "未設定", "todo", "placeholder", "n/a", "none", "-"}
 
 
 def _items_block_before_knowledge_state(content: str) -> bool:

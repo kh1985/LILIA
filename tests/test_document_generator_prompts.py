@@ -34,6 +34,22 @@ def test_group_a_prompt_has_abstraction_level_separation_rule() -> None:
     assert "3 つのセクションの抽象レベルを必ず区別しろ" in prompt
 
 
+def test_group_a_prompt_has_three_hook_initial_generation_rules() -> None:
+    prompt = document_generator._build_group_a_prompt(_minimal_context())
+
+    assert "Three Hook Spine" in prompt
+    assert "Main Hook" in prompt
+    assert "Relationship Hook" in prompt
+    assert "Life-Exploration Hook" in prompt
+    assert "Active Hook" in prompt
+    assert "Scene Function" in prompt
+    assert "hook_id" in prompt
+    assert "exit_condition" in prompt
+    assert "change_delta" in prompt
+    assert "3択UIとして並べず" in prompt
+    assert "Play Mode本文として説明しない" in prompt
+
+
 def test_group_b_prompt_has_abstraction_level_separation_rule() -> None:
     prompt = document_generator._build_group_b_prompt(_minimal_context())
 
