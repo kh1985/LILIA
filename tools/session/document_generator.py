@@ -759,6 +759,39 @@ opening_caveats:
     Background Hooks / Candidate Next Hooks は、今すぐPlay Modeで前景化しない候補として短く保持する。
 18. story/story_deck.md の `## Three Hook Spine` では、初期3hookを必ず埋める。
     空欄、未設定、TODO、placeholderを残さない。profile / character.yaml / story_spine / relationship_spine / Q&Aから短く生成する。
+    必ず `## Three Hook Spine` の直下に、以下の `###` 小見出しとfield名をこの順番で出す。
+    ```md
+    ### Main Hook
+    - hook_id: main_initial_request のような短いID
+    - status: active または background
+    - current_function: 起点 / 目標 / 始動 / 試練 のいずれか
+    - current_question: このMain Hookで追う問い
+    - visible_handle: プレイヤーが触れる外側の出来事
+    - pressure: 小さな圧
+    - exit_condition: 閉じてよい条件
+    - next_candidate: 次に接続する候補
+
+    ### Relationship Hook
+    - hook_id: relationship_first_trust のような短いID
+    - status: active または background
+    - current_function: 起点 / 目標 / 始動 / 試練 のいずれか
+    - current_question: 距離や境界線の問い
+    - relationship_stake: 関係に残る賭け
+    - boundary_or_trust_issue: 境界線、信頼、誤解、約束、保留
+    - exit_condition: 関係変化が見えたと判断する条件
+    - next_candidate: 次に接続する候補
+
+    ### Life-Exploration Hook
+    - hook_id: life_revisit_route のような短いID
+    - status: active または background
+    - current_function: 起点 / 目標 / 始動 / 試練 のいずれか
+    - current_question: 生活や移動から戻る問い
+    - available_scope: 今自然に動ける生活圏
+    - travel_or_life_option: 帰宅、再訪、食事、単独行動、移動など
+    - heroine_attendance: 同行/非同行/保留/条件付きの扱い
+    - exit_condition: 生活行動が次の入口へ接続する条件
+    - next_candidate: 次に接続する候補
+    ```
     - Main Hook: hook_id / status / current_function / current_question / visible_handle / pressure / exit_condition / next_candidate
       外側の出来事、依頼、小事件、仕事、街の圧、小さな謎を扱う。hook_idは `main_initial_request` のような安定した短いIDにする。
     - Relationship Hook: hook_id / status / current_function / current_question / relationship_stake / boundary_or_trust_issue / exit_condition / next_candidate
@@ -963,7 +996,7 @@ def _template_structure(rel_path: str) -> str:
         raise DocumentGenerationError(f"template not found: {template_path}")
     text = template_path.read_text(encoding="utf-8")
     h1 = next((line.strip() for line in text.splitlines() if line.startswith("# ")), "# " + rel_path)
-    headings = [line.strip() for line in text.splitlines() if line.startswith("## ")]
+    headings = [line.strip() for line in text.splitlines() if line.startswith("## ") or line.startswith("### ")]
     if rel_path == "current/knowledge_state.md":
         extra = "\n".join(
             [

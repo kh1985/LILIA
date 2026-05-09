@@ -43,6 +43,9 @@ def test_group_a_prompt_has_three_hook_initial_generation_rules() -> None:
     assert "Life-Exploration Hook" in prompt
     assert "Active Hook" in prompt
     assert "Scene Function" in prompt
+    assert "### Main Hook" in prompt
+    assert "### Relationship Hook" in prompt
+    assert "### Life-Exploration Hook" in prompt
     assert "hook_id" in prompt
     assert "exit_condition" in prompt
     assert "change_delta" in prompt

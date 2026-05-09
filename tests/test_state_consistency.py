@@ -52,7 +52,7 @@ def test_state_consistency_detects_stale_next_hook_fixture(tmp_path: Path) -> No
     assert any(issue.code == "hotset_scene_event_mismatch" for issue in result.issues)
 
 
-def test_state_consistency_detects_plural_candidate_next_hooks(tmp_path: Path) -> None:
+def test_state_consistency_ignores_plural_candidate_next_hooks_shelf(tmp_path: Path) -> None:
     session = copy_fixture(tmp_path, "plural_candidate_case")
     event_card_path = session / "current/event_card.md"
     story_deck_path = session / "story/story_deck.md"
@@ -69,9 +69,8 @@ def test_state_consistency_detects_plural_candidate_next_hooks(tmp_path: Path) -
 
     result = validate_state_consistency(session)
 
-    assert result.status == "FAIL"
-    assert any(issue.code == "candidate_next_hook_not_active" for issue in result.issues)
-    assert any(issue.code == "hotset_scene_event_mismatch" for issue in result.issues)
+    assert not any(issue.code == "candidate_next_hook_not_active" for issue in result.issues)
+    assert not any(issue.code == "hotset_scene_event_mismatch" for issue in result.issues)
 
 
 def test_next_hook_promotion_aligns_active_scene_event_hotset(tmp_path: Path) -> None:

@@ -120,8 +120,6 @@ def latest_next_hook(session_root: Path) -> tuple[str, str]:
     event_hook = latest_heading_block(read_text(session_root / "current/event_card.md"), "Next Hook")
     story_deck = read_text(session_root / "story/story_deck.md")
     story_hook = latest_heading_block(story_deck, "Candidate Next Hook")
-    if not story_hook:
-        story_hook = latest_heading_block(story_deck, "Candidate Next Hooks")
     if event_hook:
         return event_hook, "current/event_card.md"
     if story_hook:
