@@ -87,6 +87,7 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 
 - `STATUS_DASHBOARD.html`: 人間用ビュー。Markdown正本の代替ではない。
 - `docs/DOCUMENT_REORGANIZATION_PLAN.md`: Phase 2-Aの整理計画。将来の移動案と参照修正候補。
+- `docs/DOCUMENT_DEDUPLICATION_PLAN.md`: Phase 3-Aの重複整理計画。HANDOFF / ROADMAP / release docs の短縮候補。
 - `docs/CODEX_ROLLOUT_LOGS.md`: Codexログ取り込み運用メモ。
 - `docs/INTEGRITY_AUDIT_20260505.md`: 2026-05-05時点の大型監査レポート。判断の証跡であり、現在仕様の正本ではない。
 - `docs/CLAUDE.md` / `prompt/CLAUDE.md` / `references/CLAUDE.md`: 自動生成memory系の未追跡メモ。設計正本ではない。
