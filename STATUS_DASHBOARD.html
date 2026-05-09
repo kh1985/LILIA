@@ -173,6 +173,61 @@ h2 {
   color: var(--muted);
 }
 
+.copy-prompt {
+  display: grid;
+  gap: 12px;
+}
+
+.copy-prompt p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.copy-button {
+  border: 1px solid rgba(101, 199, 177, 0.65);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
+.copy-button:hover,
+.copy-button:focus-visible {
+  border-color: var(--teal);
+  outline: none;
+}
+
+.copy-status {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+pre {
+  margin: 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d0c09;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+pre code {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .mini-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -478,6 +533,33 @@ details .inside {
       </div>
     </div>
   </header>
+
+  <section>
+    <div class="section-head">
+      <h2>Codex起動文 / Copy Prompt</h2>
+      <span class="section-note">Dashboardは入口、正本はMarkdown</span>
+    </div>
+    <div class="panel copy-prompt">
+      <p>迷ったらこのブロックをCodexへ貼る。Dashboardは入口、最終判断はMarkdown正本を見る。</p>
+      <div class="prompt-actions">
+        <button class="copy-button" type="button" data-copy-target="codex-start-prompt" aria-describedby="copy-prompt-status">Copy prompt</button>
+        <span class="copy-status" id="copy-prompt-status" aria-live="polite">JSなしでも下の本文を読めます。</span>
+      </div>
+      <pre><code id="codex-start-prompt" tabindex="0">作業前提:
+- 最初に AGENTS.md と PROJECT_CONTROL.md を読む。
+- STATUS_DASHBOARD.html は人間用ビューとして参照する。
+- STATUS_DASHBOARD.html は正本ではない。
+- 優先順位の確認には STATUS_DASHBOARD.html の「次にCodexへ投げるべきタスク」と「P0残タスク一覧」を使う。
+- 最終判断は PROJECT_CONTROL.md、docs/release/RELEASE_WBS.md、docs/ROADMAP.md、docs/HANDOFF.md のMarkdown正本に従う。
+- Markdown正本をHTMLへ置き換えない。
+
+今回の作業:
+STATUS_DASHBOARD.html の「次にCodexへ投げるべきタスク」から、最上位の未完了タスクを1つ選び、作業計画を立ててください。
+作業前に、関連するMarkdown正本を読んでください。
+コード変更する場合は、対象ファイル・テスト・禁止事項・完了条件を明示してください。
+最後に git diff --stat と git status --short を報告してください。</code></pre>
+    </div>
+  </section>
 
   <section>
     <div class="section-head">
@@ -856,5 +938,80 @@ details .inside {
     引き継ぎは <a href="docs/HANDOFF.md">docs/HANDOFF.md</a> を正本にする。
   </footer>
 </div>
+<script>
+(() => {
+  const button = document.querySelector("[data-copy-target]");
+  const status = document.getElementById("copy-prompt-status");
+
+  if (!button || !status) return;
+
+  const setStatus = (message) => {
+    status.textContent = message;
+  };
+
+  const selectPromptText = (target) => {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    target.focus();
+  };
+
+  const fallbackCopy = (text) => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.left = "-9999px";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    area.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(area);
+    return ok;
+  };
+
+  const writeClipboard = async (text) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (_error) {
+        // Fall through to the legacy path below.
+      }
+    }
+
+    return fallbackCopy(text);
+  };
+
+  button.addEventListener("click", async () => {
+    const target = document.getElementById(button.dataset.copyTarget);
+    const text = target ? target.textContent : "";
+
+    if (!text.trim()) {
+      setStatus("コピー対象が見つかりません。");
+      return;
+    }
+
+    try {
+      if (!await writeClipboard(text)) {
+        throw new Error("copy failed");
+      }
+      button.textContent = "Copied";
+      setStatus("起動文をコピーしました。");
+      window.setTimeout(() => {
+        button.textContent = "Copy prompt";
+        setStatus("JSなしでも下の本文を読めます。");
+      }, 1800);
+    } catch (_error) {
+      button.textContent = "Copy prompt";
+      if (target) selectPromptText(target);
+      setStatus("コピーできませんでした。本文を選択しました。");
+    }
+  });
+})();
+</script>
 </body>
 </html>
