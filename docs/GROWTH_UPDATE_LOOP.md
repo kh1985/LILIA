@@ -189,6 +189,7 @@ event_cardが現在sceneから外れた場合は、必要に応じて `story/sto
 scene終了後の `next_hook` を次回resume入口にする場合は、候補として `story/story_deck.md` に残すだけでなく、`current/scene.md` / `current/event_card.md` / `current/hotset.md` のactive stateへ昇格する。
 hotsetだけが次sceneへ進み、scene / event_card の上部active fieldsが前sceneのまま残る状態を作らない。
 昇格時は保存済みの情報だけを使い、active event_cardにない具体手がかりをresume 1ターン目で勝手に増やさない。
+active stateにない小道具、書類、連絡手段、識別情報、過去の控え類は、最初からそこにあったものとして足さず、必要ならscene内で今発見されたものとして扱い、次のSave Modeで保存候補に残す。
 
 ### `current/relationship_overview.md`
 

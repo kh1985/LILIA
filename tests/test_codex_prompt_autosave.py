@@ -51,6 +51,14 @@ def assert_hard_autosave_prompt(text: str, session_name: str | None = None) -> N
     assert "suggest saving but do not run apply-turn" not in text
 
 
+def assert_resume_grounding_prompt(text: str) -> None:
+    assert "resume first turn: do not introduce unstored concrete props" in text
+    assert "documents, contact methods" in text
+    assert "identifiers, prior records, or clue-results" in text
+    assert "unless active state names them" in text
+    assert "discovers them in-scene" in text
+
+
 def test_codex_prompt_bundles_require_scene_tick_and_apply_turn(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -62,6 +70,21 @@ def test_codex_prompt_bundles_require_scene_tick_and_apply_turn(
 
     assert_hard_autosave_prompt(lilia.build_codex_new_prompt_bundle(session))
     assert_hard_autosave_prompt(lilia.build_codex_resume_prompt_bundle(session))
+
+
+def test_resume_prompt_bundles_include_first_turn_grounding(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path / "saves")
+    session = write_session(tmp_path, "grounding_case")
+    prompt_path = tmp_path / "prompt.md"
+
+    assert_resume_grounding_prompt(lilia.build_resume_prompt_bundle(session))
+    assert_resume_grounding_prompt(lilia.build_codex_resume_prompt_bundle(session))
+    assert_resume_grounding_prompt(lilia.codex_interactive_instruction(prompt_path, "resume", session))
 
 
 def test_codex_interactive_instruction_branches_require_autosave_chain(

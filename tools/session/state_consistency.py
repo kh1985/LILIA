@@ -23,9 +23,15 @@ ACTIVE_STATE_FILES = [
 ]
 
 GROUNDING_GUARD_TEXT = (
-    "このevent_cardにない具体手がかりをPlay Modeで追加しない。\n"
-    "新しい手がかりを出す場合は、scene内で発見として明示し、"
-    "Save Modeでevent_card/story_deckへ保存候補として残す。"
+    "resume 1ターン目では、current/scene.md、current/event_card.md、current/hotset.md、"
+    "story/story_deck.md、lilia/main/memory.md、lilia/main/beliefs.md に明示されたものだけを"
+    "場面の具体手がかりとして使う。\n"
+    "story/story_deck.md は素材棚として参照し、active scene/event_card/hotsetに接続していない"
+    "背景化materialを、resume 1ターン目の新しい証拠として前景化しない。\n"
+    "active event_cardにない小道具、書類、連絡手段、識別情報、過去の控え類を、"
+    "最初からそこにあったものとして足さない。\n"
+    "新しい具体物を出す場合は、active event_card の First Concrete Action と矛盾せず、"
+    "scene内で今発見されたものとして明示し、Save Modeでevent_card/story_deck/memory候補として残す。"
 )
 
 

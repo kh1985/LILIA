@@ -85,6 +85,11 @@ RESUME_SESSION_FILES = [
 ]
 
 RESUME_PROFILE_FILE = "lilia/main/profile.md"
+RESUME_FIRST_TURN_GROUNDING_INSTRUCTION = (
+    "resume first turn: do not introduce unstored concrete props, documents, contact methods, "
+    "identifiers, prior records, or clue-results unless active state names them or the turn explicitly "
+    "discovers them in-scene."
+)
 
 DOWNSTREAM_SESSION_DOCUMENT_FILES = [
     "current/scene.md",
@@ -2698,6 +2703,7 @@ def build_resume_prompt_bundle(session_path: Path) -> str:
             if include_profile
             else "profile: omitted by default; read lilia/main/profile.md only for voice/personality drift or initial-core checks"
         ),
+        RESUME_FIRST_TURN_GROUNDING_INSTRUCTION,
         "note: --prompt-only only prints this bundle; if you are reading it inside an AI CLI, follow the mode instructions.",
     ]
     parts.extend(render_file(ROOT / rel) for rel in RESUME_PROMPT_FILES)
@@ -2762,6 +2768,7 @@ def build_codex_resume_prompt_bundle(session_path: Path) -> str:
         "mode: codex interactive resume\n"
         "instruction: This bundle is for continuing LILIA inside Codex interactive mode. "
         "Read the lightweight resume state, then continue one turn without resetting voice or relationship. "
+        f"{RESUME_FIRST_TURN_GROUNDING_INSTRUCTION} "
         "During normal play, do not edit story/state files or run git checks after every user turn. "
         "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
         "while the heroine may perceive only PLAYER_ACTION. "
@@ -2830,6 +2837,7 @@ def codex_interactive_instruction(prompt_path: Path, mode: str, session_path: Pa
     return (
         f"Read {prompt_path} and continue LILIA. "
         "Do not start AI Harness or autoplay. "
+        f"{RESUME_FIRST_TURN_GROUNDING_INSTRUCTION} "
         "During normal play, do not edit story/state files or run git checks after every user turn. "
         "For each player input, apply Player Input Boundary: line-start or whitespace-prefixed parentheses are GM-only inner monologue, "
         "while the heroine may perceive only PLAYER_ACTION. "

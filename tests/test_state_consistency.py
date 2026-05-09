@@ -13,7 +13,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/fixtures/stale_next_hook_session"
-FORBIDDEN_FIXTURE_CLUES = ["薄紙", "鉛筆", "店名", "住所"]
+FIXTURE_ONLY_UNSTORED_CLUES = ["薄紙", "鉛筆", "店名", "住所", "写真の裏の文字", "手元のメモ", "番号", "昨日の控え"]
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -76,9 +76,49 @@ def test_next_hook_promotion_aligns_active_scene_event_hotset(tmp_path: Path) ->
     assert "Backgrounded Event Card" in story_deck
 
     combined = "\n".join([scene, event_card, hotset])
-    for clue in FORBIDDEN_FIXTURE_CLUES:
+    for clue in FIXTURE_ONLY_UNSTORED_CLUES:
         assert clue not in combined
 
+    assert validate_state_consistency(session).status == "PASS"
+
+
+def test_promoted_event_card_uses_category_grounding_guard(tmp_path: Path) -> None:
+    session = copy_fixture(tmp_path)
+    next_hook = "翌日の夕方、依頼主に連絡がつかなかった件をもう一度確認に来てもらう。"
+
+    promote_next_hook_to_active_state(session, next_hook, "2026-05-09T23:30:00+09:00")
+
+    event_card = (session / "current/event_card.md").read_text(encoding="utf-8")
+    assert "Grounding Guard" in event_card
+    for phrase in ["小道具", "書類", "連絡手段", "識別情報", "過去の控え類", "今発見されたもの"]:
+        assert phrase in event_card
+
+    for clue in FIXTURE_ONLY_UNSTORED_CLUES:
+        assert clue not in event_card
+
+
+def test_next_hook_promotion_preserves_explicit_concrete_clues(tmp_path: Path) -> None:
+    session = copy_fixture(tmp_path)
+    next_hook = "翌日の夕方、昨日の控えを一緒に確認する。"
+    story_deck = session / "story/story_deck.md"
+    story_deck.write_text(
+        story_deck.read_text(encoding="utf-8").rstrip()
+        + "\n\n## Candidate Next Hook - 2026-05-09T23:30:00+09:00\n\n"
+        + next_hook
+        + "\n",
+        encoding="utf-8",
+    )
+
+    promote_next_hook_to_active_state(session, next_hook, "2026-05-09T23:30:00+09:00")
+
+    combined = "\n".join(
+        [
+            (session / "current/scene.md").read_text(encoding="utf-8"),
+            (session / "current/event_card.md").read_text(encoding="utf-8"),
+            (session / "current/hotset.md").read_text(encoding="utf-8"),
+        ]
+    )
+    assert "昨日の控え" in combined
     assert validate_state_consistency(session).status == "PASS"
 
 
@@ -110,7 +150,7 @@ def test_apply_turn_promotes_next_hook_when_active_sections_missing(
     assert "Grounding Guard" in event_card
     assert "前日の閉店間際" not in event_card
 
-    for clue in FORBIDDEN_FIXTURE_CLUES:
+    for clue in FIXTURE_ONLY_UNSTORED_CLUES:
         assert clue not in event_card
 
     assert validate_state_consistency(session).status == "PASS"

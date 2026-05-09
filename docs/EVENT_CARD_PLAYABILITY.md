@@ -154,6 +154,13 @@ Candidate Next Hook を次回sceneの入口に使う場合、`current/event_card
 resume 1ターン目では、active event_cardにない具体手がかりを勝手に追加しない。
 新しい手がかりを出す場合は、active event_card の First Concrete Action に「確認して新しい手がかりを発見する」余地があり、scene本文中で今発見されたものとして扱い、Save Modeでevent_card / story_deck / memory候補へ残す。
 
+#### Discovery Boundary
+
+Grounding Rule は新しい発見の禁止ではない。
+resume 1ターン目では、active event_card / scene / hotset / memory / beliefs に無い小道具、書類、連絡手段、識別情報、過去の控え類を、最初から場にあるものとして足さない。
+新しい具体物や手がかりは、active event_card の First Concrete Action から自然に発見されるものとして本文中で明示する。
+`story/story_deck.md` の背景化materialや Candidate Next Hook は素材棚であり、active fieldsへ昇格していない限り、resume 1ターン目の証拠として前景化しない。
+
 ## 6. Truth Hiding Boundary
 
 真相、裏事情、LILIAの本音のすべてをevent_cardで明かさない。
