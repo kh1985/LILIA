@@ -1,9 +1,14 @@
 # LILIA Roadmap
 
-この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
-思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、story / scene機能診断は `docs/STORY_FUNCTION_FRAMEWORK.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、relationship change auditは `docs/RELATIONSHIP_CHANGE_AUDIT.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex rollout logの運用は `docs/CODEX_ROLLOUT_LOGS.md` を正本にする。
-小規模商用化、WebUI有料ベータ、画像生成付きプレイ、BOOTH / DLsite / 月額モデルの検証順は `docs/release/COMMERCIALIZATION_ROADMAP.md` を正本にする。
-商用化、リリースWBS、実装履歴、AI Playtest Smoke は `docs/release/COMMERCIALIZATION_ROADMAP.md`、`docs/release/RELEASE_WBS.md`、`docs/archive/IMPLEMENTATION_HISTORY.md`、`docs/testing/AI_PLAYTEST_PLAN.md` を参照する。
+この文書は、LILIA開発の長期実装順、MVP境界、wave履歴を管理する正本である。
+現在地、直近タスク、βタスク表、商用方針をここへ重複させすぎない。
+
+- 現在地と優先順位: `PROJECT_CONTROL.md`
+- 直近引き継ぎ: `docs/HANDOFF.md`
+- βまでのタスク状態: `docs/release/RELEASE_WBS.md`
+- 商用MVP境界、Go / No-Go、画像・安全方針: `docs/release/COMMERCIALIZATION_ROADMAP.md`
+- 完了済み実装履歴の台帳: `docs/archive/IMPLEMENTATION_HISTORY.md`
+- 人間用ビュー: `STATUS_DASHBOARD.html`。正本ではない。
 
 ## 1. Goal
 
@@ -14,752 +19,247 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 官能・親密表現は削除対象ではない。
 成人・合意・相互性・境界線を必須条件にしつつ、身体距離、触れる/触れない境界、沈黙、呼吸、体温、余韻、aftercareをLILIAの主要体験価値として扱う。
 
-## 2. Current Position
-
-- concept / growth basis: 完了
-- save/resume 軽量読み順: 完了
-- startup分岐: 完了
-- state scaffold: 完了
-- style reference scaffold: 完了
-- Style Defaults / Intimacy Defaults Completion: 完了
-- New Session Initialization: 設計仕様完了 / Wave 12.1 / 12.2 で実生成コード接続済み（character YAML → AI profile → spines → 13 downstream docs）
-- Case / Event Card Playability Gate: 設計仕様完了 / テンプレート構造接続済み / Wave 14 で `tools/session/document_validator.py` に playability validator 実装済み（Visible Problem サブ項目、First Concrete Action サブ項目、Handles 2-4 個数、Next Visible Change サブ項目、Story Residue、未設定残存検出）
-- Relationship / Character Voice Continuity Gate: 設計仕様完了 / Wave 13 で `tools/session/voice_continuity_validator.py` に resume gate validator 実装済み（必須ファイル存在、呼び方根拠、core/voice 空検出、約束継続、relationship 進行語彙、GM only 漏洩）。第 1 版は soft fail（print 出力のみ、hard fail なし）
-- Romance / Intimacy Growth Loop: 設計仕様完了 / 実生成コード未実装
-- Resume Smoke Test: 手動smoke仕様完了 / 実生成コード未実装
-- Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / Wave Y-FでGM prompt上の scene-tick -> apply-turn 連鎖を必須化済み
-- Story / Relationship Accumulation Loop: docs正本化完了 / event/story_deck/profile初期生成コード接続済み / story_spine・relationship_spine は Wave 11 でAI駆動化済み / ましろ・つむぎ・全Qおまかせ smoke 通過
-- Story Function Framework: docs正本化。十五機能、三層構造、scene入口/出口の変化確認を、固定プロットではなくstory_spine / event_card / Play Mode / AI Playtestの診断として扱う
-- Three Hook Spine MVP: β前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook を持ち、脱線入力をどれかへ吸着させる。Lightweight Tempo Guard も含め、実装タスクは `docs/release/RELEASE_WBS.md` の `HOOK-001〜HOOK-007` を正本にする
-- Story Continuation / Travel Branch MVP: β前P0。初期story完了後の次arc生成、大移動branch、LILIA同行可否、未解決arc最大2本、100ターン級smokeを `docs/release/RELEASE_WBS.md` の `ARC-001〜ARC-007` で管理する
-- Story Reference Engine 強制導線: prompt 接続済み
-- 5層 self-understanding 参照導線: prompt 接続済み
-- Deepening Tags 評価基準: GROWTH_UPDATE_LOOP + relationship template 接続済み
-- Crisis / Combat / Ability Constraint Loop: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
-- Technical + Gameplay Integrity Checks: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
-- MVP Playtest: PASS with minor follow-up candidates / minor follow-up反映済み
-- Full Loop Manual Smoke: checklist追加済み
-- Launcher / CLI: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
-- Newgame Q&A Q1-Q9: ヒロイン基本（性格含む）/ 見た目 / 描写の縛り / 表と内の差 / 内面に持っているもの / 出会い + 関係起点 / 呼ばれ方 / 主人公の身体・格好・仕事 / 避けたい展開へ更新済み。interactive 1問ずつ表示と補足質問 flow は維持。
-- LILIA Persona Profile: character YAML 素材生成と AI-driven profile.md 生成導線を追加済み。Wave 12.2 で apply-newgame は character YAML 生成後に `generate_profile_document` を呼び、`current/story_spine.md` / `story/relationship_spine.md` をAI生成してから、`tools.session.document_generator.generate_session_documents` で13 downstream filesを生成する流れへ接続した。profile validation失敗は `ProfileGenerationError` で hard-fail。Q&A は Q1-Q9。First Scene Quality Gate に2項目追加済み。
-- Wave 1（散文層・キャラ会議変換）: 実装済み
-- Wave 2（echo拡張・decision_index）: 実装済み
-- Wave 3（50作品参考カタログ）: 実装済み
-- Wave 4（Structure / Pattern Reference Libraries）: 実装済み
-- Wave 5（story_spine導入）: 実装済み
-- Wave 6（Opening Scene & Heroine Appearance）: 実装済み
-- Wave 7（Newgame Q&A Refinement & Protagonist Profile）: 実装済み
-- Wave 8（Knowledge Boundary Management）: 実装済み
-- Wave 9（Root Cure: Examples / Fallback / Keyword / References / Validator / Logging）: 実装済み
-- Wave 10（Q&A Redesign with GM Supplementary Question Flow）: 実装済み
-- Wave 10.1（Q3-Q5 Independence Restoration）: 実装済み
-- Wave 10.2（Main Question Template Flexibility）: 実装済み
-- Wave 10.3（Fallback Field Quality + Knowledge Boundary Meta HIDDEN）: 実装済み
-- Wave 10.4（Protagonist Inner Monologue Boundary）: 実装済み
-- Wave 11（AI-driven Story / Relationship Spine Generation）: 実装済み
-- Wave 12.1（AI-driven LILIA Persona Profile Generation）: 実装済み。apply-newgame は character YAML 生成後に `tools.character.profile_generator.generate_profile_document` を呼び、AI 駆動で `lilia/main/profile.md` を生成する。`tools/character/profile_validator.py` が必須セクション、Q&A 丸写し、テンプレ語彙、フィールド充足を検証する。失敗時は `ProfileGenerationError` で hard-fail。
-- Wave 12.2（AI-driven Downstream Session Documents）: 実装済み。apply-newgame は spines 生成後に `tools/session/document_generator.py` を呼び、13 downstream files をAI生成する。`tools/session/document_validator.py` がテンプレ見出し、文崩壊、テンプレ表現、重複、Q丸写し、GM only漏洩、knowledge_state YAMLを検証する。
-- Wave 13（Voice Continuity Gate Validator）: 実装済み。`tools/session/voice_continuity_validator.py` を追加し、resume 入口と apply-turn 書き込み完了後に呼び出す。第 1 版は soft fail。pytest 3 件全 pass。session_002b 単独実行で error 0。
-- Wave 14（Event Card Playability Gate Validator）: 実装済み。`tools/session/document_validator.py` に `_check_event_card_playability` を追加。pytest 4 件追加で全 pass。session_002b 単独実行で error 0。
-- Wave 15（Engine Runner Refactor）: docs正本化。`docs/ENGINE_RUNNER.md` を追加し、LLM CLI runnerの責務、engine選択、timeout、generator境界、Play Mode境界を固定した。理由: character / profile / spine / downstream docs のAI CLI呼び出しが分散しているため、Player Action Prompt改修前に実行境界を揃える。
-- Wave Y-F（Auto-save Chain Closure）: prompt / CLI 改修完了。GM AI に毎ターン scene-tick を必須化し、`autosave_required: true` 到達時に Save Mode へ強制遷移させる。apply-turn 本体・scene-tick のカウンター処理・13ファイル責務分離は触らない。
-- Wave Y-G（Terminal Recording via script）: 廃止。`script` コマンドによるターミナル全体録音方式は、codex の TUI 再描画により ANSI エスケープシーケンスの嵐となって実用にならなかった。Wave Y-H で撤去し、codex 自身が `~/.codex/sessions/` に保存する rollout JSONL を opt-in コマンドでコピーする方式へ移行。
-- Wave Y-H（Codex Rollout Logs Archive）: 実装済み。Wave Y-G の `script` 録音方式を撤去し、代わりに `~/.codex/sessions/` の rollout JSONL を opt-in で `logs/codex_rollouts/` へコピーする `./lilia archive-codex-logs` コマンドを新設した。codex 自身が会話ログを構造化形式で永続保存しているため、LILIA は必要な時だけ取り寄せる方式へ移行する。
-- Growth Smoke / Long Growth MVP: 実装済み。`./lilia growth-smoke` / `long-growth` / `dev-growth` と menu 項目を追加し、複数segmentの transcript / judge report / aggregate `growth_summary.md` を `playtests/growth_runs/` に保存する。理由: 最高親密状態を直接作らず、浅い関係から会話・出来事・story arc・記憶候補・距離感が積み上がるかを軽量に観察するため。MVP境界として、normal persona のみ、会話履歴引き継ぎのみ、apply-turn / resume state更新と model指定は後続に残す。
-- Arc Closure Guard: 仕様追加。sceneの核成立後、余韻を1〜2ターンで閉じ、closure後はmemory候補 / next hook / 次arc候補へ接続する。長文低進行と余韻過多、同一モチーフ反復はAI Playtest Judgeで検出する対象にする。
-- 文豪シーン (literary scene situations): `style/defaults/scene_situations.md` を新規追加し、`prompt/core.md` から参照する形で接続済み。荷風 / 谷崎 / 川端 / 堀 / 鏡花 / 中島 / 賢治 + 路地裏 / 季節時間境界の 9 シチュエーション。Intimacy Stage との対応表あり。
-- Emotional Design Principles (8 原則): `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本として新規追加。`prompt/core.md` および `tools/character/profile_generator.py` / `tools/session/document_generator.py` / `tools/story/spine_generator.py` の生成 prompt に参照済み。
-- Hidden 深化ベクトル軸名修正: `templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）に説明文を追加。軸名を inner-galge 系統に戻した（親密 → 欲情、共有 → 共犯）。初期βでは通常進行メーターとして使わず、将来候補として `docs/ROMANCE_INTIMACY_GROWTH.md` と `docs/RELATIONSHIP_CHANGE_AUDIT.md` に記録。
-- LILIA Individual Name: `session.json` の `lilia_name` / `lilia_display_name` に作中名を保持
-- 旧LIRIA / inner-galge調査に基づく長期実装順の反映: 完了
-- 10 ターン到達時の autosave_required UX は Wave Y-F で「保存提案」から「GM の Save Mode 強制遷移」へ prompt 改修済み。次は実機プレイで scene-tick 毎ターン実行と apply-turn 発火を目視確認する。
-
-### Wave 4: Reference Libraries [完了]
-
-- `references/story_structure_stock.md` と `references/story_pattern_stock.md` を追加。
-- Event Creation Procedure §4 を3 reference対応に拡張。
-- Story Diagnosis セクション追加。
-
-### Wave 5: Story Spine [完了]
-
-- `templates/session/story/story_spine.md` を追加した（Wave 11で削除済み）。
-- newgameで `current/story_spine.md` を初期生成した（Wave 11以降はAI駆動）。
-- Story Spine Awareness（prompt/core.md）を追加。
-- Event Creation Procedureと連携。
-- save / apply-turn連携。
-- responsibility separation: relationship_spine vs story_spine。
-
-### Wave 6: Opening Scene & Heroine Appearance [完了]
-
-- `prompt/opening_scene.md`（初回登場、最大気合い）。
-- `style/defaults/heroine_appearance.md`（毎回登場、状態 + シンボル繰り返し）。
-- `prompt/core.md` に Scene Entry Check。
-- `prompt/newgame.md` に opening_scene参照。
-
-### Wave 7: Newgame Q&A Refinement & Protagonist Profile [完了]
-
-- Q1-Q8 に再設計（LILIA構造への直接マップ）。
-- `templates/session/protagonist.md` を追加。
-- 主人公の身体情報のみ保存（内面はプレイで立ち上がる）。
-- `prompt/opening_scene.md`、`style/defaults/heroine_appearance.md`、`prompt/core.md` に protagonist 連携。
-
-## Wave 8: Knowledge Boundary Management [完了]
-- templates/session/knowledge_state.md
-- fictional_status 4種類 (meta / observable / shared / gm_only)
-- newgame で初期化、Save Mode で更新
-- prompt/core.md に Knowledge Boundary Awareness と Authorship Boundary
-- 既存ファイル（memory, echo, decision_index, story_spine, protagonist, profile）と連動
-
-## Wave 9: Root Cure — Examples / Fallback / Keyword / References / Validator / Logging [完了]
-- prompt/templates の具体例を構造プレースホルダへ寄せ、literal copy禁止の見出しを追加。
-- opening_scene の良い例を具体sceneから Part 1-3 の構造説明へ置換。
-- style defaults は雨 / 夕暮れ / 路地に偏らない複数軸例へ分散。
-- story_pattern_stock / story_structure_stock は旧セッション固有名・固有傷・固有sceneを外し、主要箇所に `[ヒロインA]` 形式のplaceholder例を3つ以上追加。
-- `FALLBACK_LILIA_NAMES` と keyword → literal fallback を廃止し、profile / answers 抽出と placeholder fallback に寄せた。
-- apply-newgame 最終段に omakase / hardcoded literal validator を追加した。検知時は再推論を試し、失敗時は placeholder 化してログへ警告する。
-- `logs/apply_newgame_*.log` / `logs/apply_turn_*.log` を追加した。プレイ本文とAI出力本文は保存しない。
-- autosave report: `scene-tick` は `session.json` の autosave counter を進めるだけで、自動保存や `apply-turn` 実行はしない。`apply-turn` 後に counter をリセットする。Wave 9 では報告のみで未修正。
-
-## Wave 10: Q&A Redesign with GM Supplementary Question Flow [完了]
-- Newgame Q&A を8問から6問へ再設計。
-- Q1 に性格を追加し、Q2 に見た目（髪型・髪色・目・体型・服装）を追加。
-- Q3 は描写の縛り / 表と内の差 / 過去の傷 / 避けたい展開を受ける自由欄へ統合。
-- Q4 は最初の出会い + 関係性の起点、Q5 は主人公の身体・格好・仕事、Q6 は呼ばれ方。
-- `./lilia new` のデフォルトを interactive flow にし、`--prompt-only` batch mode は維持。
-- GM 補足質問は必須欠落または抽象表現のみの場合に各 Q 最大1回だけ行う。「おまかせ」「特になし」は尊重する。
-- profile template と生成 profile に appearance / body / outfit の受け皿を追加。
-
-## Wave 10.1: Q3-Q5 Independence Restoration [完了]
-- Wave 10 の自由欄統合だけを巻き戻し、Newgame Q&A を9問へ更新。
-- Q1 性格、Q2 見た目、Q8 主人公仕事、interactive flow、GM補足質問は維持。
-- Q3 描写の縛り、Q4 表と内の差、Q5 過去の傷を独立させ、それぞれ profile / story_spine の特定フィールドへ直接写像する。
-- Q2 appearance parsing を補強し、hair_style / hair_color、body / outfit の混同を避ける。
-- 旧8問 answers.md と Wave10の6問 answers.md は互換形式として引き続き受ける。
-- Q5 の主人公仕事を protagonist.md / knowledge_state.md へ接続。
-
-## Wave 10.2: Main Question Template Flexibility [完了]
-- Q5 を「内面に持っているもの」へ改名し、傷・癖・特徴・職業的なもの・葛藤を受けられるようにした。
-- story_spine の Main Question を5パターン（傷の治癒 / 選択 / 発見 / 変化 / 葛藤）へ拡張した。
-- Reveal Ladder / Background Truth / Pressure Direction も選択パターンに合わせて生成する。
-- 殺し屋・組織人・特殊職などを、必ず「傷を抱えて扱い直す」構文へ押し込まない。
-
-## Wave 10.3: Fallback Field Quality + Knowledge Boundary Meta HIDDEN [完了]
-- Q3 omakase fallback で `everyday anchors.よく触る物` に身体特徴や服装が入らないよう、持ち物・アクセサリー・小物だけを抽出対象にした。
-- Q4 omakase fallback で `contradictions.裏` に生活設定や持ち物リストが入らないよう、内面的な状態・感情・反応パターンだけを抽出対象にした。
-- resume / apply-turn 用 context では、ヒロインが知らない `knowledge_state.md` の meta 値を `[HIDDEN until shared in scene]` に置換し、服装や姿勢から推測して言い当てる経路を塞いだ。
-- 既存セッションのファイル自体は retrofit しないが、次回 context 構築時から meta HIDDEN が効く。
-
-## Wave 10.4: Protagonist Inner Monologue Boundary [完了]
-- 行頭または半角空白/タブ直後の `（...）` / `(...)` を主人公の内心として扱い、語の直後の括弧は補足として行動側に残す。
-- `prompt/core.md` に `[PLAYER_INNER_MONOLOGUE - GM_ONLY]` と `[PLAYER_ACTION]` の境界を追加し、ヒロインが内心の語彙や内容を台詞・反応に使わないようにした。
-- `./lilia format-input` でプレイヤー入力を同じ境界形式へ整形できるようにした。
-- `docs/PLAYER_INPUT.md` を追加し、行動、内心、補足括弧の書き分けをユーザー向けに説明した。
-
-## Wave 11: AI-driven Story / Relationship Spine Generation [完了]
-- `tools/story/spine_generator.py` と `tools/story/spine_validator.py` を追加し、`./lilia apply-newgame` の `current/story_spine.md` / `story/relationship_spine.md` 生成をAI駆動へ移行した。
-- generator は Q1-Q9 と生成済み character YAML を読み、`references/story_pattern_stock.md` から1-2パターン、`references/story_structure_stock.md` から1構造を選んで両spineを書く。
-- prompt投入前に参照棚から観察作品行や具体例を取り除き、validatorで作品名literal混入、必須セクション欠落、空欄回避、文崩壊、同一フレーズ反復、Q1丸写しを検査する。
-- invalid時は最大2回再生成し、3回失敗したら `apply-newgame` を失敗させる。壊れたspineは保存しない。
-- `templates/session/story/story_spine.md` と `templates/session/story/relationship_spine.md` は削除した。既存セッションへのretrofitはしない。
-- `current/knowledge_state.md` の story_spine 由来項目は、最終AI生成された story_spine から同期する。
-- ましろ、つむぎ、全Qおまかせの新規smokeで生成と validator pass を確認した。
-
-## Wave 12.1: AI-driven LILIA Persona Profile Generation [完了]
-- `tools/character/profile_generator.py` と `tools/character/profile_validator.py` を追加し、`./lilia apply-newgame` の `lilia/main/profile.md` 生成をAI駆動へ移行した。
-- generator は Q1-Q9 の回答と生成済み character YAML を入力にして、必須セクション (基礎情報、appearance、tone、personality、values、everyday anchors、memories、contradictions、unspoken、Layer構造、relationship progression 等) を埋めた `profile.md` を生成する。
-- validator は必須セクション欠落、Q&A 丸写し、テンプレ語彙混入、フィールド充足を検査する。
-- invalid 時は最大 2 回再生成し、3 回失敗したら `apply-newgame` を失敗させる。壊れた profile は保存しない。
-- `scripts/lilia_character_to_profile.py` (1415 行) を削除。pydantic 不在 fallback を `tools/character/core/simple_schema.py` に退避。
-- session_010 / session_011 / 全 Q おまかせの apply-newgame smoke で生成と validator pass を確認した。
-
-## Wave 12.2: AI-driven Downstream Session Documents [完了]
-- `tools/session/document_generator.py` と `tools/session/document_validator.py` を追加し、`./lilia apply-newgame` の 13 downstream files (Group A/B/C) 生成を AI 駆動へ移行した。
-- Group A (5 files): `current/scene.md`, `current/event_card.md`, `current/hotset.md`, `current/relationship_overview.md`, `story/story_deck.md`
-- Group B (6 files): `lilia/main/core.md`, `lilia/main/voice.md`, `lilia/main/state.md`, `lilia/main/relationship.md`, `lilia/main/memory.md`, `lilia/main/beliefs.md`
-- Group C (2 files): `current/protagonist.md`, `current/knowledge_state.md`
-- generator は profile / character YAML / 両 spine / Q&A を入力にして 13 ファイルを生成する。
-- validator はテンプレ見出し、文崩壊、テンプレ表現、重複、Q&A 丸写し、GM only 漏洩、knowledge_state YAML を検査する。
-- 旧穴埋め関数 (`render_profile_initialized_documents`, `render_protagonist_document`, `render_knowledge_state_document`, `render_newgame_documents`) を削除。
-- session_002b の apply-newgame で 13 ファイル全部の AI 生成と validator pass を確認した。
-
-## Wave 13: Voice Continuity Gate Validator [完了]
-- `tools/session/voice_continuity_validator.py` を新規追加。`docs/VOICE_CONTINUITY.md` の §6 Resume Gate と §9 Gate Failure Conditions に基づく弱い機械チェックを実装した。
-- 公開関数 `validate_voice_continuity(session_root: Path) -> list[str]` が 6 種類のチェックを実行する: 必須ファイル存在、呼び方の根拠（voice.md と hotset.md）、core fixed の存在（core.md / voice.md が空でないこと）、約束継続（decision_index.md と hotset.md の連動）、relationship 進行語彙の暫定検査、GM only 漏洩の継続検査。
-- `lilia` の resume 入口と apply-turn 書き込み完了後で呼び出す。第 1 版は soft fail（print 出力のみ）で、既存セッションの想定外失敗を避ける。hard fail への切り替えは将来の Wave で別途検討する。
-- `tests/test_voice_continuity_validator.py` に 3 ケース (`test_validator_reports_missing_required_file`, `test_validator_reports_empty_voice_md`, `test_validator_pass_for_minimal_valid_session`) を追加。pytest 全 pass。
-- session_002b に対する単独実行で error 0 を確認。
-- 未確定事項として、呼び方の厳密文字列比較、relationship 進行語彙リストの正本化、decision_index と hotset の詳細マッチ、core fixed と volatile の意味的矛盾検出が残置されている（LLM judgment 領域として保留）。
-
-## Wave 14: Event Card Playability Gate Validator [完了]
-- `tools/session/document_validator.py` に `_check_event_card_playability` を新規追加。`docs/EVENT_CARD_PLAYABILITY.md` の §4 Required Fields と §5 Gate Conditions に基づく検査を実装した。
-- 6 種類のチェック: 必須セクション (`## 表の出来事` / `## Relationship Stake` / `## If Ignored` / `## Next Visible Change` / `## 揺れるLILIA` / `## その出来事がLILIAに刺さる理由` / `## 関係に残る変化`) の `- 未設定` 残存検出、Visible Problem サブ項目 3 個の充足、First Concrete Action サブ項目 3 個の充足、Handles 2-4 が 2 個未満なら error、Next Visible Change のサブ項目充足、Story Residue 4 項目のうち 1 個以上の充足。
-- `validate_session_documents` の末尾で呼び出す。既存 checker (`_check_required_sections` 等) のロジックは変更せず、新規 checker の追加のみ。
-- `tests/test_session_document_validator.py` に 4 ケース (`test_validator_rejects_event_card_with_unfilled_visible_problem`, `test_validator_rejects_event_card_with_only_one_handle`, `test_validator_rejects_event_card_with_remnant_unfilled_marker`, `test_validator_pass_for_session_002b_event_card`) を追加。pytest 全 pass。
-- session_002b に対する単独実行で error 0 を確認。
-- 本 Wave では `Crisis / Ability Check`, `Intimacy / Boundary Check`, `Truth Hiding Boundary` のサブ項目は検査対象外。それぞれ専用 Wave で別途扱う。
-
-## Wave 15: Engine Runner Refactor [完了]
-
-- `docs/ENGINE_RUNNER.md` を追加し、LLM CLI runnerの責務を正本化する。
-- runner は `codex` / `claude` の選択、fallback、timeout、stdout取得、process終了だけを担当する。
-- character YAML、profile、story spine、downstream docs の parse / validation / retry / hard-fail は各 generator に残す。
-- `auto` の既定優先、`LILIA_DEFAULT_ENGINE`、`LILIA_ENGINE_TIMEOUT_SECONDS` の扱いを最小仕様として固定する。
-- Engine Runner 第2ホットフィックスで、一般生成の `auto` は未設定時 codex 優先へ変更した。character YAML 生成段だけは `LILIA_CHARACTER_ENGINE` 未設定時 claude 優先を維持する。
-- `codex exec --cd` は repo root ではなく空の一時ディレクトリを渡す。codex の cwd 自動context読み込みで docs / prompt が膨張する問題を避けるため。空ディレクトリは git repository ではないため `--skip-git-repo-check` も渡す。
-- engine候補は `shutil.which()` で検出できた CLI のみに限定する。
-- `tools/common/engine_runner.py` を追加し、各 generator と launcher の CLI 実行を共通化した。
-- `apply-newgame` は `apply_newgame_phase` による checkpoint resume と `--force` 再生成に対応した。
-- downstream docs の group A / B / C は `ThreadPoolExecutor(max_workers=3)` で並列生成する。
-- Play Mode中の通常応答、AI Harness、自動プレイ、大量ログ解析、bench は対象外。
-- 理由: AI生成経路のCLI呼び出しが複数箇所に分散しているため、次のprompt改修前に実行境界を小さく揃える。
-
-## Wave 16: Opening Pattern Stock Integration [完了]
-
-- `references/opening_pattern_stock.md` を初回scene生成へ接続した。
-- `tools/common/references.py` を追加し、reference Markdown から観察作品行や具体例を取り除く sanitizer を共通化した。
-- `tools/session/document_generator.py` の group A prompt が sanitized opening stock を読み、`current/scene.md` の `## Opening Plan` を生成する。
-- `Opening Plan` は A群1 + D群1を必須にし、B群またはC群を最大1つだけ任意追加する。
-- `Opening Plan` には selected_patterns、selection_reason、must_include、4_jobs、clarity_anchors、opening_caveats を保存する。
-- `prompt/opening_scene.md` は Opening Plan と opening_pattern_stock を読み、8〜15文の冒頭へ変換する。O14 では発見の瞬間から始め、助けた後から始めない。
-- `tools/session/document_validator.py` に soft warning の opening plan consistency check を追加した。既存セッションに `## Opening Plan` が無くても resume を壊さない。
-- `docs/OPENING_SCENE_GENERATION.md` を追加し、Q&A → Opening Plan → first scene 出力 → 4_jobs / clarity self-check の流れを正本化した。
-- 理由: 桜セッションのように、ヒロイン描写だけが濃く、主人公の職業・目的・場所・関係性が読めない冒頭を避けるため。
-
-## Wave Y-B1: ヒロイン第一反応情報の抽象レベル分離 [完了]
-
-- `tools/session/document_generator.py` の group A / group B / 共通生成promptに、第一反応系セクションの抽象レベル分離ルールを追加した。
-- 分離軸は、voice.md = 永続的な癖、state.md = 今だけの気分、event_card.md First Concrete Action = 場面の最初のトリガー、hotset.md = 再開キャッシュ、scene.md 直前のやりとり = 物理事実。
-- `prompt/opening_scene.md` と `prompt/core.md` に、5ファイルの似た反応情報をチェックリスト扱いせず、今のターンでは自然な行動か問いを1つだけ表に出す読み取りルールを追加した。
-- 物理ファイル統合やテンプレート変更は行わない。効果測定後、改善が不十分な場合だけ Wave Y-B2（物理統合）を検討する。
-
-## Wave X-4: Opening Plan / clarity_anchors Hard Requirement [完了]
-
-- Wave X-3 Opening Plan の `clarity_anchors` は、初回scene本文の外側に置く確認項目ではなく、冒頭本文へ必ず織り込む必須要素として扱う。
-- `prompt/opening_scene.md` は soft check ではなく hard requirement として、主人公の職業・目的・場所・関係性が冒頭本文から読めるようにする。
-- 採用元は Wave 16 の `Opening Plan` / `clarity_anchors` と、Wave Y-B1 の「反応情報を自然な行動・問いへ変換する」読み取りルール。
-- 採用しないもの: `tools/session/document_generator.py` の生成経路変更、`prompt/core.md` の追加改修、物理ファイル統合、Opening Plan 専用 validator の hard fail 化。
-- 理由: 初回sceneがヒロイン描写だけで濃くなり、主人公の職業・目的・場所・関係性が読めない冒頭へ戻ることを防ぐため。
-
-## Wave Y-C: Heroine Entrance Density Profile / Opening Requirements [完了]
-
-- ヒロイン初登場の密度を、`profile.md` の「描写の縛り」拡張と、`prompt/opening_scene.md` Part 2 の multi-axis requirements によって強化する方針を追加した。
-- `profile.md` の「描写の縛り」は、単一の物的アンカーだけでなく、見た目、所作、職能、生活痕、距離感、矛盾、触れられたくない境界が初登場で自然に立ち上がるための参照束として扱う。
-- 初回scene Part 2 では、ヒロインの姿だけを濃くするのではなく、主人公の職業・目的・場所・関係性、event_card入口、Opening Plan の `clarity_anchors` と同時に読める多軸描写を必須にする。
-- 官能性は、露出やフェティッシュ項目の粗い列挙ではなく、表/内、近づく/止まる、見せる/隠す、職能/弱さなどの二軸の緊張と矛盾として表現する。
-- 採用元は inner-galge の `cast/heroine/<name>.md` にある「描写の縛り」構造。具体語やキャラ配置は移植せず、初登場時に毎回効く観察軸と縛りの構造だけをLILIA向けに採用する。
-- 互換性: 旧 `profile.md` 構造は引き続き有効。既存セッションの自動 migration は行わない。`--force` 再生成を使う場合のみ、新しい `profile.md` 形式を生成できる。
-- 採用しないもの: `docs/HANDOFF.md` 更新、`prompt/core.md` 改修、`style/defaults/heroine_appearance.md` 改修、`tools/session/document_generator.py` 改修、`prompt/opening_scene.md` 改修、templates変更、tests追加。
-- 理由: 初回登場で「何者か」「どこにいるか」「主人公と何が起きているか」「何に惹かれ、何が危ういか」を同時に読めるようにしつつ、LILIAを露骨な属性リストや所有物として扱わないため。
-
-## Wave Y-D: Example Anchoring Control Generator Reference [完了]
-
-- `prompt/core.md` の `Example Anchoring Control` 対象カテゴリを、描写の軸、Manifestation Anchors、仕草、匂い、声、身体表現まで拡張した。
-- `tools/common/example_anchoring.py` を追加し、`prompt/core.md` の `## Example Anchoring Control` セクションを source of truth として読み出せるようにした。
-- `tools/character/profile_generator.py` は、生成promptの入力素材より前に Example Anchoring Control を inline 埋め込みする。
-- Wave Y-C で追加した profile_generator 内の literal 禁止文言は移行期の安全策として残す。削除は動作確認後の別 Wave で検討する。
-- 採用しないもの: `tools/session/document_generator.py` / `tools/story/spine_generator.py` への導入、Example Anchoring Control の別ファイル分離、`prompt/startup.md` 変更、`docs/HANDOFF.md` 更新。
-- 理由: 今後の Wave 指示書で literal 禁止ルールを重複記述せず、トップレイヤーの共通原則を generator 側にも届かせるため。
-
-## Wave Y-F: Auto-save Chain Closure [完了]
-
-- scene-tick -> apply-turn の自動連鎖を prompt 運用として閉じた。
-- GM AI に通常プレイ毎ターン後の `./lilia scene-tick <session>` を必須化し、`autosave_required: true` 到達時に次のプレイ応答前の Save Mode 遷移、`turn_update.md` 作成、`./lilia apply-turn <session> <turn_update.md>` 実行を要求する。
-- `scene-tick` 出力は `SAVE REQUIRED` の必須トーンへ強化した。
-- 採用元は既存の autosave counter / `scene-tick` / `apply-turn` 設計、Growth Update Loop の「変わったものだけ保存する」原則。
-- 採用しないもの: `apply-turn` 本体変更、`scene-tick` カウンター処理変更、13ファイル責務分離変更、session.json autosave構造変更、新コマンド追加、生ログ archive/logs/ 保管、`docs/HANDOFF.md` 更新。
-- 理由: session_005 で見えた「scene-tick が任意」「autosave_required 到達後も手動保存提案止まり」という設計倒れを、prompt 改修と出力メッセージ強化だけで抜けるため。
-
-## Wave Y-G: Terminal Recording via script [廃止]
-
-- `script` コマンドによるターミナル全体録音方式は廃止する。
-- 実機検証で codex の TUI 再描画が ANSI エスケープシーケンスごと録音され、読める会話ログとして実用にならないことが分かった。
-- Wave Y-H で script wrapping 関数、terminal recording 用のinteractive launch引数、recording用CLIフラグ、recording tests、旧terminal log形式docを撤去する。
-- 採用しないもの: terminal raw transcript の自動保存、ANSI掃除、log rotation、古いlog自動削除、AI要約、cross-session統合log、Web UI、検索機能、Windows専用録音。
-- 理由: LILIA がリアルタイム録音する必要はなく、codex 自身が構造化された rollout JSONL を保持しているため。
-
-## Wave Y-H: Codex Rollout Logs Archive [完了]
-
-- Wave Y-G の `script` 録音方式を撤去し、`codex-new` / `codex-resume` は Wave Y-F の直接 interactive 起動へ戻した。
-- `./lilia archive-codex-logs` を追加した。
-- このコマンドは `~/.codex/sessions/` の `rollout-*.jsonl` を探索し、先頭行の `session_meta.payload.cwd` が LILIA repo root と一致するものだけを `logs/codex_rollouts/<YYYY>/<MM>/<DD>/` へコピーする。
-- 既存ファイルはスキップし、何度実行しても安全な opt-in archive として扱う。
-- `docs/CODEX_ROLLOUT_LOGS.md` を追加し、codex rollout JSONL の場所、取り込みコマンド、読み方、容量、元データの扱いを記録した。
-- 採用元は Wave Y-F の実機目視確認需要、LIRIA の archive 分離思想、codex 自身の構造化 rollout JSONL。
-- 採用しないもの: 自動コピー、JSONL から Markdown への変換、検索専用コマンド、gzip 圧縮/rotation、cwd フィルタ無効化、時間範囲指定、`apply-turn` / `scene-tick` / Wave Y-F 自動連鎖の変更、`docs/HANDOFF.md` 更新、prompt変更。
-- 理由: 普段のPlay Modeを邪魔せず、必要な時だけ構造化ログを取り寄せられるようにするため。
-
-## 候補（優先度順、確定）
-
-- Wave 17: Player Action Prompt 改修（GM 応答末尾に「→ どうする？」を添える。選択肢提示は将来の Wave で別途設計）。`prompt/core.md` または `prompt/save_resume.md` を編集対象とする。
-
-## 候補（中期、優先度順、未確定）
-
-- 漫画化 (1 枚絵)。
-- 能力 / 異界 / 組織。Crisis / Combat / Ability Constraint Loop の実生成コード接続。
-- Romance / Intimacy Growth Loop の実生成コード接続。
-- Story / Relationship Accumulation Loop の動的生成（現在は静的接続のみ）。
-- 複数ヒロイン。
-- 共同体 / 生活 / ビジネス。
-- NPC 知識管理 (knowledge_state 拡張)。
-- ステータス可視化 (HP / 残回数等の概念導入)。先に「LILIA における役割と HP の概念」を docs に追加する必要がある。
-- 行動選択肢 3 つ提示の基準設計。
-- Hidden 深化ベクトル運用ロジック確定: `templates/session/lilia/main/relationship.md` の 6 軸は将来候補として保持するが、初期βでは通常進行メーターとして使わない。関係変化は `docs/RELATIONSHIP_CHANGE_AUDIT.md` に従い、文字情報で監査する。0-5 の各値の定義、Intimacy Stage との連動、上がり方の目安リストは中期再検討。
-- Deepening Tags（深化タグ）実装: inner-galge にあるデフォルト 14 タグ（初夜、秘密の共有、個人ストーリー解決、能力共鳴、同行宣言、摩擦の処理、共同体合意、役割確立、他者の席の承認、情報共有合意、不在時連携、離脱自由の確認、裏切りと復縁、新たな秘密）と、ヒロインごとの追加機構の実装。LILIA の relationship.md に枠は記述済みだが、デフォルトリストとヒロイン追加機構は未実装。
-- Intimacy Stage / Consent Stage / Boundary State の機械チェック: `tools/session/voice_continuity_validator.py` に Intimacy Stage 名値検査を追加する。Wave 13 の保留事項として記録済み。
-- 軽量 Integrity Audit Tool: `INTEGRITY_AUDIT_20260505.md` を生成した手順を `tools/audit/integrity_audit.py` として定型化し、コマンド一発で再実行できる状態にする。GraphRAG はオーバースペックと判定済み（中期再検討）。
-- プレイヤー宣言応答ルール: inner-galge `prompt/runtime.md` line 376 の「プレイヤーが所持品 / 能力 / 行動を宣言したら世界の事実として結果を返せ」を LILIA に持ち込むかの設計判断。範囲限定（主人公の所持品 / 能力 / 行動のみ、ヒロインの内面 / 態度 / 好意は対象外）にすれば CORE_CONCEPT と両立可能との見立て。要設計詰め。
-- ダイス機構（世界事象のみ）: TRPG 的なランダム性を導入する。実装は `tools/session/dice.py` 等で Python `random` を使った軽量処理。適用対象は世界事象（白衣が間に合うか、雨が降るか、客が来るかなど）のみ。ヒロインの態度 / 好意 / 内面は対象外（CORE_CONCEPT 違反）。何面ダイス、確率の塩梅、適用シーンの基準、結果の物語反映方法は未確定。
-- GraphRAG（中期再検討）: 複数ヒロイン Wave 実装後、または 1 セッションが 30+ チャプターに伸びた後に再検討。現状は LILIA のスケール（13 ファイル ~数千トークン）に対してオーバースペック。代替として軽量 Integrity Audit Tool を先に整備する。
-
-## 残機能リスト（完全版）
-
-### Wave 系 PENDING（LILIA で議論済み）
-
-- Wave Y-E: document_generator / spine_generator への Example Anchoring Control 導入
-- Wave Y-A: テンポ管理ルール（inner-galge runtime.md からの移植）
-- JSONL → Markdown 変換（codex rollout の可読化ツール）
-
-### 複数ヒロイン管理（inner-galge harem.md 由来）
-
-- ハーレム管理システム（current/harem.md の LILIA 版：全ヒロイン現在値、関係フック、約束体系の一元管理）
-- Hidden 深化ベクトル運用（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗の 6 軸。初期βでは非運用、深い関係到達後の将来候補）
-- ヒロイン間ベクトル（同席・共同生活・嫉妬刺激・秘密偏在による関係変化の追跡）
-- 共同体エンド進捗管理（共同体合意 / 役割確立 / 他者の席の承認 / 情報共有 / 離脱自由の確認）
-- 共同体憲章（恐怖ではなく合意でつながる関係のルール体系）
-- 待機ヒロインの拠点配置（拠点ごとにいるヒロインが変わり、訪問先選択がゲーム性を持つ）
-
-### 経営・お金回り（inner-galge runtime.md 依頼＆商売システム由来）
-
-- 依頼システム（護衛 / 討伐 / 調査 / 調達 / 仲裁 / 裏仕事の 6 種、報酬・リスク管理）
-- 商売ルール（特産品・需要品の売買、商才ステータス、取引判定）
-- 相場変動（疫病・戦乱・祭りなどイベント連動の需給変動）
-- 名声システム（街ごとの名声 0-10、依頼獲得・VIP面会・裏依頼の解放条件）
-- 拠点システム（購入・借用・イベント獲得、安全休息・ロマンスシーン・荷物保管）
-- 投資システム（倉庫 / 宿屋 / 店舗 / 工房 / 診療所の建設、定期収入と名声効果）
-- 所持金・通貨管理（世界観に合わせた通貨単位と収支追跡）
-
-### 世界・異界設定（inner-galge LIRIA_world_foundation.md / runtime.md 由来）
-
-- 世界の二重構造（表の現実社会 + 裏の異形・局所異界・オーパーツ層）
-- 世界の動的拡張（地図を描け、空白を残せ：開始時は最小限、プレイ中に拡張するルール）
-- 局所異界の段階的開示（部屋→区画→領域→世界）
-- 探索の段階化（情報収集→下見→踏み込み→奥部→帰還の 5 段階）
-- World Autonomy / Pressure Loop（放置した出来事が小さな圧として戻る自律世界進行）
-
-### 敵・組織・NPC 系（inner-galge villain_engine.md / runtime.md 由来）
-
-- 勢力クロック（複数勢力の水面下進行、4-6 段階、GM 内部管理、段階ごとの予兆・顕在化・圧）
-- 勢力同士の干渉ルール（加速 / 停滞 / 利用 / 露見の 4 種、連鎖最大 2 勢力）
-- 勢力浮上システム（0/4 で待機→浮上条件達成で段階的に表出）
-- villain_design.md（敵キャラの参照→抽象→再具体化の 3 段階設計プロセス）
-- 敵登場時の最低条件（被害 / 脅し / 監視 / 介入 / 誘い / 誤解 / 殺意の 7 種から最低 1 つ残す）
-- ロマンス時間への制約（敵はデート中に乱入しない、前後に通知・噂・痕跡として返す）
-- NPC Tiering（Tier 1 一時接触 → Tier 2 場面 → Tier 3 再登場 → Tier 4 キーNPC、段階的昇格）
-- NPC 昇格条件と保存先（cast/npc/ への昇格処理、ヒロインへの昇格条件）
-
-### 3 本フック運用（inner-galge runtime.md 由来）
-
-- 3 本フック並列管理（メイン脅威 / ヒロイン関係 / 探索・依頼・金の 3 方向）
-- 戦闘フック定義（1-2 シーン以内に combat / 逃走 / 防衛 / 突破で処理される直接圧）
-- 異形接触フックの最低圧（身体 / 拠点 / 退路 / 記憶 / 夢 / 守る対象への圧を伴う）
-- 当事者性の設計（プレイヤーが「行かなきゃ」と思える条件の 4 パターン）
-- 選択コストの見える化（1 本を追うと残りが悪化する構造）
-- タイプの被り禁止（3 本とも戦闘系・恋愛系にしない）
-
-### 戦闘・能力系（inner-galge combat.md / runtime.md 由来）
-
-- HP / コンディション管理（部位別ダメージ、非戦闘での HP 減少ルール）
-- 速度順ターン制（戦闘システムの基本構造）
-- 能力の成長と変化（使用→経験→変質の成長ルール）
-- 能力封印運用（事業・街中・公共物・他人の所有物には使わないルール）
-- Ability / Intimacy Resonance 起動（profile.md に status: dormant で枠あり）
-- Crisis event_card 連携（危機をイベントとして扱い、cost / trace / relationship risk を追跡）
-
-### 関係・親密系（LILIA docs / inner-galge 由来）
-
-- Deepening Tags 機械チェック（解放条件の自動評価、デフォルト 14 個 + ヒロイン追加）
-- Intimacy Stage 機械チェック（関心 / 動揺 / 亀裂 / 信頼と合意 / 深化の validator 未実装）
-- Aftercare Memory の運用（親密シーン後の保存・参照ルール）
-- Boundary Promise の追跡（約束・拒否・保留の自動チェック）
-- Multi-Relationship / Jealousy Profile の運用（profile.md に status: latent で枠あり）
-- 内面診断フィードバックシステム（ユング / エニアグラムベースの 3 段階フィードバック）
-- ランダムイベントシステム（判定タイミング・方法、ラッキースケベ運用含む）
-
-### 品質・ツール系
-
-- 軽量 Integrity Audit（セッション中の世界・キャラ一貫性チェック）
-- Resume Smoke Test の自動化（再開時の整合性チェック）
-- GraphRAG 再検討（記憶検索の構造化）
-- group_b の 187s ボトルネック最適化（apply-newgame の生成速度）
-- Story Reference Engine 群（8 種のエンジン概念定義のみ）
-- 品質自動検証（入力→応答の自動テスト、リグレッション検知、Wave 効果測定の自動化）
-
-## 設計保留事項 (Pending Decisions)
-
-以下は実装の前に設計判断が必要な項目である。中期候補とは別に、判断が必要な議題として記録する。
-
-- Hidden 深化ベクトル: 初期βでは本格運用しない。0-5 数値運用 vs 自然言語運用 vs ハイブリッドは中期再検討。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項と `docs/RELATIONSHIP_CHANGE_AUDIT.md`。
-- プレイヤー宣言応答ルール: 範囲限定（主人公の所持品 / 能力 / 行動のみ）の境界設計。
-- ダイス機構: 何面ダイス、確率の塩梅、適用シーンの基準、結果の物語反映方法。
-- GraphRAG: 導入タイミング（複数ヒロイン Wave 後、長期セッション運用後）。
-- 行動選択肢 3 つ提示の基準: 番号メニュー禁止（inner-galge 採用）と矛盾する可能性あり。設計が要る。
-
-## 保留事項（Pending Items, 2026-05-07 整理）
-
-以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。ただし P-D と Story Continuation / Travel Branch は 2026-05-07 時点でβ前P0へ格上げ済みで、詳細実装タスクは `docs/release/RELEASE_WBS.md` を正本にする。
-
-### P-A. テンポ管理（何をどこまでどう出すか）
-
-Wave Y-A の延長。inner-galge runtime.md からの移植で、出力ボリューム・密度の制御を扱う。重いテンポチューニングは未着手だが、β前は Lightweight Tempo Guard を Three Hook Spine に含めて P0 扱いにする。
-
-仮案（要確定）:
-
-- 1 ターンの地の文+台詞の分量上限（数字未定）
-- 描写の濃さの段階分け（First Scene 級の濃度を毎ターン出さない）
-- 沈黙 / 余白の使い方（毎ターン全部埋めない、感情の余韻を残す）
-- 場面転換の頻度（連続ターンでだらだら同じ場面に留まらない基準、数字未定）
-- 通常ターン軽量化ルール（First Scene Quality Gate / Output Text Completion Gate と対になる、平常時の軽さ基準）
-
-β前の最小採用:
-
-- `HOOK-007` として、1ターンに前景化するhookは1本までにする
-- 3本hookを毎ターン全部提示しない
-- 1ターン内の問い、次beat、場面転換、説明量を増やしすぎない
-- 本格的な文量スコア化、濃度段階、場面転換頻度の数値化は Phase 1 以降に残す
-
-### P-B. Hidden 深化ベクトル運用
-
-`templates/session/lilia/main/relationship.md` の hidden ベクトル 6 軸（安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗）は、初期βでは本格運用しない。通常進行メーターや数値ロック解除として使わず、深い関係に到達した後の将来の質的管理候補として保持する。詳細は `docs/ROMANCE_INTIMACY_GROWTH.md` の未確定事項と `docs/RELATIONSHIP_CHANGE_AUDIT.md`。
-
-暫定決定:
-
-- AFFINITY / bond は採用しない
-- hiddenベクトルは初期βでは数値更新しない
-- 関係変化は memory / relationship / beliefs / voice / state / hotset の文字情報で扱う
-- 関係変化の根拠、速度、保存先分離を Relationship Change Audit で確認する
-
-### P-C. 深化タグ（Deepening Tags）機械チェック
-
-inner-galge デフォルト 14 タグ（初夜、秘密の共有、個人ストーリー解決、能力共鳴、同行宣言、摩擦の処理、共同体合意、役割確立、他者の席の承認、情報共有合意、不在時連携、離脱自由の確認、裏切りと復縁、新たな秘密）と、ヒロインごとの追加機構の実装。LILIA の `relationship.md` に枠は記述済みだが、デフォルトリストとヒロイン追加機構、解放条件の自動評価は未実装。
-
-### P-D. 3 本フック運用（戦闘なし版） [β前P0へ格上げ]
-
-inner-galge runtime.md からの移植。メイン事件フック / ヒロイン関係フック / 探索・生活フックの 3 方向を並列管理する。
-これは「追加の面白さ」ではなく、プレイヤーが少し脱線してもゲームとして破綻しないためのβ前P0である。
-
-MVP方針:
-
-- メイン事件フック（街・職場・依頼・小さな事件）
-- ヒロイン関係フック（LILIA との距離、約束、揺れ）
-- 探索・生活フック（家、街、季節、生活変化）
-- タイプ被り禁止（3 本とも恋愛系・戦闘系にしない）
-- どれか1本は「今すぐ触れる」状態にする
-- プレイヤーが脱線したら、3本のどれかに吸着させる
-- `current/event_card.md` は今触れる1本を Active Hook として前景化する
-- 残り2本は `story/story_deck.md` に候補として保持する
-- Lightweight Tempo Guard として、1ターンに前景化するhookは1本に絞り、3本を毎ターン全部提示しない
-- 1ターン内の問い、次beat、場面転換、説明量を増やしすぎない
-- 1 本を追うと残りが保留、背景化、悪化する選択コスト構造
-- 戦闘システムは分離し、イベント駆動のフック管理に絞る
-
-初回スタート時の story 生成は、3 本フックの選択（土地・職場・関係起点など）に応じて再生成する。
-AI Playtest には `wanderer` persona を追加し、生活行動、別場所への移動、関係イベント無視、雑談などの脱線入力を試す。
-
-### P-D2. Story Continuation / Travel Branch MVP [β前P0]
-
-初期story_spineが閉じた後に何も起きなくなる状態はβでは不可とする。
-LILIAは固定ADVではなく、ユーザーの選択、移動、会話、関係の蓄積によって次のstoryが立ち上がるAI恋愛ADVとして扱う。
-
-MVP方針:
-
-- `current/story_spine.md` / `current/event_card.md` / `story/story_deck.md` / Three Hook state から、現在storyの状態を解決、保留、背景化、悪化、完了のどれかに判定する。
-- storyが閉じた場合、`relationship.md`、`memory.md`、`beliefs.md`、`story/story_deck.md` の未回収札から次の story arc と event_card 候補を生成する。
-- 沖縄、鹿児島、ニューヨーク、北極などの大移動宣言は即拒否しない。費用、時間、仕事、約束、LILIAの生活、同行理由を持つ Travel / Location Branch として扱う。
-- LILIAは人格を持つため、親密度や関係理由が薄い時は同行しない、保留する、条件を出す、連絡だけにする判断をしてよい。
-- 未解決の遠出 / branch は最大2本まで保持する。3本目を開く前に既存arcの解決、保留、帰還、背景化を促す。
-- AI Playtest には `traveler` persona を追加し、100ターン級smokeで story完了後の次arc生成、travel branch、resume継続を検証する。
-
-### P-E. 世界移動・物語射程の境界（仮案、要確定）
-
-3 本フックと連動する未確定事項。プレイヤーが「沖縄に行く」「北極に行く」など story_spine 外の宣言をした時にどこまで許容するか。「プレイヤー宣言応答ルール」（行 397）と交差する。
-
-仮案 4 段階:
-
-| Level | 例 | 扱い |
+## 2. Source of Truth Map
+
+| 領域 | 正本 |
+|---|---|
+| 中核思想 | `docs/CORE_CONCEPT.md` |
+| 現在地、優先順位、正本一覧 | `PROJECT_CONTROL.md` |
+| 直近作業、次タスク、引き継ぎ | `docs/HANDOFF.md` |
+| 長期実装順、MVP境界、wave履歴 | `docs/ROADMAP.md` |
+| 完了済み実装履歴の台帳 | `docs/archive/IMPLEMENTATION_HISTORY.md` |
+| session / state構造 | `docs/STATE_STRUCTURE.md` |
+| new / Q&A / 初期生成 | `docs/NEW_SESSION_INITIALIZATION.md`, `prompt/newgame.md` |
+| startup / resume / save | `prompt/startup.md`, `prompt/save_resume.md`, `docs/RESUME_SMOKE_TEST.md` |
+| Play Mode本文品質 | `prompt/core.md`, `docs/specs/PLAY_MODE_SPEC.md` |
+| LILIA profile | `docs/LILIA_PERSONA_PROFILE.md` |
+| player input境界 | `docs/PLAYER_INPUT.md` |
+| event_card可プレイ性 | `docs/EVENT_CARD_PLAYABILITY.md` |
+| voice continuity | `docs/VOICE_CONTINUITY.md` |
+| romance / intimacy | `docs/ROMANCE_INTIMACY_GROWTH.md` |
+| relationship change audit | `docs/RELATIONSHIP_CHANGE_AUDIT.md` |
+| growth update | `docs/GROWTH_UPDATE_LOOP.md` |
+| story / relationship accumulation | `docs/STORY_RELATIONSHIP_ACCUMULATION.md` |
+| story / scene機能診断 | `docs/STORY_FUNCTION_FRAMEWORK.md` |
+| opening scene | `docs/OPENING_SCENE_GENERATION.md` |
+| emotional design | `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` |
+| crisis / combat / ability | `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md` |
+| technical / gameplay integrity | `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` |
+| engine runner | `docs/ENGINE_RUNNER.md` |
+| Codex rollout logs | `docs/CODEX_ROLLOUT_LOGS.md` |
+| βタスク表 | `docs/release/RELEASE_WBS.md` |
+| 商用化方針、Go / No-Go、安全、画像 | `docs/release/COMMERCIALIZATION_ROADMAP.md` |
+| AI Playtest | `docs/testing/AI_PLAYTEST_PLAN.md` |
+| 人間用Dashboard | `STATUS_DASHBOARD.html`。Markdown正本ではない |
+
+## 3. Current Position
+
+ここでは長期履歴のための短い現在地だけを置く。
+詳細な現在地と優先順位は `PROJECT_CONTROL.md`、人間用の見取り図は `STATUS_DASHBOARD.html` を見る。
+
+- CLI MVP / `new` / Q1-Q9 / `apply-newgame` / AI profile / story spine / downstream docs / `scene-tick` / `apply-turn` / resume系validator / growth smoke は実装済み。
+- WebUI、画像PoC、Security、課金、利用規約、外部β確認は未完了。
+- β前P0のstatusとDone Criteriaは `docs/release/RELEASE_WBS.md` を正本にする。
+- 商用βのMust Have、Go / No-Go、画像戦略、安全原則は `docs/release/COMMERCIALIZATION_ROADMAP.md` を正本にする。
+- 「実装済み」「仕様済み」「β完了」は同じ意味ではない。β完了扱いはWBSのDone Criteriaで判断する。
+
+## 4. Long-Term Implementation Order
+
+この表は長期順序の見取り図である。
+現在の次タスクは `PROJECT_CONTROL.md` / `docs/HANDOFF.md`、タスクstatusは `docs/release/RELEASE_WBS.md` を見る。
+
+| Order | Area | Purpose | Status source |
+|---|---|---|---|
+| 1 | Foundation | LILIAの中核思想、session構造、prompt境界、style参照、保存再開の足場を作る。 | Wave History / `docs/archive/IMPLEMENTATION_HISTORY.md` |
+| 2 | AI-driven session generation | Q1-Q9、character YAML、AI profile、spines、13 downstream docsを生成する。 | Wave 11〜12.2 |
+| 3 | Continuity / Playability gates | voice continuity、event_card playable、opening clarity、Example Anchoringを検査・抑制する。 | Wave 13〜16 / X / Y |
+| 4 | Play / Save / Resume verification | `save` / `apply-turn` / `resume` / `event_card` の実プレイ確認を行う。 | `docs/release/RELEASE_WBS.md` の `P-002〜P-004` |
+| 5 | Three Hook / Tempo | 脱線してもMain / Relationship / Life-Explorationへ戻れる進行骨格を作る。 | WBS `HOOK-*`, `TEMPO-*` |
+| 6 | Story Continuation / Travel | 初期story後の次arc、大移動branch、LILIA同行可否、open arc上限を扱う。 | WBS `ARC-*` |
+| 7 | AI Playtest Smoke | normal / passive / boundary / attacker / wanderer / travelerで破綻を検出する。 | `docs/testing/AI_PLAYTEST_PLAN.md`, WBS `AI-*` |
+| 8 | WebUI / Security / Image | 商用β前にブラウザ体験、runtime分離、画像PoCを用意する。 | WBS `WEB-*`, `SEC-*`, `IMG-*` |
+| 9 | Paid beta support | 規約、決済、募集、外部テスト、Go / No-Goを用意する。 | WBS `PAY-*`, `MKT-*`, `REL-*`; `docs/release/COMMERCIALIZATION_ROADMAP.md` |
+| 10 | Post-beta expansion | 複数ヒロイン、異界 / 能力、漫画化、共同体、長期記憶拡張を検討する。 | `Pending / Future Work` |
+
+## 5. Wave History
+
+詳細な完了済み一覧は `docs/archive/IMPLEMENTATION_HISTORY.md` も参照する。
+この表は「どのwaveで何をしたか」の読み取り用であり、βタスクstatusではない。
+
+| Wave | Status | Summary |
 |---|---|---|
-| A. 自然な範囲 | 同じ街の別の場所、近所への外出 | 自由に許容 |
-| B. 関係段階で許容判定 | 別都市への小旅行、泊まりがけ | Intimacy Stage / Consent Stage が満たないと「行けない理由」をヒロインが返す |
-| C. 物語射程の外 | 沖縄、北海道（現実圏内だが story_spine 外） | ヒロインは付いてこない、行くなら主人公単独 → 関係も物語も止まる小芝居になる |
-| D. 世界観違反 | 北極、宇宙、突然の超能力発動 | GM がメタ介入で「この作品では起きない」とソフトに止める |
+| Wave 1 | done | 散文層・キャラ会議変換。LILIAの人格と会話の基礎を整えた。 |
+| Wave 2 | done | echo拡張・`decision_index`。過去の反応や決定が次回の温度に残る足場を追加した。 |
+| Wave 3 | done | 50作品参考カタログ。参照作品を本文模倣ではなく感情の骨として使う棚を作った。 |
+| Wave 4 | done | Structure / Pattern Reference Libraries。`references/story_structure_stock.md` と `references/story_pattern_stock.md` を追加し、Story Diagnosisを接続した。 |
+| Wave 5 | done | Story Spine導入。旧テンプレートから始まり、後続WaveでAI駆動の `current/story_spine.md` / `story/relationship_spine.md` へ移行した。 |
+| Wave 6 | done | Opening Scene & Heroine Appearance。初回登場用promptと再登場時の表現参照を追加した。 |
+| Wave 7 | done | Newgame Q&A Refinement & Protagonist Profile。Q&Aと主人公profileの保存先を整理した。 |
+| Wave 8 | done | Knowledge Boundary Management。`current/knowledge_state.md` と meta / observable / shared / gm_only の境界を導入した。 |
+| Wave 9 | done | Root Cure。例文固定、fallback literal、keyword固定、validator、loggingの問題を修正した。 |
+| Wave 10 | done | Q&A Redesign。性格、見た目、出会い、主人公情報、呼称を聞くinteractive flowを整理した。 |
+| Wave 10.1 | done | Q3-Q5 Independence Restoration。描写の縛り、表と内の差、内面に持っているものを再分離した。 |
+| Wave 10.2 | done | Main Question Template Flexibility。傷だけでなく、選択、発見、変化、葛藤の問いを扱えるようにした。 |
+| Wave 10.3 | done | Fallback Field Quality + Knowledge Boundary Meta HIDDEN。身体特徴混入やmeta推測を抑えた。 |
+| Wave 10.4 | done | Protagonist Inner Monologue Boundary。行頭括弧を主人公の内心としてGM only扱いにした。 |
+| Wave 11 | done | AI-driven Story / Relationship Spine Generation。spine生成をAI駆動へ移し、validatorと再生成を追加した。 |
+| Wave 12.1 | done | AI-driven LILIA Persona Profile Generation。character YAMLから `lilia/main/profile.md` をAI生成する経路を追加した。 |
+| Wave 12.2 | done | AI-driven Downstream Session Documents。profile / character YAML / spines / Q&A から13 downstream filesをAI生成する経路を追加した。 |
+| Wave 13 | done | Voice Continuity Gate Validator。resume入口とapply-turn後のsoft fail validatorを追加した。 |
+| Wave 14 | done | Event Card Playability Gate Validator。`current/event_card.md` が今触れる可視イベントかを検査するcheckerを追加した。 |
+| Wave 15 | done | Engine Runner Refactor。LLM CLI runner境界を `docs/ENGINE_RUNNER.md` と共通runnerへ寄せた。 |
+| Wave 16 | done | Opening Pattern Stock Integration。opening pattern stockを初回scene生成へ接続し、Opening Planを正本化した。 |
+| Wave X-4 | done | Opening Plan / clarity_anchors Hard Requirement。主人公の職業・目的・場所・関係性が冒頭本文から読めるようにした。 |
+| Wave Y-B1 | done | ヒロイン第一反応情報の抽象レベル分離。voice / state / event_card / hotset / sceneの似た反応情報を読み分けるルールを追加した。 |
+| Wave Y-C | done | Heroine Entrance Density Profile / Opening Requirements。初登場の見た目、所作、職能、生活痕、矛盾、境界を多軸化した。 |
+| Wave Y-D | done | Example Anchoring Control Generator Reference。`prompt/core.md` の共通原則をprofile generatorへ届かせる仕組みを追加した。 |
+| Wave Y-F | done | Auto-save Chain Closure。`scene-tick` と `apply-turn` のSave Mode連鎖をprompt運用として閉じた。 |
+| Wave Y-G | dropped | Terminal Recording via `script`。ANSIエスケープが多く実用にならず廃止した。 |
+| Wave Y-H | done | Codex Rollout Logs Archive。`./lilia archive-codex-logs` と `docs/CODEX_ROLLOUT_LOGS.md` を追加した。 |
+| Growth Smoke / Long Growth MVP | done | `growth-smoke` / `long-growth` / `dev-growth` とdev menu項目を追加し、複数segmentのtranscript / judge / summaryを保存する軽量成長観察を作った。 |
+| Arc Closure Guard | spec done | `docs/specs/PLAY_MODE_SPEC.md` にsceneの核成立後、余韻を1〜2ターンで閉じる仕様を追加した。Judge実装やWBS完了扱いは別管理。 |
+| Literary scene situations | done | `style/defaults/scene_situations.md` を追加し、文豪系9シチュエーションを `prompt/core.md` から参照する形で接続した。 |
+| Emotional Design Principles | done | `docs/EMOTIONAL_DESIGN_PRINCIPLES.md` を正本化し、prompt / generator群から参照した。 |
+| Hidden深化ベクトル軸名修正 | done | `relationship.md` の6軸を安心 / 欲情 / 共犯 / 生活 / 受容 / 摩耗に戻し、初期βでは通常進行メーターにしない方針を記録した。 |
+| LILIA Individual Name | done | `session.json` に `lilia_name` / `lilia_display_name` を持たせ、作中名と作品名を分けた。 |
 
-A/B はヒロインの自然反応、C は GM が「行けるが関係も物語も止まる」ことを示唆、D だけ GM のメタガード、という方向で仮置きする。確定は Player Action Prompt 改修（Wave 17 候補）と合わせて検討する。
+## 6. Implementation Notes by Area
 
-### P-F. NPC 昇格（ヒロイン非昇格仕様）
+### 6.1 Session / Generation
 
-NPC Tiering（Tier 0-5、段階的昇格）と昇格条件の保存先。ただし複数ヒロインは Phase 3 以降のため、初期実装では「**NPC はヒロインに昇格しない**」仕様で進める。Tier 1〜4 の範囲（一時接触 → 場面 → 再登場 → キー NPC）だけを扱い、ヒロイン枠は固定 1 名。複数ヒロイン Wave で改めて昇格条件を設計する。
+- `./lilia apply-newgame` は character YAML -> AI profile -> AI spines -> 13 downstream docs の順で初期反映する。
+- `profile.md` は first scene前に読む人格正本であり、関係で育った内容は `core / voice / relationship / memory / beliefs` へ分解して保存する。
+- `saves/` はgit管理外。実session本文、個人ログ、`/tmp` の実体はrepoに入れない。
 
-### P-G. 軽量 Integrity Audit Tool
+### 6.2 Play / Save / Resume
 
-`docs/INTEGRITY_AUDIT_20260505.md` を生成した手順を `tools/audit/integrity_audit.py` として定型化し、コマンド一発で再実行できる状態にする。docs / prompt / templates / tools の横断整合性チェック、原則と実装のズレ検出、orphan 検出、参照切れ検出を扱う。GraphRAG はオーバースペック判定済み（中期再検討）。
+- Play Modeでは通常応答を優先し、ファイル編集、diff、保存更新ログを割り込ませない。
+- Save Modeでは `turn_update.md` を作り、`./lilia apply-turn <session> <turn_update.md>` で必要なstateだけ更新する。
+- `scene-tick` はautosave counterを進める。10ターン到達時の保存連鎖はWave Y-Fでprompt運用として閉じたが、β完了はWBSの実機確認で判断する。
 
-## 3. Completed Foundation
+### 6.3 Quality Gates
 
-1. Concept / Growth Basis
-   - `docs/CORE_CONCEPT.md` を正本として、LILIAの中核、価値提供、記憶、人格、設計原則を固定した。
-   - Status: 完了
+- Voice Continuity Gate ValidatorはWave 13でsoft failとして導入した。hard fail化、呼び方厳密比較、relationship語彙リスト正本化は将来判断。
+- Event Card Playability Gate ValidatorはWave 14で導入した。Crisis / Ability、Intimacy / Boundary、Truth Hidingの細部検査は別Wave候補。
+- Opening Plan、clarity anchors、Example Anchoring Controlは、例文固定や初回sceneの情報不足を防ぐために維持する。
 
-2. Save / Resume Reading Order
-   - `prompt/save_resume.md` を正本として、保存対象と再開時の軽量読み順を固定した。
-   - Status: 完了
+### 6.4 Long-term Boundary
 
-3. Startup Flow
-   - `prompt/startup.md` を正本として、起動直後の `new` / `resume` / `consult` / `unknown` 分岐を固定した。
-   - Status: 設計仕様完了 / 実生成コード未実装
+- 初期MVPでは1人のLILIAとの関係が面白いことを優先する。
+- AFFINITY / bond / 好感度 / 攻略ルートを正本にしない。
+- heavy case engine、villain engine、combat engine、漫画化、複数ヒロイン、AI Harness本格運用は初期MVPに入れない。
+- 参照作品や作者の直接模倣、固有名詞、台詞、展開順の流用をしない。
 
-4. State Scaffold
-   - `docs/STATE_STRUCTURE.md` と `templates/session/` で、最小state / memory / relationship / story / style構造を固定した。
-   - Status: 完了
+## 7. Pending / Future Work
 
-## 4. Implementation Milestones
+このセクションは長期候補の索引であり、タスク表ではない。
+P0 / P1 / status / Done Criteria は `docs/release/RELEASE_WBS.md` を正本にする。
 
-1. Style Defaults / Intimacy Defaults Completion
-   - `style/defaults/romance.md`、`tension.md`、`warmth.md`、`loss.md`、`quiet.md`、`landscape.md` をroot `style/defaults/` に追加する。
-   - 旧LIRIA / inner-galge の作者別・場面別メソッドを、本文コピーや固有文体模倣ではなく、表現技法・温度・視点距離・余白の参照棚としてLILIA向けに移植する。
-   - 官能・親密表現は削除しない。ベッドシーン、身体距離、触れる/触れない境界、沈黙、呼吸、体温、余韻、aftercareはLILIAの主要体験価値として残す。
-   - 成人・合意・相互性・境界線を必須条件にする。
-   - 旧ハーレム攻略、旧AFFINITY依存、kaneco固有、旧セッション固有設定は採用しない。
-   - Status: 完了
+### 7.1 β前P0として別管理するもの
 
-2. New Session Initialization
-   - `prompt/newgame.md` のQ&A結果から `session.json`、`current/*`、`lilia/main/*`、`story/*`、`style/*` を初期生成する。
-   - 旧LIRIAの `create_session`、Initial Story Assembly、`extract_newgame_state_candidates` の思想を、LILIAの1人運用とMarkdown scaffoldへ軽量化して採用する。
-   - 初回scene前に、関係温度、生活の足場、LILIAが守っているもの、避けているもの、小さな出来事、style参照を短く接続する。
-   - `docs/NEW_SESSION_INITIALIZATION.md` を正本として、Q&Aから各ファイルへの写像、Light Story Reference Passの出力先、new直後resume可能な最小状態を固定した。
-   - `templates/session/` は `session.json`、`current/event_card.md`、`current/hotset.md`、`style/rules.md` などを初期化ルールに合わせて補強済み。
-   - Status: 完了
+- Play / Save / Resume確認: `P-002` / `P-003` / `P-004`
+- Three Hook Spine MVP: `HOOK-001〜HOOK-007`
+- Story Continuation / Travel Branch MVP: `ARC-001〜ARC-007`
+- Arc Closure / Tempo Guard: `TEMPO-*`, `ARC-008〜ARC-011`
+- AI Playtest Smoke: `AI-001〜AI-008`
+- WebUI / Security / Image / Release: `WEB-*`, `SEC-*`, `IMG-*`, `REL-*`
 
-2.5 LILIA Persona Profile Generation
-   - inner-galge / character の「自然言語指示 -> character YAML -> 登場前キャラmd」の流れを、LILIA向けに「character YAML -> `lilia/main/profile.md`」へ変換して採用する。
-- `profile.md` は、first scene前に読む人格正本であり、完成済み攻略キャラカードではない。
-- 関係で育った内容は `core / voice / relationship / memory / beliefs` へ分解して保存する。
-- profileの Initial Scene Anchors / context / unspoken / everyday anchors は、初回scene前に `current/scene.md`、`current/event_card.md`、`story/story_deck.md`、`story/relationship_spine.md`、`current/hotset.md`、`lilia/main/*` へ分解して初期反映する。
-- Multi-Relationship / Jealousy Profile は latent、Ability / Intimacy Resonance は dormant として持つ。
-   - AFFINITY、bond、好感度、攻略ルート、ハーレム前提は採用しない。
-   - 2026-05-02: `./lilia apply-newgame` を改造し、LLM CLI(codex / claude)経由の character YAML 生成を default 経路にした。
-   - `--engine codex|claude|auto` フラグで engine を選択可能(default auto)。`tools/character/core/master.py` の `generate_characters` も engine 引数対応。
-   - 2026-05-06: character YAML 生成段の `auto` は `LILIA_CHARACTER_ENGINE` 未設定時 claude 優先、profile / spine / downstream の一般生成は `LILIA_DEFAULT_ENGINE` 未設定時 codex 優先へ分離した。
-   - `scripts/lilia_generate_character_yaml.py` も `--engine` 対応。
-   - 2026-05-05 Wave 12.1: `./lilia apply-newgame` は character YAML 生成後に `tools.character.profile_generator.generate_profile_document(answers=..., character_yaml=..., engine=...)` を呼び、AI-driven `profile.md` を生成する。
-   - 2026-05-05 Wave 12.2: `apply-newgame` は profile validation後に `tools/story/spine_generator.py` で `current/story_spine.md` / `story/relationship_spine.md` を生成し、その後 `tools.session.document_generator.generate_session_documents` へ profile / character YAML / 両spine / Q&A を渡して13 downstream filesを生成する。
-   - `tools/session/document_generator.py` と `tools/session/document_validator.py` を追加した。downstream docsは3グループでAI生成し、validator失敗時は各グループ最大2回再試行する。
-   - `render_profile_initialized_documents` / `render_protagonist_document` / `render_knowledge_state_document` / `render_newgame_documents` は削除済み。新規初期反映のPython穴埋め経路は廃止した。
-   - profile generator の検証失敗は `ProfileGenerationError` で hard-fail し、logに `[profile] generated via`、validation pass/retry_count、sections_countを残す。
-   - Q&A は Q1-Q9。
-   - First Scene Quality Gate に「LILIA側からの重い開示禁止」「ユーザー側の存在理由」を追加。
-   - Status: 実装済み / AI-driven profile生成導線追加済み / spine-before-docs順序へ変更 / downstream docs generator実装済み / session_010・session_011・全Qおまかせ apply-newgame smokeはWave 12.1時点の結果
+詳細は `docs/release/RELEASE_WBS.md` を見る。
+商用上の理由、Go / No-Go、安全原則、画像方針は `docs/release/COMMERCIALIZATION_ROADMAP.md` を見る。
 
-3. Case / Event Card Playability Gate
-   - 旧LIRIAの Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate を、LILIAの `current/event_card.md` 向けに再設計する。
-   - `event_card` は抽象的な違和感だけでなく、誰が、何で困り、何に触れるかを持つ。
-   - 最低限、visible problem、first concrete action、handles 2-4個、if ignored、next visible change、relationship stakeを持たせる。
-   - 真相は隠してよいが、依頼や場面の可プレイ性は隠さない。
-   - `story/story_deck.md` は素材・圧・未回収札、`current/event_card.md` は今触れる可視イベントとして責務分離する。
-   - `docs/EVENT_CARD_PLAYABILITY.md` を正本として、Gate通過条件、Gate失敗条件、Truth Hiding Boundary、Mid-Story Activation Gate、親密sceneとの接続を固定した。
-   - `templates/session/current/event_card.md` は handles 2-4、Truth Hiding Boundary、ユーザーへの行動余地を保存できる形へ補強済み。
-   - Status: 完了
+### 7.2 中期候補
 
-4. Relationship / Character Voice Continuity Gate
-   - LILIAの声、呼び方、関係認識、誤解、信頼、摩擦がresumeで巻き戻らないようにする。
-   - inner-galge / LIRIA の memory model、validation、integrity check をLILIA向けに採用する。
-   - `core fixed`、`historical fixed`、`echo`、`volatile` の分類を、`lilia/main/*`、`current/*`、`archive/*`、`hotset` に対応づける。
-   - 重要場面前、親密場面前、衝突場面前には voice check を行い、`voice`、`relationship`、`beliefs`、直近memory、境界線を確認する。
-   - `docs/VOICE_CONTINUITY.md` を正本として、Gate通過条件、Gate失敗条件、resume時の扱い、親密scene/衝突scene/境界線sceneの確認を固定した。
-   - `templates/session/lilia/main/voice.md`、`relationship.md`、`memory.md`、`beliefs.md`、`current/relationship_overview.md`、`current/hotset.md` を、声と関係の継続確認に必要な最小欄へ補強済み。
-   - Status: 完了
+- Romance / Intimacy Growth Loop の実生成コード接続。
+- Crisis / Combat / Ability Constraint Loop の実生成コード接続。
+- Resume Smoke Test の自動化。
+- Story / Relationship Accumulation Loop の動的生成。
+- Hidden深化ベクトル運用ロジックの再検討。初期βでは通常進行メーターにしない。
+- Deepening Tags機械チェック。inner-galge由来の14タグとヒロイン追加機構は未実装。
+- Intimacy Stage / Consent Stage / Boundary State の機械チェック。
+- 軽量 Integrity Audit Tool。
+- Player Action Prompt改修。ユーザーが次に返せる入口を示すが、番号メニュー化は慎重に扱う。
+- Wave Y-E: `document_generator` / `spine_generator` への Example Anchoring Control 導入。
+- Wave Y-A: inner-galge runtime由来のテンポ管理ルールのうち、β後に残す重い調整。
+- JSONL -> Markdown 変換。Codex rollout JSONLの可読化は必要時に検討する。
+- ダイス機構。対象は世界事象のみで、LILIAの好意や内面は判定対象にしない。
+- GraphRAG再検討。複数ヒロイン後、または長期セッションが十分伸びた後に再検討する。
 
-5. Romance / Intimacy Growth Loop
-   - 親密・官能・ベッドシーンを、関係成長の主要ループとして扱う。
-   - 自動報酬ではなく、関係段階、合意、相互性、境界線、aftercareを前提にする。
-   - 官能を清潔化しすぎない。濃度は露骨な語彙ではなく、距離、沈黙、体温、呼吸、躊躇、視線、手元、余韻で上げる。
-   - 旧LIRIA `prompt/romance.md` と `style/defaults/romance.md` の思想を参考にするが、旧AFFINITY数値や複数ヒロイン前提は採用しない。
-   - `docs/ROMANCE_INTIMACY_GROWTH.md` を正本として、intimacy stage、consent stage、boundary state、aftercare memory、親密scene前Gate、親密scene後の保存先を固定した。
-   - `templates/session/lilia/main/relationship.md`、`memory.md`、`beliefs.md`、`state.md`、`voice.md`、`current/relationship_overview.md`、`current/event_card.md`、`current/hotset.md`、`style/rules.md` を、親密成長とaftercare保存に必要な最小欄へ補強済み。
-   - Status: 完了
+### 7.3 Legacy Pending Items P-A through P-G
 
-6. Resume Smoke Test
-   - 生成済みsessionを `resume` で軽量に読み、1ターン目の温度が落ちないか確認する。
-   - 口調が巻き戻らないか、hotsetが正解ルートやtodoになっていないか、関係温度とevent_cardの入口が戻るかを見る。
-   - `new -> first scene -> save -> resume` を最初の手動smokeとして固定する。
-   - `docs/RESUME_SMOKE_TEST.md` を正本として、手動smokeの観点、resume 1ターン目の通過条件、failure examples、採用しない重い検証を固定した。
-   - `tests/resume_smoke/manual_checklist.md` と `tests/resume_smoke/sample_session.md` を追加し、手動検証の足場を置いた。
-   - Status: 完了
+2026-05-07整理時の保留ラベルは、履歴と判断経緯として残す。
+詳細タスクやstatusは `docs/release/RELEASE_WBS.md` を優先する。
 
-7. Growth Update Loop
-   - 会話後に `state`、`relationship`、`memory`、`beliefs`、`hotset`、`event_card` をどう更新するかを実運用できる形にする。
-   - 重要場面後は、what changed、what LILIA now believes、what was left unsaid、next pressure or promise を残す。
-   - 関係が変わった出来事は `archive/beats/` に節目として保存する。
-   - `docs/GROWTH_UPDATE_LOOP.md` を正本として、更新タイミング、各ファイルの保存責務、親密scene後/event_card後/archive/beatsの扱い、failure条件を固定した。
-   - `templates/session/current/event_card.md` と `templates/session/story/story_deck.md` を、event_cardの進行状態と背景化した未回収札を扱える最小形へ補強した。
-   - `./lilia apply-turn <session> <turn_update.md>` をSave Mode用MVPとして追加済み。`scene` / `relationship_overview` / `next_hook` もturn_update経由で反映できる。
-   - 通常プレイ中はファイルを直接編集しない。保存が必要な時は Save Mode に入り、`turn_update.md` 経由で `apply-turn` を使う。
-   - autosave counterは `session.json` に持ち、`./lilia scene-tick <session>` で通常プレイ1ターンごとに進める。
-   - `scene-tick` は10ターン到達時に `autosave_required: true` にする。Wave Y-F 以降、GM prompt はこの表示を見たら次のプレイ応答前に Save Mode へ入り、`apply-turn` を実行する。
-   - 次タスクは、session_005（葵）または session_006（玲）で10ターン以上プレイし、scene-tick が毎ターン呼ばれるか、10ターン到達時に apply-turn が発火するか目視確認すること。
-   - Status: apply-turn MVP実装済み / next_hook導線追加済み / scene-tick MVP実装済み / prompt上の autosave_required Save Mode 強制遷移を実装済み
+| Label | Topic | Current treatment |
+|---|---|---|
+| P-A | テンポ管理 | β前は Lightweight Tempo Guard / Arc Closure Guard としてP0品質条件へ寄せる。重い文量スコア化は中期以降。 |
+| P-B | Hidden深化ベクトル運用 | 初期βでは通常進行メーターにしない。深い関係到達後の質的管理候補として保持する。 |
+| P-C | 深化タグ機械チェック | inner-galge由来の14タグとヒロイン追加機構は未実装。中期候補。 |
+| P-D | 3本フック運用（戦闘なし版） | 2026-05-07にβ前P0へ格上げ。WBSの `HOOK-001〜HOOK-007` で管理する。 |
+| P-D2 | Story Continuation / Travel Branch MVP | 2026-05-07にβ前P0として追加。WBSの `ARC-001〜ARC-007` で管理する。 |
+| P-E | 世界移動・物語射程の境界 | 自然範囲、関係段階判定、射程外、世界観違反の4段階を仮案として保持する。 |
+| P-F | NPC昇格 | 初期βではNPCをヒロインに昇格しない。複数ヒロインWaveで再判断する。 |
+| P-G | 軽量Integrity Audit Tool | `docs/INTEGRITY_AUDIT_20260505.md` の手順を将来コマンド化する候補。 |
 
-8. Story / Relationship Accumulation Loop
-   - イベントを点、ストーリーを線として扱い、出来事がLILIAの記憶、関係、beliefs、voiceへ残ることで物語が進む形にする。
-   - 旧LIRIAの Story Reference Layer、selection signals、candidate shortlist、Reference Engine を、参照作品の模倣ではなく感情の骨の抽出として採用する。
-   - inner-galge の `エピソードタイプ -> 参考作品 -> 感情の骨 -> 現在キャラへ変換 -> 分岐点 -> 書く` をLILIA向けに軽量化する。
-   - NPCは Tier 0-5 で分類し、LILIAの記憶、関係、beliefsに影響した時だけ段階的に昇格させる。
-   - World Autonomy / Pressure Loop は独立した大きな世界圧ではなく、このLoopの下位要素として扱う。
-   - 下位要素としての World Autonomy / Pressure は、放置した出来事、未回収札、言い残し、境界線、約束、記録のズレが1-3 scene後に小さく戻ることとして扱う。
-   - 親密sceneを雑な乱入で壊さず、life pressure、social pressure、relationship pressure、secret exposure pressureを生活、信用、沈黙、約束の小さな変化として扱う。
-   - `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を正本として、Event / Story、Story Reference Engine、Selection Signals、Reference Engine、NPC tier、NPC昇格条件、生成粒度、World Autonomy / Pressureの扱いを固定した。
-   - `templates/session/current/event_card.md`、`story/story_deck.md`、`story/relationship_spine.md` と `prompt/newgame.md`、`prompt/save_resume.md` へテンプレート最小接続を反映した。
-   - Status: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
+### 7.4 長期候補
 
-9. Crisis / Combat / Ability Constraint Loop
-   - `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md` を正本として追加済み。
-   - 危機・戦闘・能力は、単なるバトルではなく、関係と自己理解を揺らすために使う。
-   - ability cost、trace、relationship risk、condition、direct pressureを扱う。
-   - 逃げる、守る、交渉する、隠す、耐える、助けを呼ぶ、能力を使う、代償を払う、を同じ重さで扱う。
-   - 旧LIRIA / inner-galge の `combat.md` を参考にするが、LILIAではHP、部位管理、重い数値戦闘を初期MVP必須にしない。
-   - `templates/session/current/event_card.md` の `Crisis / Ability Check`、`templates/session/story/story_deck.md` の `Crisis / Ability Echo`、`templates/session/lilia/main/state.md` の `Crisis / Ability Condition`、`prompt/newgame.md` / `prompt/save_resume.md` の正本参照へテンプレート最小接続を反映済み。危機後の頼り方 / 頼られ方、能力使用後の信頼 / 警戒は Wave 11以降の関係spine AI生成・更新で扱う。
-   - Status: docs正本化完了 / テンプレート最小接続完了 / 実生成コード未実装
+- 複数ヒロイン管理。
+- NPC TieringとNPC昇格。ただし初期βではNPCをヒロインに昇格しない。
+- 共同体 / 生活 / ビジネス。
+- 経営・お金回り。
+- 世界・異界設定。
+- 敵・組織・勢力クロック。
+- 戦闘・能力系。
+- 画像、漫画、export pipeline。
+- 品質自動検証、AI Harness、本格自動プレイ。
 
-10. Technical + Gameplay Integrity Checks
-   - MVP前後に、`new -> first scene -> save -> resume` の破綻を検出するチェックを追加する。
-   - repo integrity、session integrity、prompt auditor、romance/intimacy boundary regression、voice continuity、event_card playabilityを対象にする。
-   - 旧LIRIAの `check_repo_integrity`、`check_session_integrity`、`liria_prompt_auditor`、PI Player、AI Persona Playtest、AI Player Harness を参考にする。
-   - 初期は軽い手動/スクリプトsmokeを優先し、AI Harness本実行や大量ログ分析は通常チェックに入れない。
-   - `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md` を正本として追加済み。
-   - `docs/RESUME_SMOKE_TEST.md` に横断integrity正本への参照を追加し、`tests/resume_smoke/manual_checklist.md` に Integrity Cross-Check を最小接続済み。
-   - 最小スクリプトは現時点では不要と判断済み。初期MVPでは手動チェックでMVP Playtestへ進む。
-   - 初期MVPではAI Harness、大量ログ解析、launcher / CLI、production CIはまだ入れない。
-   - Status: docs正本化完了 / manual checklist最小接続完了 / 最小スクリプト不要判断済み
+## 8. Design Holds
 
-11. Launcher / CLI
-   - state初期化とsmoke testが固まった後に実装する。
-   - `new` / `resume` / `consult` / session list / prompt-only / engine fallback を扱う。
-   - 旧LIRIA `play.sh`、`liria`、`scenarios/liria/config.sh` と inner-galge command系を参考にする。
-   - 起動時に全prompt・全stateを総読みしない。
-   - `./lilia` を追加済み。
-   - `new`、`resume`、`list-sessions`、`prompt-only` の最小コマンドを実装済み。
-   - `templates/session/` から `saves/<session_name>/` へsession scaffoldを作成できる。
-   - session名未指定時は `session_001` 形式で未使用名を採番し、resume時は最新sessionを検出する。
-   - `saves/` はgit管理外にし、実sessionや個人ログをrepoへ入れない。
-   - 最小運用確認で、`list-sessions` はresume対象の最新sessionを先頭に出し、`*` で示す形へ調整済み。
-   - prompt-onlyはAIを実行しないmanual prompt bundleであり、必要ならリダイレクトして使う案内を追加済み。
-   - `--run` と `--engine codex|claude|auto` を追加済み。`auto` は codex を優先し、なければ claude を使う。
-   - AI CLIへ渡すprompt bundleは一時ファイル経由で渡し、実session本文や個人ログはrepoに入れない。
-   - AI Harness、自動プレイ生成、大量ログ解析、画像/漫画export、production CIは入れていない。
-   - Status: 最小launcher実装済み / prompt-only smoke完了 / UX小修正済み / AI engine接続済み
+実装前に判断が必要な議題:
 
-12. Visual Character Sheet / Manga Export Pipeline
-   - MVP後の拡張として残す。
-   - 旧LIRIA `prompt/visual_character_sheet.md`、`prompt/manga_export.md`、`create_manga_export.sh` を参考にする。
-   - 自然文で漫画化、PV、三面図、立ち絵依頼を受ける導線を残す。
-   - 最初からMVP必須にはしない。
-   - 生成物、長いprompt、画像タスクはsession正史に混ぜず、将来のexport packageへ分離する。
-   - Status: 後続
+- Hidden深化ベクトル: 0-5数値運用、自然言語運用、ハイブリッドのどれにするか。初期βでは本格運用しない。
+- プレイヤー宣言応答ルール: 主人公の所持品 / 能力 / 行動はどこまで世界事実として扱うか。LILIAの内面や好意は対象外にする。
+- ダイス機構: 何面ダイス、確率、適用シーン、物語反映の基準。
+- GraphRAG: 導入タイミングと代替としての軽量Integrity Audit。
+- 行動選択肢3つ提示: 返しやすさと番号メニュー禁止の緊張をどう扱うか。
+- 世界移動・物語射程: 同じ街、別都市、物語射程外、世界観違反の境界。
+- NPC昇格: 初期βではヒロイン非昇格。複数ヒロインWaveで再判断する。
 
-13. MVP Playtest
-   - 1人のLILIAで、開始、再開、関係変化、保存更新が一連の体験として成立するか検証する。
-   - 恋愛、日常、衝突、親密、event_card、save/resumeの少なくとも1往復を手動で通す。
-   - `tests/mvp_playtest/manual_checklist.md` を追加済み。これは新しい設計正本ではなく、`new -> first scene -> save -> resume` を1周通すための手動playtest実行メモである。
-   - `/tmp/lilia_mvp_playtest_manual_001` で手動実行し、`new -> first scene -> save -> resume` を1周通過済み。
-   - `tests/mvp_playtest/results/2026-04-29_manual_001.md` に PASS with minor follow-up candidates として結果サマリを記録済み。
-   - minor follow-upとして、`templates/session/session.json` の `source_prompt_versions` に Story / Relationship Accumulation と Crisis / Combat / Ability Constraint の正本参照を追加済み。
-   - 実セッション本文、実Q&A、実会話本文、個人プレイログ、`/tmp` のsession実体はrepoに入れない。
-   - Status: PASS with minor follow-up candidates / minor follow-up反映済み
+## 9. Adoption Boundaries
 
-14. Extensions
-   - export、セッション一覧、複数LILIA、UI、外部連携などをMVP後に検討する。
-   - Status: 後続
-
-## 5. Next Task
-
-次の実作業は Wave 16: GM 応答末尾の「→ どうする？」prompt 改修。`prompt/core.md` または `prompt/save_resume.md` に、ターン末尾でユーザーに行動余地を一行示す指示を追加する。選択肢を 3 つ並べる UI は本 Wave では実装せず、別 Wave で扱う。
-
-完了済みの確認:
-- Wave 12.1 / 12.2 の AI driven generation は session_002b で品質確認済み。
-- 10 ターン到達時の autosave_required フラグは session_002b で実プレイ動作確認済み。
-- Wave 13 (Voice Continuity Gate Validator) は session_002b で error 0 を確認、pytest 全 pass。第 1 版は soft fail。
-- Wave 14 (Event Card Playability Gate Validator) は session_002b で error 0 を確認、pytest 全 pass。
-- MVP Playtest は `/tmp/lilia_mvp_playtest_manual_001` で `new -> first scene -> save -> resume` を 1 周通過済みで、結果は `tests/mvp_playtest/results/2026-04-29_manual_001.md` に記録済みである。
-- 整合性監査は `docs/INTEGRITY_AUDIT_20260505.md` に記録済み。
-
-`./lilia` で `new` / `resume` / `list-sessions` / `prompt-only` の最小導線、および `--run` / `--engine codex|claude|auto` による AI CLI 接続も実装済みである。
-Newgame Q&A は Q1-Q9 で、ヒロインの基本、見た目、描写の縛り、表と内の差、内面に持っているもの、最初の出会い、呼ばれ方、主人公の身体・格好・仕事、避けたい展開を聞く。Q3/Q4/Q5 はそれぞれ profile / story_spine の特定フィールドへ直接写像する。
-Persona Profile 導線では、first scene 前に AI 駆動で `lilia/main/profile.md` を生成し、その profile から 13 downstream files を AI 駆動で生成する流れに接続済みである。
-AI Harness 本実行、大量ログ分析、自動プレイ生成、production CI はまだ入れない。
-
-## 5.1 Integrity Audit (2026-05-05)
-
-整合性監査を `docs/INTEGRITY_AUDIT_20260505.md` に記録済み。HEAD: `628d6db5`（その後 `1a89d08` でレポートをコミット）。
-
-主要な結論:
-- 孤児モジュール検出 (3 件) は false positive。`lilia` (3446 行 Python スクリプト) が `tools/character/profile_generator.py` と `tools/session/document_generator.py` を import しているが、Codex の静的解析が `lilia` を Python モジュールとして認識しなかったための検出漏れ。
-- 循環依存検出 (2 件) は false positive。`tools/story/__init__.py` の正常な再エクスポート構造を循環として誤検出。
-- pytest は 3 件全 PASS。
-- TODO/FIXME 97 行は大半が docs 内の過去メモであり、即対応必須なものはない。
-- CORE_CONCEPT の 33 原則のうち、prompt / コードに同一文字列で該当するものは半数に満たない。これは prompt が docs を参照する設計のため必ずしも不整合を意味しないが、Wave 13 / 14 の Gate Validator 実装で間接的に補強される。
-
-PENDING 10 件のうち:
-- 2 件は実態として完了 (New Session Initialization, apply-turn 自動保存) → Current Position に反映済み。
-- 2 件は本日中に実装完了 (Voice Continuity Gate → Wave 13, Event Card Playability Gate → Wave 14) → Current Position および独立 Wave セクションに反映済み。
-- 6 件は中期 PENDING として候補セクションに残置 (Romance/Intimacy Growth, Crisis/Combat/Ability, Resume Smoke 自動化, Story Accumulation 動的生成, など)。
-
-## 6. Update Rules
-
-- マイルストーンが進んだら `docs/ROADMAP.md` を更新する。
-- `docs/HANDOFF.md` は直近作業・次タスク・引き継ぎに限定する。
-- 小さな文言修正だけなら `docs/ROADMAP.md` は更新しなくてよい。
-- 実装順を変えた場合は理由を短く残す。
-- `prompt/core.md` の `Example Anchoring Control` を維持し、例文を本文生成へ流用しない。
-- 官能・親密表現を削除する方向へ変更する場合は、成人・合意・相互性・境界線を守ったうえで体験価値を保てるかを必ず確認する。
-
-## 7. 採用元
+採用するもの:
 
 - MIRA: `voice / state / relationship / memory / beliefs`
-- inner-galge: style defaults、romance/intimacy運用、memory model、validation、voice continuity、command導線、プレイヤーが触れる選択肢の足場、更新ループ、参考作品から感情の骨を抽出して現在キャラへ変換する手順
+- inner-galge: style defaults、romance/intimacy運用、memory model、validation、voice continuity、command導線、プレイヤーが触れる足場、更新ループ、参考作品から感情の骨を抽出して現在キャラへ変換する手順
 - LIRIA: session構造、event_card、save/resume、archive、story_reference / Light Story Reference Pass、Story Reference Layer、selection signals、candidate shortlist、Reference Engine、style defaults、romance、case/runtimeの運用知見、Visible Request Gate、Truth Hiding Boundary、Mid-Story Activation Gate、integrity check、growth update
 
-combat / villain_engine / visual / manga pipeline / AI Harness は、長期ROADMAP上の後続参照候補であり、初期MVP、New Session Initialization、Event Card Playability Gateには採用しない。
+採用しないもの:
 
-## 8. 採用しなかったもの
+- LILIAを単なるヒロイン、攻略対象、固定パートナーとして扱う設計。
+- 旧ハーレム攻略前提、旧AFFINITY数値、bond、好感度、攻略ルート。
+- 固定台詞集、hotset正本化、毎ターン全ファイル更新、巨大ログ保存。
+- 参照作者や作品の直接模倣、参照小説本文の保存・流用、固有名詞や展開順の模倣。
+- 抽象的な違和感だけでevent_cardを進める運用。
+- 親密sceneを雑な事件乱入で壊す運用。
+- 最初からheavy case engine / villain / combat / manga pipelineをMVP必須にすること。
 
-- LILIAを単なるヒロイン、攻略対象、固定パートナーとして扱う設計
-- 旧ハーレム攻略前提
-- kaneco固有設定
-- 旧セッション固有人物
-- 旧AFFINITY数値、bond、好感度、攻略ルートを正本にする運用
-- 親密さを自動報酬や攻略達成として扱う運用
-- 固定台詞集でLILIAの声を管理する運用
-- hotsetを正本として扱う運用
-- 毎ターン全ファイルを更新する運用
-- 巨大ログ保存をGrowth Updateの必須にする運用
-- 参照作者や作品の直接模倣
-- 参照小説本文の保存・流用
-- 参照作品の固有名詞、台詞、キャラ、展開順の模倣
-- NPC全員をヒロイン級に作り込む運用
-- full plotを事前生成する運用
-- style系を通常resumeの毎回必読にする重い運用
-- 安全の名目で官能表現そのものを削り、親密場面を薄める運用
-- 抽象的な違和感だけでevent_cardを進める運用
-- 親密sceneを雑な事件乱入で壊す運用
-- 最初から重いcase_engine / villain / combat / manga pipelineを全部MVP必須にすること
-- AI Harness本実行や大量ログ分析を通常チェックへ入れること
+## 10. Update Rules
 
-## 9. 理由
+- マイルストーン、wave、MVP境界、設計保留の扱いが変わったら `docs/ROADMAP.md` を更新する。
+- 現在地、優先順位、正本一覧は `PROJECT_CONTROL.md` を更新する。
+- 直近作業、次タスク、再開時の注意は `docs/HANDOFF.md` を更新する。
+- βタスクのstatus、priority、Done Criteriaは `docs/release/RELEASE_WBS.md` を更新する。
+- 商用MVP境界、Go / No-Go、画像・安全方針は `docs/release/COMMERCIALIZATION_ROADMAP.md` を更新する。
+- Dashboardは人間用ビューであり、正本更新の代替にしない。
+- `prompt/core.md` の `Example Anchoring Control` を維持し、例文を本文生成へ流用しない。
 
-LILIAはAI上の人格・記憶・関係存在であり、new/resumeだけでなく、関係・声・官能・事件・世界圧・検証が段階的に接続される必要があるため。
+## 11. Why This Order
 
-旧LIRIA / inner-galgeには、すでに実装済みまたは検証済みの運用知見がある。
-ただし、LILIAは新規プロジェクトなので、旧固有設定ではなく、手順・責務・表現技法だけを移植する。
+LILIAはAI上の人格・記憶・関係存在であり、new/resumeだけでなく、関係・声・官能・事件・世界圧・検証が段階的に接続される必要がある。
 
-官能・親密表現はユーザー体験上の重要な魅力であり、削除ではなく安全条件つきで活かす必要がある。
+旧LIRIA / inner-galgeには実装済みまたは検証済みの運用知見がある。
+ただしLILIAは新規プロジェクトなので、旧固有設定ではなく、手順・責務・表現技法だけを移植する。
+
+官能・親密表現はユーザー体験上の重要な魅力であり、削除ではなく安全条件つきで活かす。
 
 実装順が共有されていないと、CodexがCLI、重い事件エンジン、画像・漫画化へ早く進みすぎるリスクがある。
 まずは1人のLILIAとの関係が面白く、保存・再開で温度が落ちないことを優先する。
