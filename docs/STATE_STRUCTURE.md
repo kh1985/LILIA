@@ -416,6 +416,8 @@ Story / Relationship Accumulation は `docs/STORY_RELATIONSHIP_ACCUMULATION.md` 
 `cast/npc` は初期MVPでは標準にしない。
 必要になったら後続で検討する。
 
+`session.json` にはCLI運用メタ情報も置く。`applied_turn_updates` は `apply-turn` が同一 `turn_update.md` の再適用を検出するための短いhash履歴であり、物語正本ではない。
+
 ## 10. new時に生成する想定ファイル
 
 new時は `prompt/newgame.md` を入口、`docs/NEW_SESSION_INITIALIZATION.md` を初期生成手順の正本として、`templates/session/` から以下を生成・初期化する。

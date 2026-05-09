@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -112,6 +113,7 @@ AUTOSAVE_DEFAULTS = {
     "turns_since_save": 0,
     "autosave_required": False,
 }
+TURN_UPDATE_HISTORY_LIMIT = 50
 
 TURN_UPDATE_TARGETS = {
     "scene": "current/scene.md",
@@ -156,7 +158,7 @@ def usage() -> None:
 Usage:
   ./lilia new [session_name] [--interactive | --prompt-only | --run] [--engine codex|claude|auto]
   ./lilia apply-newgame <session_name> <answers.md> [--engine codex|claude|auto]
-  ./lilia apply-turn [--dry-run] <session_name> <turn_update.md>
+  ./lilia apply-turn [--dry-run] [--force] <session_name> <turn_update.md>
   ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
   ./lilia codex-new [session_name]
@@ -1097,6 +1099,72 @@ def parse_turn_update(path: Path) -> dict[str, str]:
         for key, lines in sections.items()
         if "\n".join(lines).strip()
     }
+
+
+def turn_update_fingerprint(sections: dict[str, str]) -> str:
+    payload = {
+        "format": "lilia.turn_update.v1",
+        "sections": {key: sections[key].strip() for key in sorted(sections)},
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def turn_update_source_label(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT.resolve()))
+    except ValueError:
+        return str(path)
+
+
+def find_applied_turn_update(data: dict, fingerprint: str) -> dict[str, object] | None:
+    history = data.get("applied_turn_updates")
+    if not isinstance(history, list):
+        return None
+    for entry in history:
+        if isinstance(entry, dict) and entry.get("sha256") == fingerprint:
+            return entry
+    return None
+
+
+def duplicate_turn_update_message(entry: dict[str, object], fingerprint: str) -> str:
+    applied_at = entry.get("applied_at") or "unknown time"
+    source = entry.get("source") or "unknown source"
+    return (
+        "turn_update already applied "
+        f"(sha256={fingerprint[:12]}, applied_at={applied_at}, source={source}). "
+        "Use --force only when intentional."
+    )
+
+
+def remember_applied_turn_update(
+    data: dict,
+    fingerprint: str,
+    sections: dict[str, str],
+    source: str,
+    timestamp: str,
+) -> None:
+    raw_history = data.get("applied_turn_updates")
+    history = raw_history if isinstance(raw_history, list) else []
+    history = [
+        entry
+        for entry in history
+        if not (isinstance(entry, dict) and entry.get("sha256") == fingerprint)
+    ]
+    history.append(
+        {
+            "sha256": fingerprint,
+            "applied_at": timestamp,
+            "source": source,
+            "sections": sorted(sections),
+        }
+    )
+    data["applied_turn_updates"] = history[-TURN_UPDATE_HISTORY_LIMIT:]
 
 
 def parse_bracket_list(value: str) -> list[str]:
@@ -3577,18 +3645,51 @@ def command_apply_turn(args: list[str]) -> None:
     if "--dry-run" in args:
         dry_run = True
         args = [arg for arg in args if arg != "--dry-run"]
+    force = False
+    if "--force" in args:
+        force = True
+        args = [arg for arg in args if arg != "--force"]
     if len(args) != 2:
-        die("apply-turn requires [--dry-run] <session_name> <turn_update.md>")
+        die("apply-turn requires [--dry-run] [--force] <session_name> <turn_update.md>")
 
     session_path = resolve_session(args[0])
     logger = OperationLogger("apply_turn", session_path.name)
     logger.section("apply-turn START")
-    logger.write("start_context", session_id=session_path.name, timestamp=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"), dry_run=dry_run)
+    logger.write(
+        "start_context",
+        session_id=session_path.name,
+        timestamp=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        dry_run=dry_run,
+        force=force,
+    )
     update_path = Path(args[1]).expanduser()
     sections = parse_turn_update(update_path)
     if not sections:
         die("turn_update.md has no non-empty supported sections")
-    logger.write("inputs", update_path=update_path, dry_run=dry_run, sections=list(sections))
+    fingerprint = turn_update_fingerprint(sections)
+    update_source = turn_update_source_label(update_path)
+    session_data = read_session_json(session_path)
+    duplicate = find_applied_turn_update(session_data, fingerprint)
+    logger.write(
+        "inputs",
+        update_path=update_path,
+        dry_run=dry_run,
+        force=force,
+        sections=list(sections),
+        turn_update_sha256=fingerprint,
+    )
+    if duplicate is not None:
+        message = duplicate_turn_update_message(duplicate, fingerprint)
+        duplicate_action = "force" if force else "warn" if dry_run else "blocked"
+        logger.write("duplicate_check", status="duplicate", action=duplicate_action)
+        if dry_run:
+            print(f"warning: {message}", file=sys.stderr)
+        elif force:
+            print(f"warning: {message}", file=sys.stderr)
+        else:
+            die(message)
+    else:
+        logger.write("duplicate_check", status="new")
     logger.section("References")
     logger.write(
         "read",
@@ -3644,12 +3745,12 @@ def command_apply_turn(args: list[str]) -> None:
         mark_updated(rel_path)
 
     if not dry_run:
-        data = read_session_json(session_path)
-        autosave = ensure_autosave(data)
+        autosave = ensure_autosave(session_data)
         autosave["turns_since_save"] = 0
         autosave["autosave_required"] = False
-        mark_first_scene_started_if_needed(data)
-        write_session_json(session_path, data)
+        mark_first_scene_started_if_needed(session_data)
+        remember_applied_turn_update(session_data, fingerprint, sections, update_source, timestamp)
+        write_session_json(session_path, session_data)
         mark_updated("session.json")
     logger.section("Updates")
     logger.write("write_complete", dry_run=dry_run, updated=updated, skipped=skipped)
