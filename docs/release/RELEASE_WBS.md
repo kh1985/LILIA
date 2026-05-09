@@ -2,13 +2,35 @@
 
 この文書は、LILIA商用βリリースまでのタスク、状態、優先度、完了条件を管理する release WBS である。
 
+## Role
+
+この文書で管理するもの:
+
+- `ID`
+- `Task`
+- `Status`
+- `Priority`
+- `Owner`
+- `Due`
+- `Done Criteria`
+- 8 week schedule の作業順メモ
+
+この文書で管理しないもの:
+
+- 商用βの目的、MVP境界、作るもの / 作らないもの、Go / No-Go、画像戦略、安全方針の詳細。これらは `docs/release/COMMERCIALIZATION_ROADMAP.md` を見る。
+- 現在地と次にCodexへ投げる優先順。これは `PROJECT_CONTROL.md` を見る。
+- 直近引き継ぎ。これは `docs/HANDOFF.md` を見る。
+- 人間用の見取り図や集計表示。`STATUS_DASHBOARD.html` はビューであり、正本ではない。
+
 ## Status
+
+以下は既存statusの意味を明文化するものであり、各WBS行のstatusを変更するものではない。
 
 - todo: 未着手
 - doing: 作業中
 - blocked: 停止中
-- review: 確認待ち
-- done: 完了
+- review: 実装、仕様、または判断材料はあるが、Done Criteriaの最終確認待ち
+- done: Done Criteriaを満たしたことを確認済み
 - dropped: 採用しない
 
 ## Priority
@@ -17,6 +39,19 @@
 - P1: β品質に必要
 - P2: あると良い
 - P3: 後回し
+
+StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該当行を更新する。
+仕様が書かれていること、実装があること、β完了条件を満たすことは別扱いにする。
+
+## Task Family References
+
+| ID family | Detail source | Status source |
+|---|---|---|
+| HOOK-* / TEMPO-* | `docs/release/COMMERCIALIZATION_ROADMAP.md` section 12 / `docs/specs/PLAY_MODE_SPEC.md` | This WBS |
+| ARC-* | `docs/release/COMMERCIALIZATION_ROADMAP.md` section 13 / `docs/specs/PLAY_MODE_SPEC.md` | This WBS |
+| AI-* | `docs/testing/AI_PLAYTEST_PLAN.md` | This WBS |
+| IMG-* | `docs/release/COMMERCIALIZATION_ROADMAP.md` section 5 | This WBS |
+| SEC-* | `docs/release/COMMERCIALIZATION_ROADMAP.md` section 14 | This WBS |
 
 ## WBS
 
@@ -103,6 +138,9 @@
 | REL-003 | Go / No-Go判定 | todo | P0 |  |  | 有料βを開始するか、延期するかを判断済み |
 
 ## 8 Week Schedule
+
+このscheduleは作業順のメモであり、statusの正本は上のWBS表である。
+商用判断やGo / No-Goの理由は `docs/release/COMMERCIALIZATION_ROADMAP.md` を見る。
 
 Week 1:
 
