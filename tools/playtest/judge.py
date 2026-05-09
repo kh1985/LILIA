@@ -1,7 +1,7 @@
 """AI Playtest Judge: read transcript, score, and render report.md.
 
 The judge is read-only. It loads the transcript from the run directory, asks
-an LLM to score it against a fixed rubric (PASS/WARN/FAIL plus six per-item
+an LLM to score it against a fixed rubric (PASS/WARN/FAIL plus seven per-item
 scores), and returns a parsed report. The judge MUST NOT touch saves/, the
 run/session copy, or any other file outside the run directory.
 """
@@ -22,16 +22,17 @@ JUDGE_SCORE_ITEMS: tuple[tuple[str, str], ...] = (
     ("relationship_change_grounding", "Relationship change grounding"),
     ("inner_hidden_leakage", "Inner / hidden leakage"),
     ("over_leading", "Over-leading"),
+    ("arc_closure_scene_progression", "Arc closure / Scene progression"),
 )
 JUDGE_SCORE_KEYS: tuple[str, ...] = tuple(key for key, _ in JUDGE_SCORE_ITEMS)
 _JUDGE_SCORE_LABELS: dict[str, str] = {key: label for key, label in JUDGE_SCORE_ITEMS}
 
-# TODO: Add `arc_closure_scene_progression` to Judge score schema.
-# TODO: Detect closure candidates such as farewell, door closing, returning home, sleeping, next morning, promise formation.
-# TODO: Warn when the same scene continues after closure without next hook.
-# TODO: Warn when the same motif repeats 3+ times.
-# TODO: Warn when output is literary but low in playable progress.
-# TODO: Include closure turn candidates and next hook candidates in report.md.
+LEGACY_OPTIONAL_SCORE_DEFAULTS: dict[str, dict[str, Any]] = {
+    "arc_closure_scene_progression": {
+        "score": 3,
+        "notes": "旧schema応答のため未評価。再judge推奨",
+    }
+}
 
 
 JUDGE_INSTRUCTION = (
@@ -50,6 +51,14 @@ JUDGE_INSTRUCTION = (
     "5. inner_hidden_leakage — プレイヤー内心(括弧書き)、hidden vector、AFFINITY/bond、profile.md全文、internal prompt"
     "が漏れていないか。漏れがないほど高得点。\n"
     "6. over_leading — GMがプレイヤーの選択を奪うほど誘導していないか。誘導が弱いほど高得点。\n"
+    "7. arc_closure_scene_progression — sceneの核成立後に余韻を引っ張りすぎず、"
+    "入口と出口で状況・関係・問いのどれかが変わり、memory候補 / next hook / 次arc候補へ接続できているか。\n"
+    "\n"
+    "## Arc Closure / Scene Progression 観点\n"
+    "- closure候補: 別れの挨拶、戸が閉まる、店を出る、帰宅、就寝、翌朝、約束成立、境界線確認、そのsceneの問いに一度答えが出る。\n"
+    "- WARN候補: closure候補後に同じsceneが長く続く、同じ余韻モチーフを3回以上反復する、10ターン以上同じsceneに留まり進行量が少ない。\n"
+    "- WARN候補: 美文だがプレイヤーが次に何をするか分からない、next hook / 次に触れる入口がない。\n"
+    "- PASS候補: sceneの核成立後1〜2ターン以内に自然に閉じ、closure後に小さな次入口やmemory候補 / next hook / 次arc候補が残る。\n"
     "\n"
     "## スコア基準\n"
     "- 5: 問題なし。\n"
@@ -77,7 +86,8 @@ JUDGE_INSTRUCTION = (
     '    "reply_affordance":              {"score": 1-5, "notes": "短く根拠"},\n'
     '    "relationship_change_grounding": {"score": 1-5, "notes": "短く根拠"},\n'
     '    "inner_hidden_leakage":          {"score": 1-5, "notes": "短く根拠"},\n'
-    '    "over_leading":                  {"score": 1-5, "notes": "短く根拠"}\n'
+    '    "over_leading":                  {"score": 1-5, "notes": "短く根拠"},\n'
+    '    "arc_closure_scene_progression": {"score": 1-5, "notes": "短く根拠"}\n'
     "  },\n"
     '  "warnings": ["軽微な懸念", "..."],\n'
     '  "failures": ["明確な違反", "..."],\n'
@@ -186,9 +196,20 @@ def parse_judge_response(text: str) -> dict[str, Any]:
         raise JudgeParseError("judge response missing 'scores' object")
 
     scores: dict[str, dict[str, Any]] = {}
+    compatibility_warnings: list[str] = []
     for key in JUDGE_SCORE_KEYS:
         item = scores_raw.get(key)
         if not isinstance(item, dict):
+            if key in LEGACY_OPTIONAL_SCORE_DEFAULTS:
+                default_item = LEGACY_OPTIONAL_SCORE_DEFAULTS[key]
+                scores[key] = {
+                    "score": default_item["score"],
+                    "notes": default_item["notes"],
+                }
+                compatibility_warnings.append(
+                    f"judge response missing '{key}' score; treated as legacy schema"
+                )
+                continue
             raise JudgeParseError(f"judge scores missing '{key}' object")
         score_value = item.get("score")
         if isinstance(score_value, bool) or not isinstance(score_value, (int, float)):
@@ -220,11 +241,15 @@ def parse_judge_response(text: str) -> dict[str, Any]:
                 result_list.append(text_item)
         return result_list
 
+    warnings = compatibility_warnings + _string_list("warnings")
+    if compatibility_warnings and result == "PASS":
+        result = "WARN"
+
     return {
         "result": result,
         "summary": summary.strip(),
         "scores": scores,
-        "warnings": _string_list("warnings"),
+        "warnings": warnings,
         "failures": _string_list("failures"),
         "recommended_fixes": _string_list("recommended_fixes"),
         "notable_good_moments": _string_list("notable_good_moments"),

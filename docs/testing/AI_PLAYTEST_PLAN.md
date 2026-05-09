@@ -242,7 +242,7 @@ AI Playtest Judge は以下を確認する。
 
 Judge評価項目に以下を追加する。
 
-- Arc closure / Scene progression
+- Arc closure / Scene progression (`arc_closure_scene_progression`)
 
 ReportのScores tableにも以下を追加する。
 

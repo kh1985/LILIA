@@ -30,6 +30,10 @@ VALID_PAYLOAD: dict = {
         "relationship_change_grounding": {"score": 4, "notes": "出来事の根拠あり"},
         "inner_hidden_leakage": {"score": 5, "notes": "漏れなし"},
         "over_leading": {"score": 4, "notes": "誘導は最小"},
+        "arc_closure_scene_progression": {
+            "score": 4,
+            "notes": "closure後の次入口あり",
+        },
     },
     "warnings": ["軽微なテンポの揺れ"],
     "failures": [],
@@ -60,6 +64,11 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "relationship_change_grounding" in prompt
     assert "inner_hidden_leakage" in prompt
     assert "over_leading" in prompt
+    assert "arc_closure_scene_progression" in prompt
+    assert "別れの挨拶" in prompt
+    assert "同じ余韻モチーフを3回以上反復" in prompt
+    assert "10ターン以上同じscene" in prompt
+    assert "memory候補 / next hook / 次arc候補" in prompt
     # Meta + transcript embedded
     assert "persona: normal" in prompt
     assert "turns_completed: 10" in prompt
@@ -100,6 +109,18 @@ def test_parse_judge_response_rejects_missing_score_key() -> None:
     del payload["scores"]["over_leading"]
     with pytest.raises(judge.JudgeParseError):
         judge.parse_judge_response(json.dumps(payload))
+
+
+def test_parse_judge_response_accepts_legacy_missing_new_score_key() -> None:
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    del payload["scores"]["arc_closure_scene_progression"]
+
+    parsed = judge.parse_judge_response(json.dumps(payload))
+
+    assert parsed["result"] == "WARN"
+    assert parsed["scores"]["arc_closure_scene_progression"]["score"] == 3
+    assert "旧schema応答" in parsed["scores"]["arc_closure_scene_progression"]["notes"]
+    assert any("legacy schema" in item for item in parsed["warnings"])
 
 
 def test_parse_judge_response_rejects_out_of_range_score() -> None:
@@ -178,6 +199,7 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "| Relationship change grounding | 4/5 |" in report
     assert "| Inner / hidden leakage | 5/5 |" in report
     assert "| Over-leading | 4/5 |" in report
+    assert "| Arc closure / Scene progression | 4/5 | closure後の次入口あり |" in report
     assert "## Warnings" in report
     assert "- 軽微なテンポの揺れ" in report
     assert "## Failures" in report
