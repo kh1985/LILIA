@@ -339,6 +339,21 @@ def ensure_autosave(data: dict) -> dict:
     return autosave
 
 
+def mark_first_scene_started_if_needed(data: dict) -> bool:
+    initialization = data.get("initialization")
+    if not isinstance(initialization, dict):
+        return False
+
+    if data.get("current_phase") != "first_scene_ready":
+        return False
+    if initialization.get("first_scene_status") != "ready":
+        return False
+
+    data["current_phase"] = "active"
+    initialization["first_scene_status"] = "started"
+    return True
+
+
 def is_placeholder_lilia_name(value: object) -> bool:
     if not isinstance(value, str):
         return True
@@ -2615,8 +2630,11 @@ def build_resume_prompt_bundle(session_path: Path) -> str:
 
 def resume_requires_profile(session_path: Path) -> bool:
     data = read_session_json(session_path)
-    if data.get("current_phase") in {"first_scene_pending", "first_scene_ready"}:
+    phase = data.get("current_phase")
+    if phase in {"first_scene_pending", "first_scene_ready"}:
         return True
+    if phase == "active":
+        return False
     initialization = data.get("initialization")
     if isinstance(initialization, dict):
         return (
@@ -3630,6 +3648,7 @@ def command_apply_turn(args: list[str]) -> None:
         autosave = ensure_autosave(data)
         autosave["turns_since_save"] = 0
         autosave["autosave_required"] = False
+        mark_first_scene_started_if_needed(data)
         write_session_json(session_path, data)
         mark_updated("session.json")
     logger.section("Updates")
