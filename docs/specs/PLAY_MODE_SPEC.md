@@ -189,6 +189,9 @@ Arc Closure Guard は、sceneの核が成立した後に、余韻を引っ張り
 LILIAは小説生成ではなく、プレイヤーが次に行動できるAI恋愛ADV / AI TRPG型体験である。
 良い余韻は必要だが、余韻が長すぎるとプレイヤーは次に何をすればよいか分からなくなる。
 
+`prompt/core.md` では、Play Modeの通常応答を送る直前の軽い確認として扱う。
+この確認は本文に出さず、保存更新、内部判断、評価用語をプレイヤーへ説明しない。
+
 ### Closure Candidates
 
 以下が出た場合、scene end候補として扱う。
@@ -265,6 +268,7 @@ scene closure後は、本文を続けすぎず、以下へ回す。
 
 Play Mode本文に保存処理を出さない。
 ただし、AI Playtest Judge / growth_summary では、closure後に保存候補を抽出できるようにする。
+実際の保存更新はSave Modeでのみ行い、Play Mode中は次の入口だけを本文に残す。
 
 ### Passing Conditions
 
