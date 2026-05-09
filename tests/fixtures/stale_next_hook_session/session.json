@@ -1,0 +1,14 @@
+{
+  "session_name": "stale_next_hook_session",
+  "current_phase": "active",
+  "initialization": {
+    "qa_completed": true,
+    "first_scene_status": "started"
+  },
+  "autosave": {
+    "enabled": true,
+    "interval_turns": 10,
+    "turns_since_save": 0,
+    "autosave_required": false
+  }
+}

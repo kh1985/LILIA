@@ -59,7 +59,8 @@ Save Mode に入る条件は以下だけである。
 Save Modeでのみ、`prompt/save_resume.md` と `docs/GROWTH_UPDATE_LOOP.md` に従ってファイル更新を行う。
 通常プレイの各ターンごとに保存更新やgit確認を割り込ませない。
 `current/scene.md` や `current/relationship_overview.md` を更新したい場合も、直接手編集せず、`turn_update.md` の `## scene` / `## relationship_overview` に書いて `./lilia apply-turn <session> <turn_update.md>` で反映する。
-scene終了や章区切りで保存する時は、`turn_update.md` の `## next_hook` を必ず検討する。next_hookは選択肢UIではなく、次にユーザーが自然に返せる入口であり、`apply-turn` で `current/event_card.md` と `story/story_deck.md` に残す。
+scene終了や章区切りで保存する時は、`turn_update.md` の `## next_hook` を必ず検討する。next_hookは選択肢UIではなく、次にユーザーが自然に返せる入口である。
+next_hookを次回resume 1ターン目の入口にする場合は、`current/scene.md` / `current/event_card.md` / `current/hotset.md` のactive stateも同じ入口へ揃える。`apply-turn` は、scene / event_card / hotset がturn_updateに無い場合、未保存の具体手がかりを足さない最小active stateへ昇格する。
 例外的な手編集は、人間が明示した時だけ行う。
 
 ## Player Input Boundary
@@ -568,6 +569,7 @@ scene終了や章区切りでSave Modeに入った時は、`next_hook` を必ず
 見るものは、Scene Exit / Next Beat のどれが発火したか、次に会う口実、LILIAからの相談、未回収札の前景化、仕事相談や便利屋依頼のように始まるが関係にも刺さる入口、メッセージ、通知、約束、言い残し、紙袋や持ち物など現在sceneから自然に戻る小さな圧である。
 next_hookは固定選択肢ではない。
 現在のLILIAの人格、memory、relationship、beliefs、voice、event_card、story_deckに接続した、次にユーザーが自然に返せる入口として書く。
+ただし、next_hookは候補であり、それだけではactive eventではない。次回resume入口にするなら、Visible Problem / First Concrete Action / Handles / Relationship Stake / If Ignored / Next Visible Changeへ変換し、hotsetだけが次sceneへ進む状態を作らない。
 
 `lilia/main/state.md` は、直近の感情と第一反応を中心に更新する。長い履歴を積みすぎず、次の会話に効く状態へ整える。
 

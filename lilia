@@ -37,6 +37,11 @@ from tools.playtest.menu import (
     resolve_choice,
     resolve_menu_action,
 )
+from tools.session.state_consistency import (
+    format_state_consistency_report,
+    promote_next_hook_to_active_state,
+    validate_state_consistency,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -161,6 +166,7 @@ Usage:
   ./lilia apply-turn [--dry-run] [--force] <session_name> <turn_update.md>
   ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
+  ./lilia validate-session <session_name>
   ./lilia codex-new [session_name]
   ./lilia codex-resume [session_name]
   ./lilia archive-codex-logs
@@ -1841,9 +1847,15 @@ def print_voice_continuity_report(session_path: Path) -> None:
     for warning in warnings_only:
         print(warning)
 
-    if hard_errors:
-        for error in hard_errors:
-            print(error)
+    for error in hard_errors:
+        print(error)
+
+
+def print_state_consistency_report(session_path: Path) -> str:
+    result = validate_state_consistency(session_path)
+    if result.status != "PASS":
+        print(format_state_consistency_report(result), file=sys.stderr)
+    return result.status
 
 
 def profile_sections(profile: str) -> dict[str, str]:
@@ -2913,6 +2925,9 @@ def command_resume(args: list[str]) -> None:
     if len(args) > 1:
         die("resume accepts at most one session_name")
     session_path = resolve_session(args[0] if args else None)
+    state_status = print_state_consistency_report(session_path)
+    if run and state_status == "FAIL":
+        die(f"state consistency check failed; inspect './lilia validate-session {session_path.name}' before resume --run")
     print_voice_continuity_report(session_path)
     if run:
         run_engine(engine, session_path, build_resume_prompt_bundle(session_path))
@@ -2923,6 +2938,16 @@ def command_resume(args: list[str]) -> None:
         else:
             print(f"prompt: ./lilia resume {session_path.name} --prompt-only")
             print(f"run:    ./lilia resume {session_path.name} --run --engine auto")
+
+
+def command_validate_session(args: list[str]) -> None:
+    if len(args) != 1:
+        die("validate-session requires <session_name>")
+    session_path = resolve_session(args[0])
+    result = validate_state_consistency(session_path)
+    print(format_state_consistency_report(result))
+    if result.status == "FAIL":
+        sys.exit(1)
 
 
 def command_codex_new(args: list[str]) -> None:
@@ -3720,9 +3745,35 @@ def command_apply_turn(args: list[str]) -> None:
         if key == "next_hook":
             event_card_path = "current/event_card.md"
             story_deck_path = "story/story_deck.md"
+            promoted_paths = [
+                rel_path
+                for rel_path, section_key in [
+                    ("current/scene.md", "scene"),
+                    ("current/event_card.md", "event_card"),
+                    ("current/hotset.md", "hotset"),
+                ]
+                if section_key not in sections
+            ]
             if not dry_run:
-                append_session_file(session_path, event_card_path, render_next_hook_block(timestamp, body, "Next Hook"))
                 append_session_file(session_path, story_deck_path, render_next_hook_block(timestamp, body, "Candidate Next Hook"))
+                if promoted_paths:
+                    for rel_path in promote_next_hook_to_active_state(
+                        session_path,
+                        body,
+                        timestamp,
+                        update_scene="scene" not in sections,
+                        update_event_card="event_card" not in sections,
+                        update_hotset="hotset" not in sections,
+                    ):
+                        mark_updated(rel_path)
+                else:
+                    append_session_file(session_path, event_card_path, render_next_hook_block(timestamp, body, "Next Hook"))
+                    mark_updated(event_card_path)
+            else:
+                for rel_path in promoted_paths:
+                    mark_updated(rel_path)
+                if not promoted_paths:
+                    mark_updated(event_card_path)
             mark_updated(event_card_path)
             mark_updated(story_deck_path)
             continue
@@ -5597,6 +5648,8 @@ def main(argv: list[str]) -> None:
         command_new(args)
     elif command == "resume":
         command_resume(args)
+    elif command == "validate-session":
+        command_validate_session(args)
     elif command == "codex-new":
         command_codex_new(args)
     elif command == "codex-resume":
