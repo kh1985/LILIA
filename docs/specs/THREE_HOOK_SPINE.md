@@ -215,6 +215,12 @@ event_cardに将来追加する候補:
 今回のタスクでは実装しない。
 仕様として置く。
 
+Template受け皿:
+
+- `templates/session/story/story_deck.md` は `## Three Hook Spine`、`## Background Hooks`、`## Candidate Next Hooks` を持つ。
+- `templates/session/current/event_card.md` は `## Active Hook` と `## Scene Function` を持つ。
+- これらはMarkdown stateの受け皿であり、大規模生成ロジックやWBS status変更を意味しない。
+
 ## 9. Arc Closure / Scene Progression
 
 sceneの機能が達成されたら、同じ緊張や同じモチーフを足して延命せず、1-2ターン以内に閉じる。

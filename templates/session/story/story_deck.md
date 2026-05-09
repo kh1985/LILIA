@@ -2,6 +2,47 @@
 
 関係を揺らし、LILIAの内面や距離感を変化させるstory素材と未回収札の整理です。
 例文集ではなく、次イベント判断に必要なものだけを置きます。
+story_deckは素材棚です。Active Hookそのものは `current/event_card.md` 上部に置きます。
+Main / Relationship / Life-Explorationの3hookを、Play Mode本文の3択UIとして出しません。
+
+## Three Hook Spine
+
+### Main Hook
+- hook_id:
+- status: background
+- current_function:
+- current_question:
+- visible_handle:
+- pressure:
+- exit_condition:
+- next_candidate:
+
+### Relationship Hook
+- hook_id:
+- status: background
+- current_function:
+- current_question:
+- relationship_stake:
+- boundary_or_trust_issue:
+- exit_condition:
+- next_candidate:
+
+### Life-Exploration Hook
+- hook_id:
+- status: background
+- current_function:
+- current_question:
+- available_scope:
+- travel_or_life_option:
+- heroine_attendance:
+- exit_condition:
+- next_candidate:
+
+注:
+- status候補: background / active / pending / advanced / resolved / worsened / blocked / archived
+- story_deck上のhookは原則 background / pending / advanced / resolved / worsened / blocked / archived として扱う。
+- `active` は現在のActive Hookとの対応を示す参照に限る。今触れる可視イベント本体は `current/event_card.md` に置く。
+- current_function は内部診断タグであり、Play Mode本文へそのまま出さない。
 
 ## 現在使えるstory素材
 
@@ -25,6 +66,14 @@
 - 現在sceneから外れた出来事:
 - 後で戻す条件:
 - 関係に残った圧:
+
+## Background Hooks
+
+- 未設定
+
+## Candidate Next Hooks
+
+- 未設定
 
 ## World Pressure / 1-3 Scene Return
 

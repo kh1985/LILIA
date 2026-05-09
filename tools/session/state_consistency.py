@@ -118,7 +118,10 @@ def latest_heading_block(content: str, target_heading: str) -> str:
 
 def latest_next_hook(session_root: Path) -> tuple[str, str]:
     event_hook = latest_heading_block(read_text(session_root / "current/event_card.md"), "Next Hook")
-    story_hook = latest_heading_block(read_text(session_root / "story/story_deck.md"), "Candidate Next Hook")
+    story_deck = read_text(session_root / "story/story_deck.md")
+    story_hook = latest_heading_block(story_deck, "Candidate Next Hook")
+    if not story_hook:
+        story_hook = latest_heading_block(story_deck, "Candidate Next Hooks")
     if event_hook:
         return event_hook, "current/event_card.md"
     if story_hook:
@@ -338,6 +341,24 @@ def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
     return "\n".join(
         [
             "# Event Card",
+            "",
+            "## Active Hook",
+            "",
+            "- hook_id: promoted_next_hook",
+            "- hook_type: main / relationship / life",
+            "- status: active",
+            "- foreground_reason: 保存済みnext_hookを次sceneの入口として前景化する。",
+            "- 注: Active Hookは今触れる1本だけ。3hookを3択UIとして並べない。",
+            "",
+            "## Scene Function",
+            "",
+            "- function: 始動",
+            f"- current_question: {summary}",
+            "- entry_state: 前sceneは一度閉じ、保存済みnext_hookから次sceneへ入る。",
+            "- exit_condition: 状況確認の入口が成立し、次に触れる可視問題が明確になる。",
+            "- change_delta: next_hook候補がactive event_cardへ昇格する。",
+            "- next_hook_candidate: Save Modeで必要になった場合だけ更新する。",
+            "- 注: Story Function名は内部タグ。Play Mode本文へそのまま出さない。",
             "",
             "## 表の出来事",
             "",

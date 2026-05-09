@@ -168,6 +168,26 @@ items:
 
 def _playable_event_card(overrides: dict[str, str] | None = None) -> str:
     body = {
+        "Active Hook": "\n".join(
+            [
+                "- hook_id: test_active_hook",
+                "- hook_type: relationship",
+                "- status: active",
+                "- foreground_reason: 忘れ物を返す場面を関係の入口として前景化する。",
+                "- 注: Active Hookは今触れる1本だけ。3hookを3択UIとして並べない。",
+            ]
+        ),
+        "Scene Function": "\n".join(
+            [
+                "- function: 始動",
+                "- current_question: 忘れ物をどう扱えば、ユイの警戒を強めずに返せるか。",
+                "- entry_state: 会釈だけの距離で、忘れ物だけが可視入口になっている。",
+                "- exit_condition: イヤホンをどう返すかが決まり、次の反応が見える。",
+                "- change_delta: 会釈だけの関係に、短い用件の記憶が加わる。",
+                "- next_hook_candidate: 礼を言った後の沈黙や距離。",
+                "- 注: Story Function名は内部タグ。Play Mode本文へそのまま出さない。",
+            ]
+        ),
         "表の出来事": "- カフェでユイが忘れたイヤホンを、かねこが見つけて返す。",
         "Visible Problem": "\n".join(
             [

@@ -52,6 +52,28 @@ def test_state_consistency_detects_stale_next_hook_fixture(tmp_path: Path) -> No
     assert any(issue.code == "hotset_scene_event_mismatch" for issue in result.issues)
 
 
+def test_state_consistency_detects_plural_candidate_next_hooks(tmp_path: Path) -> None:
+    session = copy_fixture(tmp_path, "plural_candidate_case")
+    event_card_path = session / "current/event_card.md"
+    story_deck_path = session / "story/story_deck.md"
+
+    event_card = event_card_path.read_text(encoding="utf-8").split("\n## Next Hook -", 1)[0]
+    event_card_path.write_text(event_card.rstrip() + "\n", encoding="utf-8")
+    story_deck_path.write_text(
+        story_deck_path.read_text(encoding="utf-8").replace(
+            "## Candidate Next Hook -",
+            "## Candidate Next Hooks -",
+        ),
+        encoding="utf-8",
+    )
+
+    result = validate_state_consistency(session)
+
+    assert result.status == "FAIL"
+    assert any(issue.code == "candidate_next_hook_not_active" for issue in result.issues)
+    assert any(issue.code == "hotset_scene_event_mismatch" for issue in result.issues)
+
+
 def test_next_hook_promotion_aligns_active_scene_event_hotset(tmp_path: Path) -> None:
     session = copy_fixture(tmp_path)
     next_hook = "翌日の夕方、依頼主に連絡がつかなかった件をもう一度確認に来てもらう。"
@@ -71,6 +93,8 @@ def test_next_hook_promotion_aligns_active_scene_event_hotset(tmp_path: Path) ->
     assert "翌日の夕方" in scene
     assert "翌日の夕方" in event_card
     assert "翌日の夕方" in hotset
+    assert "Active Hook" in event_card
+    assert "Scene Function" in event_card
     assert "Grounding Guard" in event_card
     assert "前日の閉店間際" not in event_card
     assert "Backgrounded Event Card" in story_deck
@@ -89,6 +113,8 @@ def test_promoted_event_card_uses_category_grounding_guard(tmp_path: Path) -> No
     promote_next_hook_to_active_state(session, next_hook, "2026-05-09T23:30:00+09:00")
 
     event_card = (session / "current/event_card.md").read_text(encoding="utf-8")
+    assert "Active Hook" in event_card
+    assert "Scene Function" in event_card
     assert "Grounding Guard" in event_card
     for phrase in ["小道具", "書類", "連絡手段", "識別情報", "過去の控え類", "今発見されたもの"]:
         assert phrase in event_card
@@ -145,6 +171,8 @@ def test_apply_turn_promotes_next_hook_when_active_sections_missing(
     assert "current/hotset.md" in output
 
     event_card = (session / "current/event_card.md").read_text(encoding="utf-8")
+    assert "Active Hook" in event_card
+    assert "Scene Function" in event_card
     assert "Visible Problem" in event_card
     assert "First Concrete Action" in event_card
     assert "Grounding Guard" in event_card

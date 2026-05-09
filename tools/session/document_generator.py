@@ -704,6 +704,8 @@ def _build_group_a_prompt(context: dict[str, Any]) -> str:
    scene/event_card/hotset/relationship_overview/story_deck へ直接書かない。
 6. event_card の handles は選択肢UIではなく、このヒロイン固有の現在状況へ触れる入口にする。
 7. current/event_card.md は原則1, 3, 4, 5を意識し、Visible Problem / Relationship Stake / Next Visible Change に感情の圧と未完了を残す。
+   `## Active Hook` と `## Scene Function` は内部補助であり、既存の Visible Problem / First Concrete Action / Handles / Relationship Stake / If Ignored / Next Visible Change を置き換えない。
+   Story Function名やhook statusをPlay Mode本文のように説明せず、event_card内の診断メモとして短く置く。
 8. current/scene.md は原則2, 3, 5を意識し、感情名ではなく身体反応、環境、予想との差、未解決の要素で初回sceneを始める。
 9. current/hotset.md は原則5を意識し、再開時に戻す未完了の余白を短く残す。
 10. current/scene.md の末尾に必ず `## Opening Plan` セクションを出す。
@@ -752,6 +754,9 @@ opening_caveats:
     O15: 日常のルーチンが先、違和感は1-2点で止める。
 15. `## 次に起きそうなこと` は Opening Plan の `agency` と矛盾させない。プレイヤーの選択を奪わない。
 16. `## 直前のやりとり` は Opening Plan の `4_jobs.hook` と整合させる。
+17. story/story_deck.md の `## Three Hook Spine` は素材棚である。
+    Main / Relationship / Life-Explorationを3択UIとして並べず、現在のActive Hook本体は current/event_card.md へ置く。
+    Background Hooks / Candidate Next Hooks は、今すぐPlay Modeで前景化しない候補として短く保持する。
 
 ## ファイル間の抽象レベル分離（重要）
 

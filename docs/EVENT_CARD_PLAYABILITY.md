@@ -44,6 +44,8 @@ event_cardでLILIAが自然に反応し、その結果が `memory`、`relationsh
 
 `current/event_card.md` は最低限、以下を持つ。
 
+- `Active Hook`（内部補助。今触れる1本だけ）
+- `Scene Function`（内部補助。closure / progression判定用）
 - `Visible Problem`
 - `First Concrete Action`
 - `Handles 2-4`
@@ -52,6 +54,8 @@ event_cardでLILIAが自然に反応し、その結果が `memory`、`relationsh
 - `Next Visible Change`
 
 これらが空なら、初回sceneやresume 1ターン目を始める前に補う。
+Active Hook / Scene Function は既存6項目を置き換えない。
+Story Function名やhook statusは内部タグであり、Play Mode本文へそのまま出さない。
 event_cardは `docs/specs/STORY_FUNCTION_FRAMEWORK.md` の Scene Function Check に照らして、`scene_start_state`、`scene_goal`、`obstacle`、`emotional_change`、`scene_end_state`、`next_hook` のいずれかに接続できること。
 event_cardは、設定説明ではなく問いと行動入口を作ること。
 

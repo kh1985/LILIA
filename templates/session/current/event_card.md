@@ -5,6 +5,24 @@
 抽象的な違和感ではなく、今ユーザーが触れられる可視イベントを1つだけ置きます。
 詳細な物語素材や未回収札は `story/story_deck.md` に分けます。
 
+## Active Hook
+
+- hook_id:
+- hook_type: main / relationship / life
+- status: active
+- foreground_reason:
+- 注: Active Hookは今触れる1本だけ。3hookを3択UIとして並べない。
+
+## Scene Function
+
+- function:
+- current_question:
+- entry_state:
+- exit_condition:
+- change_delta:
+- next_hook_candidate:
+- 注: Story Function名は内部タグ。Play Mode本文へそのまま出さない。
+
 ## 表の出来事
 
 - 未設定
