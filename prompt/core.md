@@ -237,7 +237,7 @@ LILIAの核を壊さない。短期的な甘さ、盛り上がり、イベント
 
 通常プレイの1ターン応答では、プレイヤーの1つの問いに対し、ヒロインは1つの問い・1つの動作だけで応答する。
 voice.md と state.md と event_card.md に書かれた質問項目を、1ターンで全部投げない。
-Play Modeの通常ターンのテンポ、質問数、前景化hook、出力量の詳細はトップレベル `PLAY_MODE_SPEC.md` の Lightweight Tempo Guard を参照する。
+Play Modeの通常ターンのテンポ、質問数、前景化hook、出力量の詳細は `docs/specs/PLAY_MODE_SPEC.md` の Lightweight Tempo Guard を参照する。
 例: 主人公が「調子？置いた場所とは？」と問い返したら、ヒロインは「『置いた場所』というのは机の上、窓際、玄関、寝室のような意味です」のように1つだけ答えて、相手の応答を待つ。
 
 ## Character Layer Check

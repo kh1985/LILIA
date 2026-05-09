@@ -2,8 +2,8 @@
 
 この文書は、LILIA開発の長期実装順とMVP境界を管理する正本である。
 思想・中核概念は `docs/CORE_CONCEPT.md`、直近の引き継ぎは `docs/HANDOFF.md`、state構造は `docs/STATE_STRUCTURE.md`、プレイヤー入力規則は `docs/PLAYER_INPUT.md`、persona profileは `docs/LILIA_PERSONA_PROFILE.md`、event_card可プレイ性は `docs/EVENT_CARD_PLAYABILITY.md`、story / scene機能診断は `docs/STORY_FUNCTION_FRAMEWORK.md`、opening scene生成は `docs/OPENING_SCENE_GENERATION.md`、voice continuityは `docs/VOICE_CONTINUITY.md`、romance/intimacy growthは `docs/ROMANCE_INTIMACY_GROWTH.md`、relationship change auditは `docs/RELATIONSHIP_CHANGE_AUDIT.md`、resume smokeは `docs/RESUME_SMOKE_TEST.md`、growth updateは `docs/GROWTH_UPDATE_LOOP.md`、story / relationship accumulationは `docs/STORY_RELATIONSHIP_ACCUMULATION.md`、crisis / combat / ability constraintは `docs/CRISIS_COMBAT_ABILITY_CONSTRAINT_LOOP.md`、technical / gameplay integrity checksは `docs/TECHNICAL_GAMEPLAY_INTEGRITY_CHECKS.md`、engine runnerは `docs/ENGINE_RUNNER.md`、Codex rollout logの運用は `docs/CODEX_ROLLOUT_LOGS.md` を正本にする。
-小規模商用化、WebUI有料ベータ、画像生成付きプレイ、BOOTH / DLsite / 月額モデルの検証順は `COMMERCIALIZATION_ROADMAP.md` を正本にする。
-商用化、リリースWBS、実装履歴、AI Playtest Smoke はトップレベルの `COMMERCIALIZATION_ROADMAP.md`、`RELEASE_WBS.md`、`IMPLEMENTATION_HISTORY.md`、`AI_PLAYTEST_PLAN.md` を参照する。
+小規模商用化、WebUI有料ベータ、画像生成付きプレイ、BOOTH / DLsite / 月額モデルの検証順は `docs/release/COMMERCIALIZATION_ROADMAP.md` を正本にする。
+商用化、リリースWBS、実装履歴、AI Playtest Smoke は `docs/release/COMMERCIALIZATION_ROADMAP.md`、`docs/release/RELEASE_WBS.md`、`docs/archive/IMPLEMENTATION_HISTORY.md`、`docs/testing/AI_PLAYTEST_PLAN.md` を参照する。
 
 ## 1. Goal
 
@@ -30,8 +30,8 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 - Growth Update Loop: 設計仕様完了 / apply-turn MVP実装済み / next_hook導線追加済み / autosave counter導入済み（interval_turns=10）/ scene-tick MVP実装済み / Wave Y-FでGM prompt上の scene-tick -> apply-turn 連鎖を必須化済み
 - Story / Relationship Accumulation Loop: docs正本化完了 / event/story_deck/profile初期生成コード接続済み / story_spine・relationship_spine は Wave 11 でAI駆動化済み / ましろ・つむぎ・全Qおまかせ smoke 通過
 - Story Function Framework: docs正本化。十五機能、三層構造、scene入口/出口の変化確認を、固定プロットではなくstory_spine / event_card / Play Mode / AI Playtestの診断として扱う
-- Three Hook Spine MVP: β前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook を持ち、脱線入力をどれかへ吸着させる。Lightweight Tempo Guard も含め、実装タスクは `RELEASE_WBS.md` の `HOOK-001〜HOOK-007` を正本にする
-- Story Continuation / Travel Branch MVP: β前P0。初期story完了後の次arc生成、大移動branch、LILIA同行可否、未解決arc最大2本、100ターン級smokeを `RELEASE_WBS.md` の `ARC-001〜ARC-007` で管理する
+- Three Hook Spine MVP: β前P0へ格上げ。Main Hook / Relationship Hook / Life-Exploration Hook を持ち、脱線入力をどれかへ吸着させる。Lightweight Tempo Guard も含め、実装タスクは `docs/release/RELEASE_WBS.md` の `HOOK-001〜HOOK-007` を正本にする
+- Story Continuation / Travel Branch MVP: β前P0。初期story完了後の次arc生成、大移動branch、LILIA同行可否、未解決arc最大2本、100ターン級smokeを `docs/release/RELEASE_WBS.md` の `ARC-001〜ARC-007` で管理する
 - Story Reference Engine 強制導線: prompt 接続済み
 - 5層 self-understanding 参照導線: prompt 接続済み
 - Deepening Tags 評価基準: GROWTH_UPDATE_LOOP + relationship template 接続済み
@@ -406,7 +406,7 @@ LILIAは単なるヒロイン、キャラ、攻略対象、固定パートナー
 
 ## 保留事項（Pending Items, 2026-05-07 整理）
 
-以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。ただし P-D と Story Continuation / Travel Branch は 2026-05-07 時点でβ前P0へ格上げ済みで、詳細実装タスクは `RELEASE_WBS.md` を正本にする。
+以下はリリース前に必須ではないが、忘れずに残しておく未確定議題である。ただし P-D と Story Continuation / Travel Branch は 2026-05-07 時点でβ前P0へ格上げ済みで、詳細実装タスクは `docs/release/RELEASE_WBS.md` を正本にする。
 
 ### P-A. テンポ管理（何をどこまでどう出すか）
 

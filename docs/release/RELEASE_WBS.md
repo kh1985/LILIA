@@ -1,6 +1,6 @@
 # LILIA Release WBS
 
-この文書は、LILIA商用βリリースまでのタスク、状態、優先度、完了条件を管理するトップレベルWBSである。
+この文書は、LILIA商用βリリースまでのタスク、状態、優先度、完了条件を管理する release WBS である。
 
 ## Status
 
@@ -22,7 +22,7 @@
 
 | ID | Task | Status | Priority | Owner | Due | Done Criteria |
 |---|---|---|---|---|---|---|
-| C-001 | 商用βスコープ確定 | todo | P0 |  |  | 初期βで作るもの・作らないものが COMMERCIALIZATION_ROADMAP.md に明文化されている |
+| C-001 | 商用βスコープ確定 | todo | P0 |  |  | 初期βで作るもの・作らないものが docs/release/COMMERCIALIZATION_ROADMAP.md に明文化されている |
 | C-002 | 1ヒロイン方針確定 | todo | P0 |  |  | 初期βで使うヒロインと現実路線の範囲が決まっている |
 | C-003 | 異界 / 能力オプション後回し明文化 | todo | P0 |  |  | 初期βでは実装しないことが明記されている |
 | P-001 | 1ヒロイン実機プレイ10ターン | done | P0 |  |  | new → first scene → 10 turns が破綻しない |
@@ -35,9 +35,9 @@
 | HOOK-004 | story_deck hook保持 | todo | P0 |  |  | story/story_deck.md に残り2本のhookと状態が保持される |
 | HOOK-005 | apply-turn hook更新 | todo | P0 |  |  | Save Mode / apply-turn で hook の進行・保留・背景化・悪化を更新できる |
 | HOOK-006 | wanderer playtest | todo | P0 |  |  | AI Playtestで脱線入力を試し、3本hookのどれかに自然に戻れる |
-| HOOK-007 | Lightweight Tempo Guard | todo | P0 |  |  | 1ターンに前景化するhookは原則1本、LILIAからの明示質問は原則1個、通常ターンの文字量目安、場面転換の上限、次に返せる入口、選択肢UIの抑制がPLAY_MODE_SPEC.mdに定義されている |
-| TEMPO-001 | Tempo Guard詳細仕様追加 | todo | P0 |  |  | PLAY_MODE_SPEC.md にTurn Budget / One Foreground Rule / Question Limit / Exit Shape が定義され、Arc Closure Guardとして余韻過多、同一モチーフ反復、長文低進行を検出する基準がある |
-| TEMPO-002 | AI Playtest Tempo Guard追加 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md で質問過多・hook過多・説明過多・返答入口不明を評価でき、JudgeがArc closure / Scene progressionと10ターン以上同じsceneに留まる場合のWARN基準を扱える |
+| HOOK-007 | Lightweight Tempo Guard | todo | P0 |  |  | 1ターンに前景化するhookは原則1本、LILIAからの明示質問は原則1個、通常ターンの文字量目安、場面転換の上限、次に返せる入口、選択肢UIの抑制がdocs/specs/PLAY_MODE_SPEC.mdに定義されている |
+| TEMPO-001 | Tempo Guard詳細仕様追加 | todo | P0 |  |  | docs/specs/PLAY_MODE_SPEC.md にTurn Budget / One Foreground Rule / Question Limit / Exit Shape が定義され、Arc Closure Guardとして余韻過多、同一モチーフ反復、長文低進行を検出する基準がある |
+| TEMPO-002 | AI Playtest Tempo Guard追加 | todo | P0 |  |  | docs/testing/AI_PLAYTEST_PLAN.md で質問過多・hook過多・説明過多・返答入口不明を評価でき、JudgeがArc closure / Scene progressionと10ターン以上同じsceneに留まる場合のWARN基準を扱える |
 | TEMPO-003 | Passive Player Tempo Test | todo | P1 |  |  | passive AI Playerが10turn回っても、返答先に迷わないか確認できる |
 | TEMPO-004 | WebUI Readability Check | todo | P1 |  |  | 通常ターンがWebUI上で読みにくい長さになっていないか評価できる |
 | TEMPO-005 | Choice UI Restraint Rule | todo | P1 |  |  | 毎ターン露骨な選択肢UIを出さず、必要時だけ補助表示する方針がある |
@@ -48,7 +48,7 @@
 | ARC-005 | Open Arc Limit | todo | P0 |  |  | 未解決の遠出 / branch は最大2本まで保持し、3本目は既存arcの解決・保留・帰還を促す |
 | ARC-006 | Long-run AI Playtest | todo | P0 |  |  | normal / wanderer で100ターン級smokeを実行し、story完了後の次arc生成とresumeが破綻しない |
 | ARC-007 | High-intimacy Manual Run | todo | P0 |  |  | ユーザー本人が長期手動プレイし、関係が深まった後の声・境界線・同行判断・新story生成を確認する |
-| ARC-008 | Arc Closure Guard仕様追加 | todo | P0 |  |  | PLAY_MODE_SPEC.mdに、sceneの核成立後に余韻を1〜2ターンで閉じ、memory候補 / next hook / 次arc候補へ移るルールがある |
+| ARC-008 | Arc Closure Guard仕様追加 | todo | P0 |  |  | docs/specs/PLAY_MODE_SPEC.mdに、sceneの核成立後に余韻を1〜2ターンで閉じ、memory候補 / next hook / 次arc候補へ移るルールがある |
 | ARC-009 | Arc Closure Judge追加 | todo | P0 |  |  | AI Playtest Judgeが、余韻過多・同一モチーフ反復・長文低進行・closure候補を評価できる |
 | ARC-010 | Closure-to-Hook接続 | todo | P0 |  |  | scene closure後に、次に触れるhookまたは次arc候補を提示できる |
 | ARC-011 | Long Log Tempo Regression | todo | P1 |  |  | 30〜40turn級ログで、closure後に余韻が長すぎないか確認できる |
@@ -63,7 +63,7 @@
 | REL-LOGIC-003 | Relationship Change Audit正本作成 | todo | P0 |  |  | docs/RELATIONSHIP_CHANGE_AUDIT.md に、関係変化の根拠・速度・保存先分離の監査ルールがある |
 | REL-LOGIC-004 | AI PlaytestへRelationship Change Audit追加 | todo | P1 |  |  | AI Playtestで早すぎる/遅すぎる/根拠なしの関係変化を検出できる |
 | REL-LOGIC-005 | relationship templateへhidden保留方針追加 | todo | P0 |  |  | templates/session/lilia/main/relationship.md に、初期βではhiddenを通常進行メーターにしない方針がある |
-| AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
+| AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | docs/testing/AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
 | AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer / traveler の6種が定義済み |
 | AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |
 | AI-004 | transcript保存 | todo | P0 |  |  | GM出力、AI Player入力、turn番号がMarkdownまたはJSONLで保存される |

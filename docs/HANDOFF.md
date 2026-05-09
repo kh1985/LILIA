@@ -43,12 +43,12 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `prompt/core.md` に Echo Awareness と Decision Awareness を追加済み。
 - `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を作成済み。イベントがLILIAとの関係の物語として積み重なる仕組み、Story Reference Engine、NPC tier、World Autonomy / Pressureの位置づけを定義する正本。
 - `docs/STORY_FUNCTION_FRAMEWORK.md` を作成済み。物語を変化、問い、筋立て・感情・意味の三層、十五機能の現在地診断として扱い、固定プロット順として強制しない。
-- `PLAY_MODE_SPEC.md` を作成済み。Play Modeでは設定説明より問い、行動入口、scene入口/出口の変化を優先する。
+- `docs/specs/PLAY_MODE_SPEC.md` を作成済み。Play Modeでは設定説明より問い、行動入口、scene入口/出口の変化を優先する。
 - `references/story_media_stock.md` を新規追加（LIRIAから移植）。Event Creation Procedure から参照される50作品の研究棚。
 - `tests/resume_smoke/manual_checklist.md` と `tests/resume_smoke/sample_session.md` を追加済み。手動smokeの確認項目と、非正史サンプルを置く。
 - `tests/full_loop/manual_checklist.md` を追加済み。new / profile / first scene / Play Mode / scene-tick / apply-turn / resume を1本で確認する手動smoke手順である。
 - `docs/ROADMAP.md` を作成済み。長期実装順とMVP境界の正本として、マイルストーン、現在地、次タスクを管理する。
-- 商用β向けにトップレベル `COMMERCIALIZATION_ROADMAP.md` / `RELEASE_WBS.md` / `IMPLEMENTATION_HISTORY.md` / `AI_PLAYTEST_PLAN.md` / `STATUS_DASHBOARD.html` を追加済み。Three Hook Spine MVP は `HOOK-001〜HOOK-007`、Story Continuation / Travel Branch MVP は `ARC-001〜ARC-007` でβ前P0管理する。P-001（1ヒロイン実機プレイ10ターン）は done 扱い。
+- 商用β向けに `docs/release/COMMERCIALIZATION_ROADMAP.md` / `docs/release/RELEASE_WBS.md` / `docs/archive/IMPLEMENTATION_HISTORY.md` / `docs/testing/AI_PLAYTEST_PLAN.md` / `STATUS_DASHBOARD.html` を追加済み。Three Hook Spine MVP は `HOOK-001〜HOOK-007`、Story Continuation / Travel Branch MVP は `ARC-001〜ARC-007` でβ前P0管理する。P-001（1ヒロイン実機プレイ10ターン）は done 扱い。
 - 旧LIRIA / inner-galge zip調査に基づき、`docs/ROADMAP.md` に Style Defaults / Intimacy Defaults Completion、New Session Initialization、Event Card Playability Gate、Voice Continuity Gate、Romance / Intimacy Growth Loop、World Autonomy / Pressure Loop、Crisis / Combat / Ability Constraint Loop、Integrity Checks、Launcher / CLI、Visual / Manga Pipeline の順番を反映済み。
 - `prompt/style_reference.md` と `templates/session/style/` を作成済み。参照小説・参照作品から本文ではなく表現軸を抽出し、Light Story Reference Pass としてnew初回scene前や必要時だけ使う方針を定義済み。
 - root `style/defaults/` を作成済み。romance / tension / warmth / loss / quiet / landscape の場面別Style Defaultsを、作者別メソッドの直接模倣ではなく表現技法・温度・視点距離・余白の参照棚として移植済み。
@@ -118,7 +118,7 @@ LILIAは、あなたとの会話・選択・物語を記憶し、関係性と人
 - `./lilia` に `--run` と `--engine codex|claude|auto` を追加済み。`auto` は codex を優先し、なければ claude を使う。AI CLIへ渡すprompt bundleは一時ファイル経由で渡す。
 - `./lilia growth-smoke` / `./lilia long-growth` / `./lilia dev-growth` を追加済み。AI Playtestの長期成長MVPとして、`playtests/growth_runs/<timestamp>_normal_<session>/` に本番 `saves/<session>` のコピー、segment別 transcript / report、`growth_summary.md` を保存する。MVPでは normal persona のみ、segment間は `global_history` で会話履歴を引き継ぐ。apply-turn / resume による本当のstate成長保存、mixed persona、モデル指定はFuture TODO。
 - AI Playtest / dev-test / dev-smoke / growth-smoke の Judge はデフォルトONに変更済み。`--judge` は後方互換として受け、transcriptだけ欲しい場合は `--no-judge` を使う。`--judge` と `--no-judge` の同時指定はerror。
-- Arc Closure Guard を `PLAY_MODE_SPEC.md` に追加済み。sceneの核成立後、余韻を1〜2ターンで閉じ、memory候補 / next hook / 次arc候補へ回す。長文低進行、closure後の余韻過多、同一モチーフ反復はAI Playtest / Release WBS上のP0品質条件として扱う。
+- Arc Closure Guard を `docs/specs/PLAY_MODE_SPEC.md` に追加済み。sceneの核成立後、余韻を1〜2ターンで閉じ、memory候補 / next hook / 次arc候補へ回す。長文低進行、closure後の余韻過多、同一モチーフ反復はAI Playtest / Release WBS上のP0品質条件として扱う。
 - `saves/` は `.gitignore` でgit管理外にしている。AI Harness、自動プレイ生成、大量ログ解析、画像/漫画export、production CI はまだ入れていない。
 
 prompt内の `current/...`、`lilia/main/...`、`story/...`、`archive/...` は、生成されたセッションルートからの相対パスとして扱う。テンプレート上では `templates/session/` 配下に対応する。

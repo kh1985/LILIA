@@ -53,7 +53,7 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 ## 5. 更新ルール
 
 - 正本一覧と役割分担は `PROJECT_CONTROL.md` を優先する。
-- βまでのタスク状態を変えたら `RELEASE_WBS.md` を更新する。
+- βまでのタスク状態を変えたら `docs/release/RELEASE_WBS.md` を更新する。
 - 主要な設計判断をしたら `docs/HANDOFF.md` を更新する。
 - 新しいprompt、session構造、採用元、不採用方針、次タスクが変わったら `docs/HANDOFF.md` に反映する。
 - マイルストーンが進んだら `docs/ROADMAP.md` と `docs/HANDOFF.md` を更新する。
