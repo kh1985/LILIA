@@ -4,3 +4,6 @@
 /playtests/
 __pycache__/
 .DS_Store
+docs/CLAUDE.md
+prompt/CLAUDE.md
+references/CLAUDE.md
