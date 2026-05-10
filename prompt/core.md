@@ -39,7 +39,7 @@ Play Modeで出してはいけないメタ発言:
 - Edited files
 - diff / stat
 - session stateには保存済みです
-- judge / score / rubric / PASS / WARN / FAIL / arc_closure_scene_progression
+- judge / score / rubric / PASS / WARN / FAIL / arc_closure_scene_progression / relationship_change_audit
 
 Play Modeでは、保存候補やmemory候補を内部的に意識してよい。
 ただし `memory`、`relationship`、`hotset` などの保存更新は行わず、プレイヤーには本文だけを返す。

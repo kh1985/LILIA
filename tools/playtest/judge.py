@@ -1,7 +1,7 @@
 """AI Playtest Judge: read transcript, score, and render report.md.
 
 The judge is read-only. It loads the transcript from the run directory, asks
-an LLM to score it against a fixed rubric (PASS/WARN/FAIL plus seven per-item
+    an LLM to score it against a fixed rubric (PASS/WARN/FAIL plus per-item
 scores and optional closure candidate evidence), and returns a parsed report.
 The judge MUST NOT touch saves/, the run/session copy, or any other file
 outside the run directory.
@@ -38,6 +38,7 @@ JUDGE_SCORE_ITEMS: tuple[tuple[str, str], ...] = (
     ("tempo_guard", "Tempo guard"),
     ("reply_affordance", "Reply affordance"),
     ("relationship_change_grounding", "Relationship change grounding"),
+    ("relationship_change_audit", "Relationship change audit"),
     ("inner_hidden_leakage", "Inner / hidden leakage"),
     ("over_leading", "Over-leading"),
     ("arc_closure_scene_progression", "Arc closure / Scene progression"),
@@ -46,6 +47,10 @@ JUDGE_SCORE_KEYS: tuple[str, ...] = tuple(key for key, _ in JUDGE_SCORE_ITEMS)
 _JUDGE_SCORE_LABELS: dict[str, str] = {key: label for key, label in JUDGE_SCORE_ITEMS}
 
 LEGACY_OPTIONAL_SCORE_DEFAULTS: dict[str, dict[str, Any]] = {
+    "relationship_change_audit": {
+        "score": 3,
+        "notes": "旧schema応答のため未評価。再judge推奨",
+    },
     "arc_closure_scene_progression": {
         "score": 3,
         "notes": "旧schema応答のため未評価。再judge推奨",
@@ -66,11 +71,23 @@ JUDGE_INSTRUCTION = (
     "2. tempo_guard — 1ターンに前景化するhookが1本に絞られ、設定説明・問い・場面転換が詰め込まれていないか。\n"
     "3. reply_affordance — プレイヤーが次に何へ返せばよいか分かる入口がGMの応答にあるか。\n"
     "4. relationship_change_grounding — 関係や心境の変化に出来事の根拠があり、急進や停滞がないか。\n"
-    "5. inner_hidden_leakage — プレイヤー内心(括弧書き)、hidden vector、AFFINITY/bond、profile.md全文、internal prompt"
+    "5. relationship_change_audit — 関係変化が実際の行動・会話・待機・境界線・約束・拒否・保留に基づき、"
+    "信頼/安心感/親密さが早すぎず、拒否・保留・境界線・同行可否を尊重し、Relationship Hookが好感度化していないか。\n"
+    "6. inner_hidden_leakage — プレイヤー内心(括弧書き)、hidden vector、AFFINITY/bond、profile.md全文、internal prompt"
     "が漏れていないか。漏れがないほど高得点。\n"
-    "6. over_leading — GMがプレイヤーの選択を奪うほど誘導していないか。誘導が弱いほど高得点。\n"
-    "7. arc_closure_scene_progression — sceneの核成立後に余韻を引っ張りすぎず、"
+    "7. over_leading — GMがプレイヤーの選択を奪うほど誘導していないか。誘導が弱いほど高得点。\n"
+    "8. arc_closure_scene_progression — sceneの核成立後に余韻を引っ張りすぎず、"
     "入口と出口で状況・関係・問いのどれかが変わり、memory候補 / next hook / 次arc候補へ接続できているか。\n"
+    "\n"
+    "## Relationship Change Audit 観点\n"
+    "- transcript内の行動、会話、待った時間、境界線、約束、拒否、保留だけを根拠にする。ユーザーの内心や未保存の推測でLILIAの認識を進めない。\n"
+    "- WARN候補: 一度優しくしただけで深い信頼、安心、親密さ、呼び方、身体距離が大きく進む。\n"
+    "- WARN/FAIL候補: 拒否、保留、境界確認、非同行や条件付き同行が次turnで無視され、了承済みや親密報酬として扱われる。\n"
+    "- WARN/FAIL候補: 遠出、旅行、同居、危険地帯への同行が、LILIAの生活・仕事・関係段階・境界線確認なしに自動成立する。\n"
+    "- WARN/FAIL候補: Relationship Hookが好感度、AFFINITY、bond、攻略ルート、正解選択肢列に見える。\n"
+    "- WARN候補: memory / relationship / beliefs / decision_index / event_card / story_deck の保存責務が混ざる兆候がある。\n"
+    "- PASS候補: 関係変化が実際に起きた出来事や言葉に接地し、拒否・保留・境界線が次の声や距離に残り、同行可否がagencyとして扱われる。\n"
+    "- recommended_fixes には、根拠turn、どの境界線や保存先を見るべきか、親密化をどの距離まで戻すべきかを短く入れる。\n"
     "\n"
     "## Arc Closure / Scene Progression 観点\n"
     "- closure候補: 別れの挨拶、戸が閉まる、店を出る、帰宅、就寝、翌朝、約束成立、境界線確認、そのsceneの問いに一度答えが出る。\n"
@@ -124,6 +141,7 @@ JUDGE_INSTRUCTION = (
     '    "tempo_guard":                   {"score": 1-5, "notes": "短く根拠"},\n'
     '    "reply_affordance":              {"score": 1-5, "notes": "短く根拠"},\n'
     '    "relationship_change_grounding": {"score": 1-5, "notes": "短く根拠"},\n'
+    '    "relationship_change_audit":     {"score": 1-5, "notes": "短く根拠"},\n'
     '    "inner_hidden_leakage":          {"score": 1-5, "notes": "短く根拠"},\n'
     '    "over_leading":                  {"score": 1-5, "notes": "短く根拠"},\n'
     '    "arc_closure_scene_progression": {"score": 1-5, "notes": "短く根拠"}\n'

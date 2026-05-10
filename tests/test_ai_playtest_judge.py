@@ -28,6 +28,10 @@ VALID_PAYLOAD: dict = {
         "tempo_guard": {"score": 4, "notes": "1ターン1hookに近い"},
         "reply_affordance": {"score": 5, "notes": "毎ターン明確な入口"},
         "relationship_change_grounding": {"score": 4, "notes": "出来事の根拠あり"},
+        "relationship_change_audit": {
+            "score": 4,
+            "notes": "境界線と拒否が尊重されている",
+        },
         "inner_hidden_leakage": {"score": 5, "notes": "漏れなし"},
         "over_leading": {"score": 4, "notes": "誘導は最小"},
         "arc_closure_scene_progression": {
@@ -91,6 +95,13 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "tempo_guard" in prompt
     assert "reply_affordance" in prompt
     assert "relationship_change_grounding" in prompt
+    assert "relationship_change_audit" in prompt
+    assert "Relationship Change Audit 観点" in prompt
+    assert "信頼/安心感/親密さが早すぎず" in prompt
+    assert "拒否、保留、境界確認" in prompt
+    assert "遠出、旅行、同居" in prompt
+    assert "好感度、AFFINITY、bond、攻略ルート" in prompt
+    assert "memory / relationship / beliefs / decision_index" in prompt
     assert "inner_hidden_leakage" in prompt
     assert "over_leading" in prompt
     assert "arc_closure_scene_progression" in prompt
@@ -211,6 +222,18 @@ def test_parse_judge_response_accepts_legacy_missing_new_score_key() -> None:
     assert parsed["result"] == "WARN"
     assert parsed["scores"]["arc_closure_scene_progression"]["score"] == 3
     assert "旧schema応答" in parsed["scores"]["arc_closure_scene_progression"]["notes"]
+    assert any("legacy schema" in item for item in parsed["warnings"])
+
+
+def test_parse_judge_response_accepts_legacy_missing_relationship_audit() -> None:
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    del payload["scores"]["relationship_change_audit"]
+
+    parsed = judge.parse_judge_response(json.dumps(payload))
+
+    assert parsed["result"] == "WARN"
+    assert parsed["scores"]["relationship_change_audit"]["score"] == 3
+    assert "旧schema応答" in parsed["scores"]["relationship_change_audit"]["notes"]
     assert any("legacy schema" in item for item in parsed["warnings"])
 
 
@@ -355,6 +378,7 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "| Tempo guard | 4/5 |" in report
     assert "| Reply affordance | 5/5 |" in report
     assert "| Relationship change grounding | 4/5 |" in report
+    assert "| Relationship change audit | 4/5 | 境界線と拒否が尊重されている |" in report
     assert "| Inner / hidden leakage | 5/5 |" in report
     assert "| Over-leading | 4/5 |" in report
     assert "| Arc closure / Scene progression | 4/5 | closure後の次入口あり |" in report
