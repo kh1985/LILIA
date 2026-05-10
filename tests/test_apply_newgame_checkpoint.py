@@ -201,3 +201,131 @@ def test_apply_newgame_complete_refuses_without_force(monkeypatch: pytest.Monkey
 
     with pytest.raises(SystemExit):
         lilia.command_apply_newgame(["checkpoint_case", str(answers)])
+
+
+@pytest.mark.parametrize(
+    ("error_factory", "needle"),
+    [
+        (lambda lilia: lilia.EngineTimeoutError("codex generation timed out after 1 seconds"), "generation timed out"),
+        (lambda lilia: lilia.EngineRunnerError("codex CLI failed: boom"), "CLI failed"),
+    ],
+)
+def test_apply_newgame_downstream_engine_error_keeps_spines_phase_and_reports_context(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    error_factory: Any,
+    needle: str,
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path)
+    session = write_session(tmp_path, "spines_generated")
+    lilia.write_session_file(session, "lilia/main/character.yaml", lilia.dump_character_yaml(valid_character_data()))
+    lilia.write_session_file(session, "lilia/main/profile.md", "# LILIA Persona Profile\n\n## 基礎情報\nname: テスト\n")
+    lilia.write_session_file(session, "current/story_spine.md", "# story\n")
+    lilia.write_session_file(session, "story/relationship_spine.md", "# relationship\n")
+    answers = write_answers(tmp_path)
+    install_common_stubs(monkeypatch, lilia)
+    monkeypatch.setattr(lilia, "engine_timeout_seconds", lambda: 1.0)
+
+    def downstream_failure(**kwargs: object) -> object:
+        raise error_factory(lilia)
+
+    monkeypatch.setattr(lilia, "generate_downstream_session_documents", downstream_failure)
+
+    with pytest.raises(SystemExit):
+        lilia.command_apply_newgame(["checkpoint_case", str(answers), "--engine", "codex"])
+
+    err = capsys.readouterr().err
+    assert needle in err
+    assert "apply_newgame_phase=spines_generated" in err
+    assert "engine=codex" in err
+    assert "target_group=downstream_documents" in err
+    assert "timeout_seconds=1" in err
+    assert "session_name=checkpoint_case" in err
+    assert lilia.read_session_json(session)["apply_newgame_phase"] == "spines_generated"
+
+
+def test_apply_newgame_downstream_placeholder_docs_do_not_complete(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path)
+    session = write_session(tmp_path, "spines_generated")
+    lilia.write_session_file(session, "lilia/main/character.yaml", lilia.dump_character_yaml(valid_character_data()))
+    lilia.write_session_file(session, "lilia/main/profile.md", "# LILIA Persona Profile\n\n## 基礎情報\nname: テスト\n")
+    lilia.write_session_file(session, "current/story_spine.md", "# story\n")
+    lilia.write_session_file(session, "story/relationship_spine.md", "# relationship\n")
+    answers = write_answers(tmp_path)
+    install_common_stubs(monkeypatch, lilia)
+
+    def placeholder_documents(**kwargs: object) -> dict[str, object]:
+        docs = {path: f"# {path}\n実内容。\n" for path in lilia.DOWNSTREAM_SESSION_DOCUMENT_FILES}
+        docs["current/scene.md"] = "# current/scene.md\nTODO\n"
+        return {"documents": docs, "engine_used": "codex", "validation_retry_count": 0, "groups": {}}
+
+    monkeypatch.setattr(lilia, "generate_downstream_session_documents", placeholder_documents)
+
+    with pytest.raises(SystemExit):
+        lilia.command_apply_newgame(["checkpoint_case", str(answers), "--engine", "codex"])
+
+    err = capsys.readouterr().err
+    assert "placeholder marker remains" in err
+    data = lilia.read_session_json(session)
+    assert data["apply_newgame_phase"] == "spines_generated"
+    assert data.get("current_phase") != "first_scene_ready"
+    assert not (session / "current" / "scene.md").exists()
+
+
+def test_apply_newgame_retry_after_downstream_timeout_regenerates_only_downstream_and_completes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path)
+    session = write_session(tmp_path, "spines_generated")
+    lilia.write_session_file(session, "lilia/main/character.yaml", lilia.dump_character_yaml(valid_character_data()))
+    lilia.write_session_file(session, "lilia/main/profile.md", "# LILIA Persona Profile\n\n## 基礎情報\nname: テスト\n")
+    lilia.write_session_file(session, "current/story_spine.md", "# story\n")
+    lilia.write_session_file(session, "story/relationship_spine.md", "# relationship\n")
+    answers = write_answers(tmp_path)
+    calls = install_common_stubs(monkeypatch, lilia)
+    monkeypatch.setattr(lilia, "engine_timeout_seconds", lambda: 1.0)
+
+    downstream_calls = {"count": 0}
+
+    def flaky_downstream(**kwargs: object) -> dict[str, object]:
+        downstream_calls["count"] += 1
+        if downstream_calls["count"] == 1:
+            raise lilia.EngineTimeoutError("codex generation timed out after 1 seconds")
+        calls["documents"] += 1
+        return {
+            "documents": {path: f"# {path}\n実内容。\n" for path in lilia.DOWNSTREAM_SESSION_DOCUMENT_FILES},
+            "engine_used": "codex",
+            "validation_retry_count": 0,
+            "groups": {},
+        }
+
+    monkeypatch.setattr(lilia, "generate_downstream_session_documents", flaky_downstream)
+
+    with pytest.raises(SystemExit):
+        lilia.command_apply_newgame(["checkpoint_case", str(answers), "--engine", "codex"])
+    assert lilia.read_session_json(session)["apply_newgame_phase"] == "spines_generated"
+
+    lilia.command_apply_newgame(["checkpoint_case", str(answers), "--engine", "codex"])
+
+    assert calls["character"] == 0
+    assert calls["profile"] == 0
+    assert calls["spines"] == 0
+    assert calls["documents"] == 1
+    assert downstream_calls["count"] == 2
+    data = lilia.read_session_json(session)
+    assert data["apply_newgame_phase"] == "complete"
+    assert data["current_phase"] == "first_scene_ready"
+    assert "phase: first_scene_ready" in capsys.readouterr().out

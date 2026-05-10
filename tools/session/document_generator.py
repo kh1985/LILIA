@@ -50,6 +50,21 @@ ALL_PATHS = GROUP_A_PATHS + GROUP_B_PATHS + GROUP_C_PATHS
 class DocumentGenerationError(RuntimeError):
     """Raised when downstream session documents cannot be generated."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        target_group: str = "",
+        engine: str = "",
+        timeout_seconds: float | str | None = None,
+        session_name: str = "",
+    ) -> None:
+        super().__init__(message)
+        self.target_group = target_group
+        self.engine = engine
+        self.timeout_seconds = timeout_seconds
+        self.session_name = session_name
+
 
 def generate_session_documents(
     answers: dict,
@@ -238,9 +253,16 @@ def _generate_group(
     context: dict[str, Any] | None = None,
     logger: Any = None,
 ) -> dict[str, Any]:
+    context = context or {}
     candidates = engine_candidates(engine)
     if not candidates:
-        raise DocumentGenerationError("no available engine CLI was found")
+        raise DocumentGenerationError(
+            "no available engine CLI was found",
+            target_group=group_name,
+            engine=engine,
+            timeout_seconds=_timeout_label(),
+            session_name=str(context.get("session_name") or ""),
+        )
     previous_error = ""
     cli_failures: list[str] = []
     _write_log(
@@ -293,20 +315,40 @@ def _generate_group(
                 )
                 break
             except EngineRunnerError as exc:
-                cli_failures.append(f"{candidate}: {exc}")
+                contextual_error = _format_engine_failure(
+                    exc,
+                    phase="spines_generated",
+                    engine=candidate,
+                    target_group=group_name,
+                    timeout_seconds=_timeout_label(),
+                    session_name=str(context.get("session_name") or ""),
+                )
+                cli_failures.append(contextual_error)
                 _write_log(
                     logger,
                     "[downstream_docs] llm call failed",
                     group=group_name,
                     attempt=attempt_index + 1,
                     engine=candidate,
-                    error=str(exc),
+                    error=contextual_error,
                 )
                 if engine != "auto":
-                    raise DocumentGenerationError(str(exc)) from exc
+                    raise DocumentGenerationError(
+                        contextual_error,
+                        target_group=group_name,
+                        engine=candidate,
+                        timeout_seconds=_timeout_label(),
+                        session_name=str(context.get("session_name") or ""),
+                    ) from exc
         if not raw_output or not engine_used:
             detail = "; ".join(cli_failures[-4:]) or "no engine produced output"
-            raise DocumentGenerationError(f"{group_name}: generation could not start: {detail}")
+            raise DocumentGenerationError(
+                f"{group_name}: generation could not start: {detail}",
+                target_group=group_name,
+                engine=engine,
+                timeout_seconds=_timeout_label(),
+                session_name=str(context.get("session_name") or ""),
+            )
 
         try:
             parsed = _parse_file_blocks(raw_output, rel_paths)
@@ -360,7 +402,11 @@ def _generate_group(
             )
 
     raise DocumentGenerationError(
-        f"{group_name}: generation failed after 3 attempts: {previous_error or 'unknown validation error'}"
+        f"{group_name}: generation failed after 3 attempts: {previous_error or 'unknown validation error'}",
+        target_group=group_name,
+        engine=engine,
+        timeout_seconds=_timeout_label(),
+        session_name=str(context.get("session_name") or ""),
     )
 
 
@@ -371,6 +417,32 @@ def _write_log(logger: Any, event: str, **fields: object) -> None:
         logger.write(event, **fields)
     except Exception:
         return
+
+
+def _timeout_label() -> str:
+    try:
+        return f"{engine_timeout_seconds():g}"
+    except Exception as exc:
+        return f"invalid:{exc}"
+
+
+def _format_engine_failure(
+    exc: BaseException,
+    *,
+    phase: str,
+    engine: str,
+    target_group: str,
+    timeout_seconds: str,
+    session_name: str,
+) -> str:
+    return (
+        f"{exc} "
+        f"(apply_newgame_phase={phase}; "
+        f"engine={engine}; "
+        f"target_group={target_group}; "
+        f"timeout_seconds={timeout_seconds}; "
+        f"session_name={session_name})"
+    )
 
 
 def _attempt_engine_order(candidates: list[str], attempt_index: int) -> list[str]:

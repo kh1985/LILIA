@@ -127,6 +127,8 @@ def validate_session_documents(
             continue
         _check_required_sections(rel_path, content, root, errors)
 
+    _check_template_identity(documents, expected, root, errors)
+    _check_unresolved_placeholder_markers(documents, expected, errors)
     _check_text_collapse(documents, expected, errors)
     _check_template_expressions(documents, expected, errors)
     _check_duplicate_copy(documents, expected, errors)
@@ -268,6 +270,44 @@ def _check_required_sections(rel_path: str, content: str, template_root: Path, e
 
 def _headings(markdown: str) -> list[str]:
     return [match.group(1).strip() for match in re.finditer(r"^##\s+(.+?)\s*$", markdown, re.MULTILINE)]
+
+
+def _check_template_identity(
+    documents: dict[str, str],
+    expected: list[str],
+    template_root: Path,
+    errors: list[str],
+) -> None:
+    for rel_path in expected:
+        template_rel = TEMPLATE_PATHS.get(rel_path)
+        if not template_rel:
+            continue
+        template_path = template_root / template_rel
+        if not template_path.exists():
+            continue
+        content = documents.get(rel_path, "")
+        template = template_path.read_text(encoding="utf-8")
+        if _normalize_template_identity(content) == _normalize_template_identity(template):
+            errors.append(f"{rel_path}: still identical to session template")
+
+
+def _normalize_template_identity(content: str) -> str:
+    return re.sub(r"\s+", "", content or "")
+
+
+def _check_unresolved_placeholder_markers(
+    documents: dict[str, str],
+    expected: list[str],
+    errors: list[str],
+) -> None:
+    for rel_path in expected:
+        content = documents.get(rel_path, "")
+        for line_number, raw_line in enumerate(content.splitlines(), 1):
+            line = raw_line.strip()
+            if re.search(r"雛形|TODO|PLACEHOLDER|placeholder", line, flags=re.IGNORECASE):
+                errors.append(f"{rel_path}:{line_number}: unresolved placeholder marker remains")
+            if re.search(r"(^|[\s:：])\(?未設定\)?(\s*$|[\s。、,.)）])", line):
+                errors.append(f"{rel_path}:{line_number}: unresolved 未設定 marker remains")
 
 
 def _check_text_collapse(documents: dict[str, str], expected: list[str], errors: list[str]) -> None:

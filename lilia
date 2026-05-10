@@ -17,6 +17,7 @@ from typing import Optional
 from tools.common.engine_runner import (
     EngineRunnerError,
     EngineTimeoutError,
+    engine_candidates,
     engine_timeout_seconds,
     resolve_engine,
     run_engine as run_engine_cli,
@@ -313,6 +314,73 @@ def exception_caused_by(exc: BaseException, expected_type: type[BaseException]) 
             return True
         current = current.__cause__ or current.__context__
     return False
+
+
+def exception_in_chain(exc: BaseException, expected_type: type[BaseException]) -> BaseException | None:
+    current: BaseException | None = exc
+    while current is not None:
+        if isinstance(current, expected_type):
+            return current
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def format_seconds(value: object) -> str:
+    if isinstance(value, (int, float)):
+        return f"{float(value):g}"
+    return str(value)
+
+
+def current_engine_timeout_label() -> str:
+    try:
+        return format_seconds(engine_timeout_seconds())
+    except Exception as exc:
+        return f"invalid:{exc}"
+
+
+def current_engine_candidates_label(requested_engine: str) -> list[str]:
+    try:
+        return engine_candidates(requested_engine)
+    except Exception as exc:
+        return [f"error:{exc}"]
+
+
+def apply_newgame_event(
+    logger: "OperationLogger",
+    event: str,
+    *,
+    console: bool = True,
+    **fields: object,
+) -> None:
+    logger.write(event, **fields)
+    if not console:
+        return
+    visible_keys = ("apply_newgame_phase", "engine", "target_group", "timeout_seconds", "session_name", "status")
+    details = []
+    for key in visible_keys:
+        if key in fields:
+            details.append(f"{key}={fields[key]}")
+    suffix = f" {' '.join(details)}" if details else ""
+    print(f"[apply-newgame] {event}{suffix}", flush=True)
+
+
+def format_apply_newgame_engine_error(
+    exc: BaseException,
+    *,
+    apply_newgame_phase: str,
+    engine: str,
+    target_group: str,
+    timeout_seconds: object,
+    session_name: str,
+) -> str:
+    return (
+        f"{exc} "
+        f"(apply_newgame_phase={apply_newgame_phase}; "
+        f"engine={engine}; "
+        f"target_group={target_group}; "
+        f"timeout_seconds={format_seconds(timeout_seconds)}; "
+        f"session_name={session_name})"
+    )
 
 
 class OperationLogger:
@@ -2715,6 +2783,37 @@ def generate_downstream_session_documents(
     return normalized
 
 
+DOWNSTREAM_TEMPLATE_REL_PATHS = {
+    "current/protagonist.md": "protagonist.md",
+    "current/knowledge_state.md": "knowledge_state.md",
+}
+
+
+def normalized_generated_markdown(content: str) -> str:
+    return re.sub(r"\s+", "", content or "")
+
+
+def downstream_finalization_errors(documents: dict[str, str]) -> list[str]:
+    errors: list[str] = []
+    for rel_path in DOWNSTREAM_SESSION_DOCUMENT_FILES:
+        content = documents.get(rel_path, "")
+        if not isinstance(content, str) or not content.strip():
+            errors.append(f"{rel_path}: missing or empty before finalization")
+            continue
+        for line_number, line in enumerate(content.splitlines(), 1):
+            if re.search(r"雛形|TODO|PLACEHOLDER|placeholder", line, flags=re.IGNORECASE):
+                errors.append(f"{rel_path}:{line_number}: placeholder marker remains before finalization")
+            if re.search(r"(^|[\s:：])\(?未設定\)?(\s*$|[\s。、,.)）])", line):
+                errors.append(f"{rel_path}:{line_number}: 未設定 marker remains before finalization")
+        template_rel = DOWNSTREAM_TEMPLATE_REL_PATHS.get(rel_path, rel_path)
+        template_path = TEMPLATE_DIR / template_rel
+        if template_path.exists():
+            template_content = template_path.read_text(encoding="utf-8")
+            if normalized_generated_markdown(content) == normalized_generated_markdown(template_content):
+                errors.append(f"{rel_path}: still identical to session template")
+    return errors
+
+
 def markdown_sections(markdown: str) -> dict[str, str]:
     matches = list(re.finditer(r"^##\s+(.+?)\s*$", markdown, re.MULTILINE))
     sections: dict[str, str] = {}
@@ -3792,16 +3891,47 @@ def command_apply_newgame(args: list[str]) -> None:
 
     if phase == "pending":
         try:
+            apply_newgame_event(
+                logger,
+                "character_yaml_generation_started",
+                apply_newgame_phase=phase,
+                engine=requested_engine,
+                target_group="character_yaml",
+                timeout_seconds=current_engine_timeout_label(),
+                session_name=session_path.name,
+            )
             character_data, selected_engine, generation_status = generate_character_yaml_data(answers, requested_engine)
         except Exception as exc:
-            logger.write("[character_yaml] failed", error=str(exc))
-            print(f"Error: character.yaml 生成に失敗しました: {exc}", file=sys.stderr)
+            target_error = exception_in_chain(exc, EngineRunnerError)
+            error = (
+                format_apply_newgame_engine_error(
+                    target_error or exc,
+                    apply_newgame_phase=phase,
+                    engine=requested_engine,
+                    target_group="character_yaml",
+                    timeout_seconds=current_engine_timeout_label(),
+                    session_name=session_path.name,
+                )
+                if target_error is not None
+                else str(exc)
+            )
+            logger.write("[character_yaml] failed", error=error)
+            print(f"Error: character.yaml 生成に失敗しました: {error}", file=sys.stderr)
             sys.exit(1)
         documents["lilia/main/character.yaml"] = dump_character_yaml(character_data)
         write_session_file(session_path, "lilia/main/character.yaml", documents["lilia/main/character.yaml"])
         update_apply_newgame_phase(session_path, "character_yaml_generated")
         phase = "character_yaml_generated"
         logger.write("[character_yaml] generated via", engine=selected_engine, status=generation_status)
+        apply_newgame_event(
+            logger,
+            "character_yaml_generation_completed",
+            apply_newgame_phase=phase,
+            engine=selected_engine,
+            target_group="character_yaml",
+            session_name=session_path.name,
+            status="generated",
+        )
     else:
         documents["lilia/main/character.yaml"] = read_required_session_file(session_path, "lilia/main/character.yaml")
         try:
@@ -3812,22 +3942,53 @@ def command_apply_newgame(args: list[str]) -> None:
             print(f"Error: character.yaml の読み込みに失敗しました: {exc}", file=sys.stderr)
             sys.exit(1)
         logger.write("[character_yaml] resumed", phase=phase)
+        apply_newgame_event(
+            logger,
+            "character_yaml_generation_completed",
+            apply_newgame_phase=phase,
+            engine=requested_engine,
+            target_group="character_yaml",
+            session_name=session_path.name,
+            status="resumed",
+        )
 
     if phase == "character_yaml_generated":
         try:
+            apply_newgame_event(
+                logger,
+                "profile_generation_started",
+                apply_newgame_phase=phase,
+                engine=requested_engine,
+                target_group="profile",
+                timeout_seconds=current_engine_timeout_label(),
+                session_name=session_path.name,
+            )
             profile, profile_meta = generate_profile_from_character_data(answers, character_data, requested_engine)
             documents["lilia/main/profile.md"] = profile
         except Exception as exc:
             if exc.__class__.__name__ == "ProfileGenerationError":
+                target_error = exception_in_chain(exc, EngineRunnerError)
+                error = (
+                    format_apply_newgame_engine_error(
+                        target_error or exc,
+                        apply_newgame_phase=phase,
+                        engine=requested_engine,
+                        target_group="profile",
+                        timeout_seconds=current_engine_timeout_label(),
+                        session_name=session_path.name,
+                    )
+                    if target_error is not None
+                    else str(exc)
+                )
                 if exception_caused_by(exc, EngineTimeoutError):
                     logger.write(
                         "[profile] llm_timeout",
                         engine=requested_engine,
                         timeout=engine_timeout_seconds(),
-                        error=str(exc),
+                        error=error,
                     )
-                logger.write("[profile] validation", status="failed", error=str(exc))
-                print(f"Error: profile.md 生成に失敗しました: {exc}", file=sys.stderr)
+                logger.write("[profile] validation", status="failed", error=error)
+                print(f"Error: profile.md 生成に失敗しました: {error}", file=sys.stderr)
                 sys.exit(1)
             raise
         write_session_file(session_path, "lilia/main/profile.md", documents["lilia/main/profile.md"])
@@ -3840,9 +4001,27 @@ def command_apply_newgame(args: list[str]) -> None:
             retry_count=profile_meta.get("retry_count", 0),
             sections_count=profile_meta.get("sections_count", 0),
         )
+        apply_newgame_event(
+            logger,
+            "profile_generation_completed",
+            apply_newgame_phase=phase,
+            engine=profile_meta.get("engine", selected_engine),
+            target_group="profile",
+            session_name=session_path.name,
+            status="generated",
+        )
     else:
         documents["lilia/main/profile.md"] = read_required_session_file(session_path, "lilia/main/profile.md")
         logger.write("[profile] resumed", phase=phase)
+        apply_newgame_event(
+            logger,
+            "profile_generation_completed",
+            apply_newgame_phase=phase,
+            engine=requested_engine,
+            target_group="profile",
+            session_name=session_path.name,
+            status="resumed",
+        )
 
     logger.section("Profile Validation")
     try:
@@ -3880,6 +4059,15 @@ def command_apply_newgame(args: list[str]) -> None:
     logger.section("Story Spine")
     if phase == "profile_generated":
         try:
+            apply_newgame_event(
+                logger,
+                "spines_generation_started",
+                apply_newgame_phase=phase,
+                engine=requested_engine,
+                target_group="story_spines",
+                timeout_seconds=current_engine_timeout_label(),
+                session_name=session_path.name,
+            )
             from tools.story.spine_generator import SpineGenerationError, generate_story_and_relationship_spine
 
             spine_result = generate_story_and_relationship_spine(
@@ -3902,22 +4090,71 @@ def command_apply_newgame(args: list[str]) -> None:
                 status="pass",
                 retry_count=spine_result.get("validation_retry_count", 0),
             )
+            apply_newgame_event(
+                logger,
+                "spines_generation_completed",
+                apply_newgame_phase=phase,
+                engine=spine_result.get("engine_used", requested_engine),
+                target_group="story_spines",
+                session_name=session_path.name,
+                status="generated",
+            )
         except SpineGenerationError as exc:
-            logger.write("[story_spine] validation", status="failed", error=str(exc))
-            print(f"Error: ストーリー生成に失敗しました: {exc}", file=sys.stderr)
+            target_error = exception_in_chain(exc, EngineRunnerError)
+            error = (
+                format_apply_newgame_engine_error(
+                    target_error or exc,
+                    apply_newgame_phase=phase,
+                    engine=requested_engine,
+                    target_group="story_spines",
+                    timeout_seconds=current_engine_timeout_label(),
+                    session_name=session_path.name,
+                )
+                if target_error is not None
+                else str(exc)
+            )
+            logger.write("[story_spine] validation", status="failed", error=error)
+            print(f"Error: ストーリー生成に失敗しました: {error}", file=sys.stderr)
             sys.exit(1)
     else:
         documents["current/story_spine.md"] = read_required_session_file(session_path, "current/story_spine.md")
         documents["story/relationship_spine.md"] = read_required_session_file(session_path, "story/relationship_spine.md")
         logger.write("[story_spine] resumed", phase=phase)
+        apply_newgame_event(
+            logger,
+            "spines_generation_completed",
+            apply_newgame_phase=phase,
+            engine=requested_engine,
+            target_group="story_spines",
+            session_name=session_path.name,
+            status="resumed",
+        )
 
     logger.section("Session Documents")
     downstream_result: dict[str, object] = {}
     if phase == "spines_generated":
+        downstream_candidates = current_engine_candidates_label(requested_engine)
+        downstream_timeout = current_engine_timeout_label()
+        apply_newgame_event(
+            logger,
+            "downstream_documents_generation_started",
+            apply_newgame_phase=phase,
+            engine=requested_engine,
+            target_group="downstream_documents",
+            timeout_seconds=downstream_timeout,
+            session_name=session_path.name,
+            target_files=DOWNSTREAM_SESSION_DOCUMENT_FILES,
+            engine_candidates=downstream_candidates,
+            **{"LILIA_ENGINE_TIMEOUT_SECONDS": downstream_timeout},
+        )
         try:
             logger.write(
                 "[downstream_docs] wrapper enter",
                 engine=requested_engine,
+                engine_candidates=downstream_candidates,
+                timeout_seconds=downstream_timeout,
+                LILIA_ENGINE_TIMEOUT_SECONDS=downstream_timeout,
+                target_files=DOWNSTREAM_SESSION_DOCUMENT_FILES,
                 lilia_name=profile_name,
                 session_name=session_path.name,
                 profile_chars=len(documents["lilia/main/profile.md"]),
@@ -3935,8 +4172,22 @@ def command_apply_newgame(args: list[str]) -> None:
                 session_name=session_path.name,
             )
         except Exception as exc:
-            logger.write("[downstream_docs] failed", error=str(exc))
-            print(f"Error: 下流ファイル生成に失敗しました: {exc}", file=sys.stderr)
+            update_apply_newgame_phase(session_path, "spines_generated")
+            target_error = exception_in_chain(exc, EngineRunnerError)
+            error = (
+                format_apply_newgame_engine_error(
+                    target_error or exc,
+                    apply_newgame_phase="spines_generated",
+                    engine=getattr(exc, "engine", None) or requested_engine,
+                    target_group=getattr(exc, "target_group", None) or "downstream_documents",
+                    timeout_seconds=getattr(exc, "timeout_seconds", None) or downstream_timeout,
+                    session_name=session_path.name,
+                )
+                if target_error is not None
+                else str(exc)
+            )
+            logger.write("[downstream_docs] failed", error=error)
+            print(f"Error: 下流ファイル生成に失敗しました: {error}", file=sys.stderr)
             sys.exit(1)
 
         downstream_documents = downstream_result["documents"]
@@ -3948,13 +4199,7 @@ def command_apply_newgame(args: list[str]) -> None:
             lilia_name=profile_name,
             story_fields=story_fields_from_story_spine_markdown(documents["current/story_spine.md"]),
         )
-        for rel_path, content in downstream_documents.items():
-            write_session_file(session_path, rel_path, content)
         style_documents = render_style_documents(answers)
-        for rel_path, content in style_documents.items():
-            write_session_file(session_path, rel_path, content)
-        update_apply_newgame_phase(session_path, "documents_generated")
-        phase = "documents_generated"
     else:
         downstream_documents = {
             rel_path: read_required_session_file(session_path, rel_path)
@@ -3965,6 +4210,15 @@ def command_apply_newgame(args: list[str]) -> None:
             "style/rules.md": read_required_session_file(session_path, "style/rules.md"),
         }
         logger.write("[downstream_docs] resumed", phase=phase)
+        apply_newgame_event(
+            logger,
+            "downstream_documents_generation_completed",
+            apply_newgame_phase=phase,
+            engine=requested_engine,
+            target_group="downstream_documents",
+            session_name=session_path.name,
+            status="resumed",
+        )
 
     try:
         from tools.session.document_validator import validate_session_documents
@@ -3986,6 +4240,34 @@ def command_apply_newgame(args: list[str]) -> None:
         update_apply_newgame_phase(session_path, "spines_generated")
         print(f"Error: 下流ファイル生成に失敗しました: {'; '.join(docs_errors[:8])}", file=sys.stderr)
         sys.exit(1)
+
+    finalization_errors = downstream_finalization_errors(downstream_documents)
+    if finalization_errors:
+        logger.write("[downstream_docs] finalization_gate", status="failed", error="; ".join(finalization_errors[:8]))
+        for rel_path in DOWNSTREAM_SESSION_DOCUMENT_FILES:
+            path = session_path / rel_path
+            if path.exists():
+                path.unlink()
+        update_apply_newgame_phase(session_path, "spines_generated")
+        print(f"Error: 下流ファイル生成に失敗しました: {'; '.join(finalization_errors[:8])}", file=sys.stderr)
+        sys.exit(1)
+
+    if phase == "spines_generated":
+        for rel_path, content in downstream_documents.items():
+            write_session_file(session_path, rel_path, content)
+        for rel_path, content in style_documents.items():
+            write_session_file(session_path, rel_path, content)
+        update_apply_newgame_phase(session_path, "documents_generated")
+        phase = "documents_generated"
+        apply_newgame_event(
+            logger,
+            "downstream_documents_generation_completed",
+            apply_newgame_phase=phase,
+            engine=downstream_result.get("engine_used", requested_engine) if isinstance(downstream_result, dict) else requested_engine,
+            target_group="downstream_documents",
+            session_name=session_path.name,
+            status="generated",
+        )
 
     groups = downstream_result.get("groups", {}) if isinstance(downstream_result, dict) else {}
     for group_name, label in [
@@ -4016,6 +4298,14 @@ def command_apply_newgame(args: list[str]) -> None:
     logger.section("Generated Files")
     logger.write("generated_files", files=list(documents))
 
+    apply_newgame_event(
+        logger,
+        "finalization_started",
+        apply_newgame_phase=phase,
+        engine=requested_engine,
+        target_group="finalization",
+        session_name=session_path.name,
+    )
     data = read_session_json(session_path)
     data["mode"] = data.get("mode") or "new"
     data["current_phase"] = "first_scene_ready"
@@ -4032,6 +4322,15 @@ def command_apply_newgame(args: list[str]) -> None:
         "write_complete",
         updated_files=["session.json", *documents.keys()],
         downstream_validation="pass",
+    )
+    apply_newgame_event(
+        logger,
+        "finalization_completed",
+        apply_newgame_phase="complete",
+        engine=requested_engine,
+        target_group="finalization",
+        session_name=session_path.name,
+        status="success",
     )
     logger.section("apply-newgame END")
     logger.write("end", status="success")

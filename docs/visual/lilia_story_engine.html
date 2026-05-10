@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LILIA Story Engine Map</title>
+    <link rel="stylesheet" href="lilia_story_engine.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">LILIA Design Visualization</p>
+        <h1>LILIA Story Engine Map</h1>
+        <p class="subtitle">状態がどう作用し、物語がどう進むか</p>
+        <div class="hero-grid" aria-label="設計の二本柱">
+          <section class="hero-chip orientation">
+            <span class="chip-label">Player Orientation Gate</span>
+            <strong>分かりやすさ</strong>
+            <span>迷子にさせない。真相ではなく入口を見せる。</span>
+          </section>
+          <section class="hero-chip causality">
+            <span class="chip-label">Story Causality Gate</span>
+            <strong>面白さ</strong>
+            <span>選択で信頼、警戒、情報、約束、境界線が変わる。</span>
+          </section>
+        </div>
+      </header>
+
+      <section class="section" id="big-picture">
+        <div class="section-head">
+          <p class="section-kicker">1. Big Picture</p>
+          <h2>全体像</h2>
+          <p>1ターンの入力は、可視イベントと因果を通って本文になり、次回以降に効く状態へ戻る。</p>
+        </div>
+        <div class="flow big-flow" aria-label="LILIA全体フロー">
+          <article class="flow-card input">
+            <span>User Input</span>
+            <p>プレイヤーの発言、行動、沈黙。</p>
+          </article>
+          <article class="flow-card orientation">
+            <span>Player Orientation</span>
+            <p>プレイヤーが何の話か分かるための足場。</p>
+          </article>
+          <article class="flow-card hook">
+            <span>Active Hook / Event Card</span>
+            <p>今この場で触れる可視イベント。</p>
+          </article>
+          <article class="flow-card causality">
+            <span>Story Causality Layer</span>
+            <p>行動が何に作用し、何を変えるか。</p>
+          </article>
+          <article class="flow-card output">
+            <span>Play Mode Output</span>
+            <p>実際に表示される本文。</p>
+          </article>
+          <article class="flow-card update">
+            <span>State Update Candidates</span>
+            <p>保存候補。本文に出た変化の圧縮。</p>
+          </article>
+          <article class="flow-card state">
+            <span>Memory / Relationship / Beliefs / Voice</span>
+            <p>次回以降に効く状態。</p>
+          </article>
+          <article class="flow-card deck">
+            <span>Story Deck / Candidate Hook</span>
+            <p>後で使う圧、未回収札、次の候補。</p>
+          </article>
+          <article class="flow-card next">
+            <span>Next Scene</span>
+            <p>次の入口。関係と物語が少し進んだ状態。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="element-relationship-map">
+        <div class="section-head">
+          <p class="section-kicker">Element Relationship Map</p>
+          <h2>要素がどうつながるか</h2>
+          <p>中心にあるのは Active Event Card。分かりやすさ、緊張、因果、保存状態、次scene候補がここで接続される。</p>
+        </div>
+        <div class="relationship-map" aria-label="LILIA要素関係図">
+          <svg class="map-arrows" viewBox="0 0 1000 640" role="img" aria-label="要素間の接続矢印">
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z"></path>
+              </marker>
+            </defs>
+            <path d="M 185 88 L 405 94"></path>
+            <path d="M 505 120 L 690 94"></path>
+            <path d="M 785 125 L 810 250"></path>
+            <path d="M 198 275 L 405 306"></path>
+            <path d="M 505 338 L 690 306"></path>
+            <path d="M 820 352 L 820 480"></path>
+            <path d="M 730 558 L 555 566"></path>
+            <path d="M 510 540 L 510 420"></path>
+            <path d="M 405 566 L 245 558"></path>
+            <path d="M 190 502 L 180 382"></path>
+            <path d="M 180 214 L 180 132"></path>
+            <path d="M 390 195 L 560 225"></path>
+          </svg>
+          <article class="map-node orientation node-orientation">
+            <h3>Player Orientation</h3>
+            <p>プレイヤーが「これは何の話か」を理解する足場。</p>
+          </article>
+          <article class="map-node orientation node-question">
+            <h3>Dramatic Question</h3>
+            <p>このsceneで追う問い。</p>
+          </article>
+          <article class="map-node orientation node-visible">
+            <h3>Visible Problem</h3>
+            <p>今、場面上で見えている問題。</p>
+          </article>
+          <article class="map-node tension node-want">
+            <h3>Want / Fear / Misbelief</h3>
+            <p>キャラの欲求、恐れ、誤信。</p>
+          </article>
+          <article class="map-node tension node-collision">
+            <h3>Dialogue Collision</h3>
+            <p>会話中の目的のズレ。</p>
+          </article>
+          <article class="map-node tension node-choice">
+            <h3>Choice Tension</h3>
+            <p>なぜ選択に迷いが生まれるか。</p>
+          </article>
+          <article class="map-node causality node-causality">
+            <h3>Causality</h3>
+            <p>行動が何に作用し、何を変えるか。</p>
+          </article>
+          <article class="map-node causality node-delta">
+            <h3>Irreversible Delta</h3>
+            <p>scene後に元へ戻らない変化。</p>
+          </article>
+          <article class="map-node state node-state">
+            <h3>Memory / Relationship / Beliefs / Voice</h3>
+            <p>次回以降に効く保存状態。</p>
+          </article>
+          <article class="map-node state node-curiosity">
+            <h3>Next Curiosity</h3>
+            <p>次に知りたくなる問い。</p>
+          </article>
+          <article class="map-node state node-deck">
+            <h3>Story Deck / Candidate Hook</h3>
+            <p>後で使う圧、未回収札、次scene候補。</p>
+          </article>
+          <article class="map-node map-center">
+            <h3>Active Event Card</h3>
+            <p>今この場で触れる入口と、触れた結果どう変わるかを束ねる。</p>
+          </article>
+          <p class="arrow-label loop-label">Story Deck / Candidate Hook → Active Event Card → Player Orientation で次sceneへ循環する</p>
+        </div>
+        <div class="map-connections" aria-label="要素間の主要接続">
+          <span>Player Orientation → Dramatic Question</span>
+          <span>Dramatic Question → Visible Problem</span>
+          <span>Visible Problem → Choice Tension</span>
+          <span>Want / Fear / Misbelief → Dialogue Collision</span>
+          <span>Dialogue Collision → Choice Tension</span>
+          <span>Choice Tension → Causality</span>
+          <span>Causality → Irreversible Delta</span>
+          <span>Irreversible Delta → State / Next Curiosity</span>
+          <span>Story Deck / Candidate Hook → Active Event Card</span>
+        </div>
+      </section>
+
+      <section class="section" id="causal-loop-diagram">
+        <div class="section-head">
+          <p class="section-kicker">Causal Loop Diagram</p>
+          <h2>状態が次の物語を生む循環</h2>
+          <p>1つのsceneの結果は保存され、次のsceneで前景化される入口を作る。</p>
+        </div>
+        <ol class="causal-loop" aria-label="LILIA因果ループ">
+          <li class="loop-node action"><b>1. User Action</b><span>プレイヤーの発言、行動、沈黙</span></li>
+          <li class="loop-node hook"><b>2. Active Hook</b><span>今sceneで触れる入口</span></li>
+          <li class="loop-node orientation"><b>3. Dramatic Question</b><span>今追う問い</span></li>
+          <li class="loop-node tension"><b>4. Character Want / Fear / Misbelief</b><span>キャラが欲しいもの、恐れているもの、誤って信じているもの</span></li>
+          <li class="loop-node tension"><b>5. Choice Tension</b><span>どちらを選んでも何かが変わる迷い</span></li>
+          <li class="loop-node causality"><b>6. Causality</b><span>行動が関係・情報・状況にどう作用するか</span></li>
+          <li class="loop-node causality"><b>7. Irreversible Delta</b><span>元に戻らない変化</span></li>
+          <li class="loop-node state"><b>8. State Update</b><span>memory / relationship / beliefs / voice への保存候補</span></li>
+          <li class="loop-node state"><b>9. Next Curiosity</b><span>次に知りたくなる問い</span></li>
+          <li class="loop-node state"><b>10. Candidate Hook</b><span>次scene候補</span></li>
+          <li class="loop-node hook"><b>11. Next Active Hook</b><span>次に前景化される入口</span></li>
+        </ol>
+        <aside class="emphasis-box">
+          LILIAでは、出来事そのものではなく、出来事によって変わった状態が次の物語を生む。
+        </aside>
+      </section>
+
+      <section class="section" id="three-story-layers">
+        <div class="section-head">
+          <p class="section-kicker">Three Story Layers</p>
+          <h2>筋立て・感情・意味</h2>
+          <p>同じsceneでも、筋立てだけが動くと説明になる。感情と意味まで少し変わると関係の物語になる。</p>
+        </div>
+        <div class="story-layers">
+          <article class="layer-card plot">
+            <h3>Plot Layer / 筋立て</h3>
+            <h4>担当</h4>
+            <ul>
+              <li>scene</li>
+              <li>event_card</li>
+              <li>story_deck</li>
+              <li>active hook</li>
+            </ul>
+            <h4>問い</h4>
+            <ul>
+              <li>何が起きるか</li>
+              <li>次に何をするか</li>
+              <li>何が普通ではないか</li>
+            </ul>
+          </article>
+          <article class="layer-card emotion">
+            <h3>Emotion Layer / 感情</h3>
+            <h4>担当</h4>
+            <ul>
+              <li>state</li>
+              <li>relationship</li>
+              <li>memory</li>
+              <li>beliefs</li>
+              <li>voice</li>
+            </ul>
+            <h4>問い</h4>
+            <ul>
+              <li>誰が何を望むか</li>
+              <li>何を恐れるか</li>
+              <li>どう受け取るか</li>
+              <li>関係がどう揺れるか</li>
+            </ul>
+          </article>
+          <article class="layer-card meaning">
+            <h3>Meaning Layer / 意味</h3>
+            <h4>担当</h4>
+            <ul>
+              <li>relationship_spine</li>
+              <li>core</li>
+              <li>theme</li>
+              <li>contradiction</li>
+            </ul>
+            <h4>問い</h4>
+            <ul>
+              <li>この関係は何を問うのか</li>
+              <li>何が変わると物語として意味があるのか</li>
+              <li>どんな価値観がぶつかるのか</li>
+            </ul>
+          </article>
+        </div>
+        <aside class="emphasis-box formula">
+          面白いscene = 筋立てが動く + 感情が揺れる + 意味が少し変わる
+        </aside>
+      </section>
+
+      <section class="section" id="story-function-ladder">
+        <div class="section-head">
+          <p class="section-kicker">Story Function Ladder</p>
+          <h2>物語を進める15機能</h2>
+          <p>これは固定プロット順ではなく、sceneの役割を診断するための道具。</p>
+        </div>
+        <ol class="function-ladder" aria-label="物語機能の階段">
+          <li class="function-step"><b>1. 主役</b><span>誰を追う話か</span></li>
+          <li class="function-step"><b>2. 前提</b><span>どんな暮らし・ルールの上にあるか</span></li>
+          <li class="function-step"><b>3. 起点</b><span>何が日常を揺らすか</span></li>
+          <li class="function-step"><b>4. 目標</b><span>何を求めて動くか</span></li>
+          <li class="function-step"><b>5. 始動</b><span>なぜ一歩踏み出すか</span></li>
+          <li class="function-step"><b>6. 試練</b><span>何が難しいか</span></li>
+          <li class="function-step"><b>7. 糸口</b><span>次へ進む足場</span></li>
+          <li class="function-step"><b>8. 前進</b><span>何が少し進んだか</span></li>
+          <li class="function-step"><b>9. 転回</b><span>問題の意味がどう変わったか</span></li>
+          <li class="function-step"><b>10. 孤立</b><span>何を失い、自分で選ぶか</span></li>
+          <li class="function-step"><b>11. 奈落</b><span>関係や心が最も沈む点</span></li>
+          <li class="function-step"><b>12. 打開</b><span>積み上げたものが突破口になる</span></li>
+          <li class="function-step"><b>13. 選択</b><span>中心問題にどう答えるか</span></li>
+          <li class="function-step"><b>14. 着地</b><span>何が決まり、何が変わったか</span></li>
+          <li class="function-step"><b>15. 余韻</b><span>どんな感情と次の問いが残るか</span></li>
+        </ol>
+        <aside class="emphasis-box">
+          15機能は順番どおりに埋める表ではない。今のsceneがどの役割を担うべきかを見る診断レンズ。
+        </aside>
+      </section>
+
+      <section class="section" id="one-turn">
+        <div class="section-head">
+          <p class="section-kicker">2. One Turn Pipeline</p>
+          <h2>1ターン出力の流れ</h2>
+        </div>
+        <aside class="principle-callout">
+          <strong>状態ファイルを全部本文に出すのではない。</strong>
+          <span>今この瞬間に必要な一手へ変換する。</span>
+        </aside>
+        <div class="pipeline-grid" aria-label="1ターン出力の内部ステップ">
+          <article><b>1</b><span>ユーザー入力を読む</span></article>
+          <article><b>2</b><span>scene.md で現在地を確認</span></article>
+          <article><b>3</b><span>event_card.md で今触れる入口を確認</span></article>
+          <article><b>4</b><span>voice / state / relationship / memory / beliefs を参照</span></article>
+          <article><b>5</b><span>Turn Focus を1つに絞る</span></article>
+          <article><b>6</b><span>ヒロインの反応を作る</span></article>
+          <article><b>7</b><span>状況・関係・情報のどれかを1つ動かす</span></article>
+          <article><b>8</b><span>次に返せる入口を残す</span></article>
+        </div>
+      </section>
+
+      <section class="section" id="state-files">
+        <div class="section-head">
+          <p class="section-kicker">3. State Files</p>
+          <h2>状態ファイルの役割</h2>
+          <p>各カードは本文そのものではなく、出力の材料。必要な瞬間だけ本文へ変換される。</p>
+        </div>
+        <div class="state-columns">
+          <section class="state-layer current-layer">
+            <h3>Current Layer</h3>
+            <article class="state-card">
+              <h4>current/scene.md</h4>
+              <ul>
+                <li>今どこか</li>
+                <li>誰がいるか</li>
+                <li>直前に何が起きたか</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>current/event_card.md</h4>
+              <ul>
+                <li>今触れる可視イベント</li>
+                <li>Visible Problem</li>
+                <li>First Concrete Action</li>
+                <li>Handles</li>
+                <li>Relationship Stake</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>current/hotset.md</h4>
+              <ul>
+                <li>再開直後の温度</li>
+                <li>次の1ターンに効く短い記憶</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>current/relationship_overview.md</h4>
+              <ul>
+                <li>関係の現在地</li>
+                <li>信頼、警戒、距離</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+          </section>
+
+          <section class="state-layer internal-layer">
+            <h3>LILIA Internal Layer</h3>
+            <article class="state-card">
+              <h4>lilia/main/core.md</h4>
+              <ul>
+                <li>変えてはいけない人格の核</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>lilia/main/voice.md</h4>
+              <ul>
+                <li>声、呼び方、沈黙、距離感</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>lilia/main/state.md</h4>
+              <ul>
+                <li>今だけの感情、疲労、警戒、照れ</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>lilia/main/relationship.md</h4>
+              <ul>
+                <li>信頼、境界線、親密さ、摩擦</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>lilia/main/memory.md</h4>
+              <ul>
+                <li>実際に起きた出来事</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>lilia/main/beliefs.md</h4>
+              <ul>
+                <li>ヒロイン側の仮説、誤解、見直し</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+          </section>
+
+          <section class="state-layer story-layer">
+            <h3>Story Layer</h3>
+            <article class="state-card">
+              <h4>story/story_deck.md</h4>
+              <ul>
+                <li>後で使う物語素材</li>
+                <li>未回収札</li>
+                <li>Candidate Hook</li>
+                <li>Background Hook</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+            <article class="state-card">
+              <h4>story/relationship_spine.md</h4>
+              <ul>
+                <li>関係の長期テーマ</li>
+                <li>矛盾</li>
+                <li>育つ方向</li>
+              </ul>
+              <p>出力の材料</p>
+            </article>
+          </section>
+        </div>
+      </section>
+
+      <section class="section" id="safety-gates">
+        <div class="section-head">
+          <p class="section-kicker">4. Two Safety Gates</p>
+          <h2>分かりやすさと面白さ</h2>
+          <p>この2つを分けると、状態、hook、event_card、story_deckの役割が見えやすくなる。</p>
+        </div>
+        <div class="gate-grid">
+          <article class="gate-card orientation">
+            <p class="gate-label">Player Orientation Gate</p>
+            <h3>分かりやすさのGate</h3>
+            <h4>迷子にさせない</h4>
+            <p class="gate-statement">真相は隠してよい。ただし、話の入口は隠さない。</p>
+            <ul class="check-list">
+              <li>これは何の話か分かるか</li>
+              <li>主人公がなぜ関係者なのか分かるか</li>
+              <li>今何が普通ではないのか分かるか</li>
+              <li>何に触れば進むか分かるか</li>
+              <li>判断を迫る前に判断材料があるか</li>
+            </ul>
+            <div class="example-pair">
+              <p class="ng"><b>NG</b>意味深な反応だけが続き、何が問題か分からない</p>
+              <p class="ok"><b>OK</b>真相は不明だが、次に確認すべき対象は分かる</p>
+            </div>
+          </article>
+
+          <article class="gate-card causality">
+            <p class="gate-label">Story Causality Gate</p>
+            <h3>面白さのGate</h3>
+            <h4>状態が物語を動かす</h4>
+            <p class="gate-statement">分かるだけでは弱い。選択によって、何かが不可逆に変わる必要がある。</p>
+            <ul class="check-list">
+              <li>誰が何を欲しがっているか</li>
+              <li>何が邪魔しているか</li>
+              <li>選択に代償があるか</li>
+              <li>ユーザー行動が何に作用するか</li>
+              <li>ヒロインの受け取り方が変わるか</li>
+              <li>次に見たい問いが残るか</li>
+            </ul>
+            <div class="example-pair">
+              <p class="ng"><b>NG</b>状況説明は分かるが、何も変わらない</p>
+              <p class="ok"><b>OK</b>選択によって、信頼・警戒・情報・約束・境界線のどれかが変わる</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="event-card-upgrade">
+        <div class="section-head">
+          <p class="section-kicker">5. Event Card Upgrade</p>
+          <h2>新しい event_card 構造案</h2>
+        </div>
+        <aside class="event-callout">
+          <strong>event_card は事件メモではない。</strong>
+          <span>「今この場でプレイヤーが触れる入口」と「触れた結果どう変わるか」を持つカードである。</span>
+        </aside>
+        <div class="event-map">
+          <article>
+            <h3>Player-Facing Problem</h3>
+            <p>プレイヤーに見えている問題</p>
+          </article>
+          <article>
+            <h3>Dramatic Question</h3>
+            <p>このsceneで追う問い</p>
+          </article>
+          <article>
+            <h3>Visible Problem</h3>
+            <p>場面上の可視問題</p>
+          </article>
+          <article>
+            <h3>First Concrete Action</h3>
+            <p>最初にできる具体行動</p>
+          </article>
+          <article>
+            <h3>Handles 2-4</h3>
+            <p>触り方の入口</p>
+          </article>
+          <article class="tension">
+            <h3>Desire / Obstacle / Cost</h3>
+            <p>欲しいもの、邪魔するもの、選択の代償</p>
+          </article>
+          <article class="tension">
+            <h3>Choice Tension</h3>
+            <p>なぜ迷うのか</p>
+          </article>
+          <article class="causality">
+            <h3>Causality</h3>
+            <p>ユーザー行動が何に作用するか</p>
+          </article>
+          <article class="state">
+            <h3>Relationship Stake</h3>
+            <p>関係に何が残るか</p>
+          </article>
+          <article class="state">
+            <h3>Irreversible Delta</h3>
+            <p>元に戻らない変化</p>
+          </article>
+          <article class="next">
+            <h3>Next Visible Change</h3>
+            <p>次に見える変化</p>
+          </article>
+          <article class="next">
+            <h3>Next Curiosity</h3>
+            <p>次に知りたくなる問い</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="bad-good-flow">
+        <div class="section-head">
+          <p class="section-kicker">6. Bad vs Good Flow</p>
+          <h2>悪い流れ / 良い流れ</h2>
+          <p>特定セッションに依存しない、構造だけの比較。</p>
+        </div>
+        <div class="compare-grid">
+          <article class="compare-card bad">
+            <h3>Bad Flow</h3>
+            <ol class="vertical-flow">
+              <li>怪しい出来事</li>
+              <li>ヒロインが意味深に反応</li>
+              <li>謎が増える</li>
+              <li>選択を迫られる</li>
+              <li>プレイヤーが何を判断すればいいか分からない</li>
+            </ol>
+          </article>
+          <article class="compare-card good">
+            <h3>Good Flow</h3>
+            <ol class="vertical-flow">
+              <li>怪しい出来事</li>
+              <li>何が普通ではないか分かる</li>
+              <li>主人公がなぜ関係者か分かる</li>
+              <li>選べる行動が見える</li>
+              <li>選択に代償がある</li>
+              <li>関係・情報・状況のどれかが不可逆に変わる</li>
+              <li>次に見たい問いが残る</li>
+            </ol>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
