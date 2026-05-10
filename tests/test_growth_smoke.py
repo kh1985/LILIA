@@ -75,6 +75,24 @@ def test_ai_playtest_judge_default_and_no_judge() -> None:
         lilia.parse_ai_playtest_options(["s", "--judge", "--no-judge"])
 
 
+def test_ai_playtest_accepts_wanderer_persona() -> None:
+    lilia = load_lilia()
+
+    cleaned, persona, turns, engine, verbose, quiet, judge = (
+        lilia.parse_ai_playtest_options(
+            ["s", "--persona", "wanderer", "--turns", "3", "--no-judge"]
+        )
+    )
+
+    assert cleaned == ["s"]
+    assert persona == "wanderer"
+    assert turns == 3
+    assert engine == "auto"
+    assert verbose is False
+    assert quiet is False
+    assert judge is False
+
+
 def test_growth_run_dir_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     lilia = load_lilia()
     monkeypatch.setattr(lilia, "PLAYTESTS_DIR", tmp_path / "playtests")

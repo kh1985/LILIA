@@ -143,10 +143,12 @@ def test_resolve_choice_default_for_empty() -> None:
 def test_resolve_choice_by_number() -> None:
     assert menu.resolve_choice("2", menu.PERSONA_CHOICES) == "passive"
     assert menu.resolve_choice("3", menu.PERSONA_CHOICES) == "boundary"
+    assert menu.resolve_choice("4", menu.PERSONA_CHOICES) == "wanderer"
 
 
 def test_resolve_choice_by_name_case_insensitive() -> None:
     assert menu.resolve_choice("BOUNDARY", menu.PERSONA_CHOICES) == "boundary"
+    assert menu.resolve_choice("WANDERER", menu.PERSONA_CHOICES) == "wanderer"
     assert menu.resolve_choice("auto", menu.ENGINE_CHOICES) == "auto"
     assert menu.resolve_choice("CODEX", menu.ENGINE_CHOICES) == "codex"
 

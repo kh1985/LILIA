@@ -106,6 +106,7 @@ PERSONA_CHOICES: tuple[tuple[str, str], ...] = (
     ("1", "normal"),
     ("2", "passive"),
     ("3", "boundary"),
+    ("4", "wanderer"),
 )
 
 ENGINE_CHOICES: tuple[tuple[str, str], ...] = (

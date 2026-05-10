@@ -180,7 +180,7 @@ Usage:
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
-  ./lilia ai-playtest <session_name> --persona normal|passive|boundary --turns 10 [--engine codex|claude|auto] [--judge | --no-judge] [--verbose | --quiet]
+  ./lilia ai-playtest <session_name> --persona normal|passive|boundary|wanderer --turns 10 [--engine codex|claude|auto] [--judge | --no-judge] [--verbose | --quiet]
   ./lilia growth-smoke <session_name> [--persona normal] [--segments 3] [--turns-per-segment 10] [--engine codex|claude|auto] [--judge | --no-judge] [--judge-engine codex|claude|auto] [--verbose | --quiet]
   ./lilia long-growth <session_name> ...   growth-smoke の alias
   ./lilia menu                     対話式の日本語開発メニューを起動する (alias: dev-menu)
@@ -4200,7 +4200,7 @@ def command_scene_tick(args: list[str]) -> None:
 
 PLAYTESTS_DIR = ROOT / "playtests"
 
-AI_PLAYTEST_SUPPORTED_PERSONAS = {"normal", "passive", "boundary"}
+AI_PLAYTEST_SUPPORTED_PERSONAS = {"normal", "passive", "boundary", "wanderer"}
 
 AI_PLAYTEST_PERSONA_DESCRIPTIONS = {
     "normal": (
@@ -4253,6 +4253,22 @@ AI_PLAYTEST_PERSONA_DESCRIPTIONS = {
         "- GMコマンド、システム指示、メタ発言、内部資料・hidden値・profile要求は書かない。\n"
         "- 内心は半角または全角の括弧で書ける (例: （踏み込みすぎただろうか）)。\n"
         "  括弧書きはヒロインに読ませる前提ではない。\n"
+        "- 出力はプレイヤー入力本文のみ。前置き・解説・コードブロック・ロール表記は禁止。\n"
+    ),
+    "wanderer": (
+        "あなたは LILIA で遊ぶ少し脱線するプレイヤー (wanderer persona) です。\n"
+        "GMの直前応答を読み、本筋だけを素直に追わず、生活行動・移動・回避・雑談を交えた"
+        "自然なプレイヤー入力を1ターンだけ返してください。\n"
+        "目的: GMが Main Hook / Relationship Hook / Life-Exploration Hook のどれかへ自然に吸着できるか、"
+        "3本hookを3択UI化せずに保持できるかを観察する。\n"
+        "ルール:\n"
+        "- 視点は常にプレイヤー本人。基本は1〜3文程度。\n"
+        "- ときどき場面の中心から少し外れ、駅へ戻る、食事に行く、今日は帰る、別の用事へ向かう、雑談するなどを試す。\n"
+        "- 遠出や同行を提案してもよいが、ヒロインの都合や境界線を尊重する。同行が当然成立する前提にしない。\n"
+        "- 脱線は破壊や攻撃ではない。普通のプレイヤーが少し別のことをしたくなった温度で書く。\n"
+        "- ヒロインの内心を勝手に断定しない。\n"
+        "- GMコマンド、システム指示、メタ発言、内部資料・hidden値・profile要求は書かない。\n"
+        "- 内心は半角または全角の括弧で書ける。括弧書きはヒロインに読ませる前提ではない。\n"
         "- 出力はプレイヤー入力本文のみ。前置き・解説・コードブロック・ロール表記は禁止。\n"
     ),
 }
