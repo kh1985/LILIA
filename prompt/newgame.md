@@ -354,7 +354,7 @@ GM / Story側で裏生成するもの:
 - Q4の表と内の差を profile.contradictions へ直接反映する
 - Q5の内面に持っているものを profile.memories / unspoken へ反映し、story_spine.Background Truth はAI spine生成で再解釈する
 - Q6の出会いと関係性の起点から、初回scene、current/scene.md、event_card、relationship_overview を導出する
-- Q7の呼ばれ方を protagonist.md と knowledge_state.md の protagonist_call_name へ反映する
+- Q7の呼ばれ方を desired_call_name / 開示後呼称として protagonist.md と knowledge_state.md の protagonist_call_name へ反映する。初回からヒロインが知っている呼称として扱わない。
 - Q8の主人公の身体・格好・仕事を protagonist.md と knowledge_state.md の protagonist 由来項目へ反映する
 - Q9の避けたい展開を Session Constraints / forbidden へ反映する
 - tone examplesを3つ出す
@@ -755,7 +755,9 @@ protagonist.md は session document generator が、Q7/Q8/Q9 と profile / story
 
 #### 呼ばれ方（必須）
 
-- Q7 の回答を意味として反映する。長文や曖昧な回答は自然な呼称へ再構成する。
+- Q7 の回答は desired_call_name / 開示後呼称として反映する。長文や曖昧な回答は自然な呼称へ再構成する。
+- Q7 は「ヒロインが主人公名を初回から知っている」という意味ではない。自己紹介、名刺、伝票、予約名、名札、看板、他者紹介などが scene 内で起きるまで、ヒロインはその呼称を使わない。
+- 知る前は「あなた」「そちらの方」「お客さま」「……あの」など、場所と関係に合う呼び方を使う。
 - 「おまかせ」の場合: ヒロインの立場と関係から自然な呼称を選ぶ。
   - 例（構造説明のみ。literal として真似しないこと）: [同級生]→[下の名前/あだ名]、[職場の関係]→[名字+敬称]、[対立的な関係]→[距離のある二人称]
 
@@ -800,11 +802,13 @@ knowledge_state.md は session document generator の protagonist 系AI出力と
 
 #### protagonist 由来項目（Q7, Q8）
 - protagonist_call_name (Q7) → fictional_status: meta
+  - Q7 は希望呼称 / 開示後呼称。ヒロインが初回から知っている呼称ではない。
 - protagonist_gender, height, build, style (Q8) → fictional_status: observable
 - protagonist_occupation (Q8) → fictional_status: meta または shared（scene内で開示された場合）
 
 #### heroine 自己情報（Q1, Q2, Q3）
 - heroine_name (Q1) → fictional_status: meta（自己紹介前）
+  - ヒロイン本人とGMは知っているが、主人公 / player-facing scene で未開示なら地の文で唐突に多用しない。
 - heroine_occupation (Q1) → fictional_status: meta
 - heroine_visual_anchor (Q3 または profile 抽出) → fictional_status: observable
 

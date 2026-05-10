@@ -24,7 +24,7 @@
 scene 内で開示装置（自己紹介、伝票、名札、観察など）を経由するまで、
 ヒロイン・NPC は知らない扱いとする。
 
-例: protagonist.md の呼ばれ方（Q6 で答えた呼称）
+例: protagonist.md の呼ばれ方（Q7 で答えた希望呼称）
 
 ### observable
 視覚的・物理的に観察可能。ヒロインがその場で見れば自然に認識できる。
@@ -69,9 +69,10 @@ story_spine.md の Background Truth と紐づく。
 
 newgame で以下を生成する。詳細は prompt/newgame.md を参照。
 
-### protagonist 由来項目（Q6/Q7 から）
+### protagonist 由来項目（Q7/Q8 から）
 
 - 主人公の呼ばれ方 → meta、source: protagonist、known_to: [protagonist]
+  - Q7 は「希望呼称 / 開示後呼称」であり、ヒロインが scene 内で知った事実ではない。
 - 主人公の性別 → observable、source: protagonist、known_to: [protagonist, heroine（初対面で観察）]
 - 主人公の身長感 → observable、同上
 - 主人公の体格 → observable、同上
@@ -79,8 +80,8 @@ newgame で以下を生成する。詳細は prompt/newgame.md を参照。
 
 ### profile 由来項目（Q1/Q3/Q4 から）
 
-- ヒロインの名前 → shared（自己紹介で開示される前提）、source: heroine_self_disclosure、known_to: [heroine]、acquired_at: pre_play
-  - 注: 初対面で開示されると `acquired_at: scene_1` になる
+- ヒロインの名前 → meta（自己紹介前）、source: heroine_self_disclosure、known_to: [heroine]、acquired_at: pre_play
+  - 注: GM とヒロイン本人は知っているが、主人公 / player-facing scene では未開示なら地の文で多用しない。名乗り、名札、看板、予約表などで開示されると `shared` に昇格する。
 - ヒロインの職業・立場 → 同上
 - ヒロインの描写の縛り（物的アンカー） → observable、known_to: [heroine, protagonist]、acquired_at: scene_1
 
@@ -99,13 +100,13 @@ newgame で以下を生成する。詳細は prompt/newgame.md を参照。
 items:
   # ===== protagonist 由来 =====
   - key: protagonist_call_name
-    value: (newgame で Q6 から)
+    value: (newgame で Q7 の希望呼称から)
     fictional_status: meta
     source: protagonist
     known_to: [protagonist]
     acquired_at: pre_play
     weight: medium
-    notes: "ヒロインが知る経路がない時点では使わない。自己紹介、伝票、名札、紹介などの装置を経由する"
+    notes: "希望呼称 / 開示後呼称。ヒロインが知る経路がない時点では使わない。自己紹介、伝票、名札、予約名、他者紹介などの装置を経由する"
 
   - key: protagonist_gender
     value: (newgame で Q7 から)
@@ -148,7 +149,7 @@ items:
     known_to: [heroine]
     acquired_at: pre_play
     weight: high
-    notes: "初対面で自己紹介すると shared に昇格"
+    notes: "ヒロイン本人とGMは知っているが、主人公 / player-facing scene では未開示。名乗り、名札、看板、予約表などで開示されると shared に昇格"
 
   - key: heroine_occupation
     value: (newgame で Q1 から)

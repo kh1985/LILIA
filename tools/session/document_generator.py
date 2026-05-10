@@ -541,13 +541,13 @@ def _render_knowledge_state_document(
     constraints = _answer_text(answers, 9) or "特になし"
 
     item_specs = [
-        dict(key="protagonist_call_name", value=_answer_text(answers, 7) or "未確定", fictional_status="meta", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="medium", notes="ヒロインが知る経路がない時点では使わない。自己紹介、伝票、名札、紹介などの装置を経由する"),
+        dict(key="protagonist_call_name", value=_answer_text(answers, 7) or "未確定", fictional_status="meta", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="medium", notes="希望呼称 / 開示後呼称。ヒロインが知る経路がない時点では使わない。自己紹介、伝票、名札、予約名、他者紹介などの装置を経由する"),
         dict(key="protagonist_gender", value=fields["gender"], fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能"),
         dict(key="protagonist_height", value=fields["height"], fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能"),
         dict(key="protagonist_build", value=fields["build"], fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能"),
         dict(key="protagonist_style", value=fields["style"], fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能"),
         dict(key="protagonist_occupation", value=fields["occupation"], fictional_status="meta", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="medium", notes="主人公がscene内で開示するまでヒロインは知らない"),
-        dict(key="heroine_name", value=name, fictional_status="meta", source="heroine_self_disclosure", known_to=["heroine"], acquired_at="pre_play", weight="high", notes="初対面で自己紹介すると shared に昇格"),
+        dict(key="heroine_name", value=name, fictional_status="meta", source="heroine_self_disclosure", known_to=["heroine"], acquired_at="pre_play", weight="high", notes="ヒロイン本人とGMは知っているが、主人公 / player-facing scene では未開示。名乗り、名札、看板、予約表などで開示されると shared に昇格"),
         dict(key="heroine_occupation", value=occupation, fictional_status="meta", source="heroine_self_disclosure", known_to=["heroine"], acquired_at="pre_play", weight="medium", notes="自己紹介または場面内の自然な開示で shared に昇格"),
         dict(key="heroine_visual_anchor", value=visual_anchor, fictional_status="observable", source="observation", known_to=["heroine", "protagonist"], acquired_at="scene_1", weight="medium", notes="描写の縛りとして初回から観測可能"),
         dict(key="heroine_background_truth", value=background_truth, fictional_status="gm_only", source="story_spine", known_to=["GM"], acquired_at="pre_play", weight="high", notes="Reveal Ladder で段階的に開示される。本文に直接出さない"),
@@ -911,6 +911,10 @@ def _build_group_c_prompt(context: dict[str, Any]) -> str:
 7. heroine_* と reveal_ladder_* と session_constraints も、入力 story_spine/profile から生成して含める。
    ただし Background Truth は gm_only とし、本文説明として漏らさない。
 8. Q8全文を YAML の value に入れない。
+9. Name Disclosure Boundary:
+   - Q7の呼ばれ方は desired_call_name / 開示後呼称であり、初回からヒロインが知っている呼称ではない。
+   - protagonist_call_name は fictional_status: meta、known_to: [protagonist] とし、自己紹介、名刺、伝票、予約名、名札、看板、他者紹介などで共有されるまでヒロインの台詞に使わせない。
+   - ヒロイン名は heroine_name として保持してよいが、自己紹介前は fictional_status: meta、known_to: [heroine] とし、player-facing本文では「彼女」「占い師の女性」など見えている呼び方を優先する。
 """,
     )
 

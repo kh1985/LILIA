@@ -498,6 +498,14 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 - `lilia/main/memory.md` に初期記憶がある。
 - `lilia/main/beliefs.md` に誤解や思い込みの余地がある。
 
+### Name Disclosure Rule
+
+- characters cannot use names or call names they have not learned in fiction.
+- Q7 の「ヒロインからの呼ばれ方」は desired_call_name / 開示後呼称であり、自己紹介、名刺、伝票、予約名、名札、看板、他者紹介などが scene 内で起きるまでヒロインは使わない。
+- 知る前の呼びかけは「あなた」「そちらの方」「お客さま」「……あの」など、場所と関係に合うものを使う。
+- ヒロイン名は内部stateにあってよいが、主人公 / player-facing scene で未開示なら地の文で唐突に多用しない。名乗り前は「彼女」「占い師の女性」「栗色の髪の女性」など、場面上見えている呼び方を使う。
+- 名前を使うためだけに不自然な開示装置を作らない。自然に共有された時だけ knowledge_state を `shared` に昇格する。
+
 ## 7. Resume Smoke Test
 
 `new -> first scene -> save -> resume` を手動で確認する時は、`docs/RESUME_SMOKE_TEST.md` を正本とする。

@@ -2542,13 +2542,13 @@ def render_ai_knowledge_state_document(
     constraints = newgame_forbidden_text(answers) or "特になし"
 
     item_specs = [
-        dict(key="protagonist_call_name", value=calling, fictional_status="meta", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="medium", notes="ヒロインが知る経路がない時点では使わない。自己紹介、伝票、名札、紹介などの装置を経由する"),
+        dict(key="protagonist_call_name", value=calling, fictional_status="meta", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="medium", notes="希望呼称 / 開示後呼称。ヒロインが知る経路がない時点では使わない。自己紹介、伝票、名札、予約名、他者紹介などの装置を経由する"),
         dict(key="protagonist_gender", value=gender, fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能。ヒロインが観察するまで台詞で断定しすぎない"),
         dict(key="protagonist_height", value=height, fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能"),
         dict(key="protagonist_build", value=build, fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能"),
         dict(key="protagonist_style", value=style, fictional_status="observable", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="low", notes="視覚的に観察可能"),
         dict(key="protagonist_occupation", value=occupation, fictional_status="meta", source="protagonist", known_to=["protagonist"], acquired_at="pre_play", weight="medium", notes="主人公がscene内で開示するまでヒロインは知らない"),
-        dict(key="heroine_name", value=lilia_name, fictional_status="meta", source="heroine_self_disclosure", known_to=["heroine"], acquired_at="pre_play", weight="high", notes="初対面で自己紹介すると shared に昇格"),
+        dict(key="heroine_name", value=lilia_name, fictional_status="meta", source="heroine_self_disclosure", known_to=["heroine"], acquired_at="pre_play", weight="high", notes="ヒロイン本人とGMは知っているが、主人公 / player-facing scene では未開示。名乗り、名札、看板、予約表などで開示されると shared に昇格"),
         dict(key="heroine_occupation", value=role, fictional_status="meta", source="heroine_self_disclosure", known_to=["heroine"], acquired_at="pre_play", weight="medium", notes="自己紹介または場面内の自然な開示で shared に昇格"),
         dict(key="heroine_visual_anchor", value=visual_anchor, fictional_status="observable", source="observation", known_to=["heroine", "protagonist"], acquired_at="scene_1", weight="medium", notes="描写の縛りとして初回から観測可能"),
         dict(key="heroine_background_truth", value=background_truth, fictional_status="gm_only", source="story_spine", known_to=["GM"], acquired_at="pre_play", weight="high", notes="Reveal Ladder で段階的に開示される。本文に直接出さない"),
@@ -2888,6 +2888,36 @@ def sanitize_knowledge_state_for_context(content: str) -> str:
     return "\n".join(output)
 
 
+def sanitize_protagonist_for_context(content: str) -> str:
+    lines = content.splitlines()
+    output: list[str] = []
+    in_call_name = False
+    note_added = False
+
+    for line in lines:
+        if re.match(r"^##\s+呼ばれ方\s*$", line):
+            in_call_name = True
+            note_added = False
+            output.append(line)
+            continue
+        if in_call_name and re.match(r"^##\s+", line):
+            in_call_name = False
+            output.append(line)
+            continue
+        if in_call_name and re.match(r"\s*呼称(?:（[^）]+）)?\s*:", line):
+            indent = re.match(r"^(\s*)", line).group(1)
+            output.append(f"{indent}呼称（開示後）: {KNOWLEDGE_HIDDEN_VALUE}")
+            output.append(f"{indent}注: Q7の希望呼称。ヒロインがscene内で知るまで台詞に使わない。")
+            note_added = True
+            continue
+        if in_call_name and line.strip() and not note_added and "希望呼称" not in line:
+            output.append(line)
+            continue
+        output.append(line)
+
+    return "\n".join(output)
+
+
 def split_action_and_monologue(player_input: str) -> tuple[str, str]:
     """Split player-visible action from protagonist inner monologue.
 
@@ -2951,6 +2981,8 @@ def render_file(path: Path) -> str:
     content = path.read_text(encoding="utf-8").rstrip()
     if path.name == "knowledge_state.md":
         content = sanitize_knowledge_state_for_context(content)
+    if path.name == "protagonist.md":
+        content = sanitize_protagonist_for_context(content)
     return f"\n--- {path.relative_to(ROOT)} ---\n{content}"
 
 
