@@ -30,6 +30,8 @@ GROUNDING_GUARD_TEXT = (
     "背景化materialを、resume 1ターン目の新しい証拠として前景化しない。\n"
     "active event_cardにない小道具、書類、連絡手段、識別情報、過去の控え類を、"
     "最初からそこにあったものとして足さない。\n"
+    "電話や訪問などの入口でも、保存にない着信表示、連絡先の識別、場所の固有情報、控え類、"
+    "手元の補助記録をresume 1ターン目の既存情報として描写しない。\n"
     "新しい具体物を出す場合は、active event_card の First Concrete Action と矛盾せず、"
     "scene内で今発見されたものとして明示し、Save Modeでevent_card/story_deck/memory候補として残す。"
 )
@@ -282,7 +284,7 @@ def infer_time_from_next_hook(next_hook: str) -> str:
     for keyword in ["翌朝", "翌日", "次の日", "次回", "後日", "夕方", "夜", "朝", "帰宅後"]:
         if keyword in text:
             return f"{keyword}を含む次scene"
-    return "next_hookで示された次scene"
+    return "保存された次の入口で示された次scene"
 
 
 def render_promoted_scene(next_hook: str, timestamp: str) -> str:
@@ -293,7 +295,7 @@ def render_promoted_scene(next_hook: str, timestamp: str) -> str:
             "",
             "## 今いる場所",
             "",
-            "- next_hookに明示された場所。明示がない場合は、前sceneから自然に戻れる場所。",
+            "- 保存された次の入口に明示された場所。明示がない場合は、前sceneから自然に戻れる場所。",
             "",
             "## 現在時刻または場面時間",
             "",
@@ -313,7 +315,7 @@ def render_promoted_scene(next_hook: str, timestamp: str) -> str:
             "",
             "## 直前のやりとり",
             "",
-            "- 前sceneは一度閉じ、保存済みnext_hookを次の入口として再開する。",
+            "- 前sceneは一度閉じ、保存された次の入口から再開する。",
             "",
             "## 初回sceneの入口",
             "",
@@ -345,16 +347,16 @@ def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
             "- hook_id: promoted_next_hook",
             "- hook_type: main / relationship / life",
             "- status: active",
-            "- foreground_reason: 保存済みnext_hookを次sceneの入口として前景化する。",
+            "- foreground_reason: 保存された次の入口を次sceneの入口として前景化する。",
             "- 注: Active Hookは今触れる1本だけ。3hookを3択UIとして並べない。",
             "",
             "## Scene Function",
             "",
             "- function: 始動",
             f"- current_question: {summary}",
-            "- entry_state: 前sceneは一度閉じ、保存済みnext_hookから次sceneへ入る。",
+            "- entry_state: 前sceneは一度閉じ、保存された次の入口から次sceneへ入る。",
             "- exit_condition: 状況確認の入口が成立し、次に触れる可視問題が明確になる。",
-            "- change_delta: next_hook候補がactive event_cardへ昇格する。",
+            "- change_delta: 保存された次の入口候補がactive event_cardへ昇格する。",
             "- next_hook_candidate: Save Modeで必要になった場合だけ更新する。",
             "- 注: Story Function名は内部タグ。Play Mode本文へそのまま出さない。",
             "",
@@ -368,7 +370,7 @@ def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
             "",
             "## First Concrete Action",
             "",
-            "LILIAは保存済みのnext_hookに沿って、状況確認の入口だけを出す。next_hookにない具体手がかりは追加しない。",
+            "LILIAは保存された次の入口に沿って、状況確認の入口だけを出す。active event_cardにない具体手がかりは追加しない。",
             "",
             "## Handles 2-4",
             "",
@@ -383,7 +385,7 @@ def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
             "",
             "## If Ignored",
             "",
-            "この入口に触れなかった場合、next_hookは保留札として残り、LILIAの確認や距離の取り方に小さく戻る。",
+            "この入口に触れなかった場合、次の入口は保留札として残り、LILIAの確認や距離の取り方に小さく戻る。",
             "",
             "## Next Visible Change",
             "",
@@ -411,7 +413,7 @@ def render_promoted_hotset(next_hook: str, timestamp: str) -> str:
             "",
             "## 会話の温度",
             "",
-            "- 前sceneは一度閉じ、保存済みnext_hookから次sceneへ入る。",
+            "- 前sceneは一度閉じ、保存された次の入口から次sceneへ入る。",
             "",
             "## 呼び方 / 距離のアンカー",
             "",
@@ -423,7 +425,7 @@ def render_promoted_hotset(next_hook: str, timestamp: str) -> str:
             "",
             "## 未消化の感情",
             "",
-            "- next_hookに残った確認、保留、境界線を急がず扱う。",
+            "- 保存された次の入口に残った確認、保留、境界線を急がず扱う。",
             "",
             "## 言い残し / まだ言っていないこと",
             "",

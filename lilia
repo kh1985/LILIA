@@ -4666,8 +4666,6 @@ def build_ai_playtest_checkpoint_turn_update_candidate(
         f"- scene_tick: {tick['display_turn']}/{tick['interval_turns']}",
         f"- autosave_required: {str(tick['autosave_required']).lower()}",
         "- apply_turn_executed: false",
-        f"- closure_candidate_used: {str(closure_candidate is not None).lower()}",
-        f"- story_completion_used: {str(story_completion is not None).lower()}",
         "",
     ]
     if closure_candidate is None:
@@ -4693,6 +4691,37 @@ def turn_update_review_text(value: object) -> str:
     text = re.sub(r"\s+", " ", str(value or "")).strip()
     if text.startswith("#"):
         text = "review: " + text.lstrip("#").strip()
+    return text
+
+
+def checkpoint_state_text(value: object) -> str:
+    text = turn_update_review_text(value)
+    text = re.sub(
+        r"\b(?:closure_candidate|story_completion_status|checkpoint_only|recommended_next_arc_candidate|next_arc_candidate)\b",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\bTurn\s*\d+\s*で[^。/／]*[。/／]?", "", text)
+    text = re.sub(r"\bJudge detected\b[^。/／]*[。/／]?", "", text, flags=re.IGNORECASE)
+    text = text.replace("closure入口:", "").replace("closure入口：", "")
+    text = text.replace("closure candidate", "").replace("Closure Candidate", "")
+    text = text.replace("story completion", "").replace("Story Completion", "")
+    text = re.sub(
+        r"\breview:\s*(?:scene|event_card|hotset|memory|relationship|beliefs|story_deck|hook_updates)\b\s*-?\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\breview:\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+", " ", text).strip(" -/／、。")
+    return text
+
+
+def checkpoint_sentence(value: object, fallback: str) -> str:
+    text = checkpoint_state_text(value) or fallback
+    if not text.endswith(("。", "！", "？", ".", "!", "?")):
+        text = f"{text}。"
     return text
 
 
@@ -4729,8 +4758,8 @@ def render_ai_playtest_story_completion_note(candidate: dict[str, object]) -> st
 def closure_candidate_slug(candidate: dict[str, object]) -> str:
     hook_type = str(candidate.get("possible_next_hook_type", "hook") or "hook")
     turns = "_".join(str(item) for item in candidate.get("closure_candidate_turns", []))
-    slug = re.sub(r"[^A-Za-z0-9_]+", "_", f"closure_{hook_type}_{turns}").strip("_")
-    return slug or "closure_candidate"
+    slug = re.sub(r"[^A-Za-z0-9_]+", "_", f"handoff_{hook_type}_{turns}").strip("_")
+    return slug or "handoff_candidate"
 
 
 def render_ai_playtest_closure_turn_update_sections(
@@ -4738,32 +4767,28 @@ def render_ai_playtest_closure_turn_update_sections(
     *,
     story_completion: Optional[dict[str, object]] = None,
 ) -> list[str]:
-    story_status = turn_update_review_text(
-        story_completion.get("story_completion_status", "") if story_completion else ""
-    )
-    story_hook_type = turn_update_review_text(
+    story_hook_type = checkpoint_state_text(
         story_completion.get("suggested_active_hook_type", "") if story_completion else ""
     )
-    hook_type = story_hook_type or turn_update_review_text(candidate.get("possible_next_hook_type", ""))
-    next_question = turn_update_review_text(candidate.get("possible_next_question", ""))
-    next_arc = turn_update_review_text(
+    hook_type = story_hook_type or checkpoint_state_text(candidate.get("possible_next_hook_type", ""))
+    next_question = checkpoint_state_text(candidate.get("possible_next_question", ""))
+    next_arc = checkpoint_state_text(
         story_completion.get("recommended_next_arc_candidate", "") if story_completion else ""
     )
-    story_function = turn_update_review_text(
+    story_function = checkpoint_state_text(
         story_completion.get("suggested_story_function", "") if story_completion else ""
     )
-    story_reason = turn_update_review_text(
-        story_completion.get("reason", "") if story_completion else ""
-    )
-    reason = turn_update_review_text(candidate.get("reason", ""))
-    risk = turn_update_review_text(candidate.get("risk_if_continued", ""))
-    action = turn_update_review_text(candidate.get("recommended_closure_action", ""))
+    story_reason = checkpoint_state_text(story_completion.get("reason", "") if story_completion else "")
+    reason = checkpoint_state_text(candidate.get("reason", ""))
+    risk = checkpoint_state_text(candidate.get("risk_if_continued", ""))
     candidate_id = closure_candidate_slug(candidate)
-    next_hook_body = next_arc or next_question or action or reason or "次sceneへ渡す入口を人間が確認する。"
-    if next_arc and next_question and next_question not in next_hook_body:
-        next_hook_body = f"{next_hook_body} / closure入口: {next_question}"
-    if action and action not in next_hook_body:
-        next_hook_body = f"{next_hook_body} / {action}"
+    next_hook_body = checkpoint_sentence(
+        next_arc or next_question or reason,
+        "次sceneへ渡す入口を人間が確認する。",
+    )
+    visible_entry = checkpoint_sentence(next_arc or next_question, next_hook_body)
+    reason_text = checkpoint_sentence(story_reason or reason, "一度場面が閉じ、次の確認へ移れる状態になった。")
+    risk_text = checkpoint_sentence(risk, "同じ余韻を続けると場面進行が弱くなる。")
 
     lines = [
         "## next_hook",
@@ -4773,23 +4798,16 @@ def render_ai_playtest_closure_turn_update_sections(
         "## hook_updates",
         "",
         f"- candidate_id: {candidate_id}",
-        f"- hook_type: {hook_type}",
+        f"- hook_type: {hook_type or 'main'}",
         "- update_target: candidate",
-        f"- function_candidate: {story_function or 'closure_handoff'}",
-        f"- visible_entry: {next_arc or next_question}",
-        "- promotion_condition: 人間がcheckpoint transcriptを確認し、scene / event_card / hotset が同じ入口へ揃う時だけactive stateへ昇格する。",
+        f"- status: pending",
+        f"- function_candidate: {story_function or 'next_scene_handoff'}",
+        f"- visible_entry: {visible_entry}",
+        "- promotion_condition: 人間が直近のやりとりを確認し、scene / event_card / hotset が同じ入口へ揃う時だけactive stateへ昇格する。",
         "- grounding_guard: Candidateのままではactive eventとして使わない。保存にない具体手がかりを足さない。",
-        f"- reason: {reason}",
-        f"- risk_if_continued: {risk}",
+        f"- reason: {reason_text}",
+        f"- risk_if_continued: {risk_text}",
     ]
-    if story_completion is not None:
-        lines.extend(
-            [
-                f"- story_completion_status: {story_status}",
-                f"- next_arc_candidate: {next_arc}",
-                f"- story_reason: {story_reason}",
-            ]
-        )
     return lines
 
 

@@ -455,17 +455,27 @@ def test_ai_playtest_apply_turn_checkpoint_uses_judge_closure_candidate(
     )
 
     candidate = (run_dir / "checkpoint_turn_update.md").read_text(encoding="utf-8")
-    assert "- closure_candidate_used: true" in candidate
-    assert "- story_completion_used: true" in candidate
     assert "## next_hook" in candidate
     assert "翌日昼過ぎ、澪からの電話にどう出るか" in candidate
     assert "## hook_updates" in candidate
+    assert "- candidate_id: handoff_relationship_1" in candidate
     assert "- hook_type: relationship" in candidate
     assert "- update_target: candidate" in candidate
+    assert "- status: pending" in candidate
     assert "- function_candidate: handoff_to_next_question" in candidate
-    assert "- story_completion_status: closure_candidate" in candidate
-    assert "- next_arc_candidate: 翌日昼過ぎ、澪からの電話にどう出るか" in candidate
     assert "active stateへ昇格する" in candidate
+    for forbidden in [
+        "closure入口",
+        "Turn6",
+        "closure_candidate_used",
+        "story_completion_used",
+        "story_completion_status",
+        "next_arc_candidate",
+        "recommended_next_arc_candidate",
+        "checkpoint_only",
+        "Judge detected",
+    ]:
+        assert forbidden not in candidate
 
     dry_run = (run_dir / "checkpoint_apply_turn_dry_run.md").read_text(encoding="utf-8")
     assert "dry_run_result: PASS" in dry_run
@@ -552,10 +562,21 @@ def test_ai_playtest_closure_checkpoint_sanitizes_judge_heading_injection(
     assert "\n## beliefs" not in candidate
     assert "\n## event_card" not in candidate
     assert "\n## scene" not in candidate
-    assert "review: hidden heading" in candidate
-    assert "review: injected function" in candidate
+    assert "hidden heading" in candidate
+    assert "injected function" in candidate
+    assert "review:" not in candidate
     assert "## next_hook" in candidate
     assert "## hook_updates" in candidate
+    for forbidden in [
+        "closure入口",
+        "closure_candidate",
+        "story_completion_status",
+        "next_arc_candidate",
+        "recommended_next_arc_candidate",
+        "checkpoint_only",
+        "Turn1",
+    ]:
+        assert forbidden not in candidate
 
     dry_run = (run_dir / "checkpoint_apply_turn_dry_run.md").read_text(encoding="utf-8")
     assert "dry_run_result: PASS" in dry_run
