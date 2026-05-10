@@ -2,8 +2,9 @@
 
 The judge is read-only. It loads the transcript from the run directory, asks
 an LLM to score it against a fixed rubric (PASS/WARN/FAIL plus seven per-item
-scores), and returns a parsed report. The judge MUST NOT touch saves/, the
-run/session copy, or any other file outside the run directory.
+scores and optional closure candidate evidence), and returns a parsed report.
+The judge MUST NOT touch saves/, the run/session copy, or any other file
+outside the run directory.
 """
 
 from __future__ import annotations
@@ -14,6 +15,14 @@ from typing import Any
 
 
 JUDGE_RESULTS: tuple[str, ...] = ("PASS", "WARN", "FAIL")
+CLOSURE_HOOK_TYPES: tuple[str, ...] = ("main", "relationship", "life")
+_CLOSURE_HOOK_TYPE_ALIASES: dict[str, str] = {
+    "main": "main",
+    "relationship": "relationship",
+    "life": "life",
+    "life_exploration": "life",
+    "life-exploration": "life",
+}
 
 JUDGE_SCORE_ITEMS: tuple[tuple[str, str], ...] = (
     ("voice_continuity", "Voice continuity"),
@@ -59,6 +68,14 @@ JUDGE_INSTRUCTION = (
     "- WARN候補: closure候補後に同じsceneが長く続く、同じ余韻モチーフを3回以上反復する、10ターン以上同じsceneに留まり進行量が少ない。\n"
     "- WARN候補: 美文だがプレイヤーが次に何をするか分からない、next hook / 次に触れる入口がない。\n"
     "- PASS候補: sceneの核成立後1〜2ターン以内に自然に閉じ、closure後に小さな次入口やmemory候補 / next hook / 次arc候補が残る。\n"
+    "- scene-tickが10/10に達した場合は、closure候補またはcheckpoint候補がないか確認する。ただしrunner metadataをPlay Mode本文の品質証拠として混ぜない。\n"
+    "\n"
+    "## Closure Candidate Reporting\n"
+    "- closure_candidateは、sceneを閉じてもよい可能性があるturnをreport専用に記録する欄である。\n"
+    "- next active hook candidateは、次に前景化できそうなhookを1本だけ推奨する。3本hookを選択肢UIとして並べない。\n"
+    "- possible_next_hook_type は main / relationship / life のいずれかにする。\n"
+    "- vagueな余韻だけをhook候補にしない。行動、場所、人、物、約束、未解決の問いなど、playable入口がある場合だけ候補にする。\n"
+    "- closure_candidate、hook_type、score、rubric、validator等の管理語はreport JSONでのみ使う。Play Mode本文に出てよい語として扱わない。\n"
     "\n"
     "## スコア基準\n"
     "- 5: 問題なし。\n"
@@ -92,11 +109,23 @@ JUDGE_INSTRUCTION = (
     '  "warnings": ["軽微な懸念", "..."],\n'
     '  "failures": ["明確な違反", "..."],\n'
     '  "recommended_fixes": ["修正提案", "..."],\n'
-    '  "notable_good_moments": ["良かった瞬間", "..."]\n'
+    '  "notable_good_moments": ["良かった瞬間", "..."],\n'
+    '  "closure_candidates": [\n'
+    "    {\n"
+    '      "closure_candidate_turns": [1, 2],\n'
+    '      "reason": "closure候補と判断した短い根拠",\n'
+    '      "possible_next_hook_type": "main|relationship|life",\n'
+    '      "possible_next_question": "次に前景化できる問いを1本だけ",\n'
+    '      "risk_if_continued": "続けた場合のdriftリスク",\n'
+    '      "recommended_closure_action": "閉じ方または次hookへの渡し方"\n'
+    "    }\n"
+    "  ]\n"
     "}\n"
     "```\n"
     "\n"
     "配列が空の場合は `[]` を返してください。null や省略は禁止です。\n"
+    "closure_candidatesがない場合も `[]` を返してください。\n"
+    "closure_candidatesは0件または1件だけにしてください。複数turnが候補なら `closure_candidate_turns` にまとめてください。\n"
     "notesは80字以内、各配列要素も120字以内を目安に簡潔に書いてください。\n"
 )
 
@@ -241,6 +270,75 @@ def parse_judge_response(text: str) -> dict[str, Any]:
                 result_list.append(text_item)
         return result_list
 
+    def _required_string(item: dict[str, Any], field: str) -> str:
+        value = item.get(field)
+        if not isinstance(value, str):
+            raise JudgeParseError(f"judge closure_candidates.{field} must be a string")
+        return value.strip()
+
+    def _closure_candidate_turns(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            raise JudgeParseError(
+                "judge closure_candidates.closure_candidate_turns must be an array"
+            )
+        turns: list[str] = []
+        for turn in value:
+            if isinstance(turn, bool) or not isinstance(turn, (int, float, str)):
+                raise JudgeParseError(
+                    "judge closure_candidates.closure_candidate_turns must contain strings or numbers"
+                )
+            if isinstance(turn, float) and turn.is_integer():
+                turn_text = str(int(turn))
+            else:
+                turn_text = str(turn).strip()
+            if turn_text:
+                turns.append(turn_text)
+        return turns
+
+    def _closure_candidates() -> list[dict[str, Any]]:
+        value = data.get("closure_candidates", [])
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise JudgeParseError("judge 'closure_candidates' must be an array")
+        if len(value) > 1:
+            raise JudgeParseError(
+                "judge 'closure_candidates' must contain at most one recommended next active hook candidate"
+            )
+
+        candidates: list[dict[str, Any]] = []
+        for raw in value:
+            if not isinstance(raw, dict):
+                raise JudgeParseError(
+                    "judge 'closure_candidates' must be an array of objects"
+                )
+
+            hook_type_raw = _required_string(raw, "possible_next_hook_type").lower()
+            hook_type = _CLOSURE_HOOK_TYPE_ALIASES.get(hook_type_raw)
+            if hook_type not in CLOSURE_HOOK_TYPES:
+                raise JudgeParseError(
+                    "judge closure_candidates.possible_next_hook_type "
+                    f"must be one of {CLOSURE_HOOK_TYPES}, got {hook_type_raw!r}"
+                )
+
+            candidates.append(
+                {
+                    "closure_candidate_turns": _closure_candidate_turns(
+                        raw.get("closure_candidate_turns", [])
+                    ),
+                    "reason": _required_string(raw, "reason"),
+                    "possible_next_hook_type": hook_type,
+                    "possible_next_question": _required_string(
+                        raw, "possible_next_question"
+                    ),
+                    "risk_if_continued": _required_string(raw, "risk_if_continued"),
+                    "recommended_closure_action": _required_string(
+                        raw, "recommended_closure_action"
+                    ),
+                }
+            )
+        return candidates
+
     warnings = compatibility_warnings + _string_list("warnings")
     if compatibility_warnings and result == "PASS":
         result = "WARN"
@@ -253,6 +351,7 @@ def parse_judge_response(text: str) -> dict[str, Any]:
         "failures": _string_list("failures"),
         "recommended_fixes": _string_list("recommended_fixes"),
         "notable_good_moments": _string_list("notable_good_moments"),
+        "closure_candidates": _closure_candidates(),
     }
 
 
@@ -260,6 +359,38 @@ def _format_bullets(items: list[str], empty_marker: str = "- (なし)") -> str:
     if not items:
         return empty_marker
     return "\n".join(f"- {item}" for item in items)
+
+
+def _table_cell(value: object) -> str:
+    text = str(value).replace("\n", " ").strip()
+    return text.replace("|", "\\|") or "-"
+
+
+def _format_closure_candidates(candidates: list[dict[str, Any]]) -> str:
+    if not candidates:
+        return "- (なし)"
+
+    rows = [
+        "| Closure turns | Reason | Next hook | Next question | Risk if continued | Recommended action |",
+        "|---|---|---|---|---|---|",
+    ]
+    for candidate in candidates:
+        turns = ", ".join(candidate.get("closure_candidate_turns", [])) or "-"
+        rows.append(
+            "| "
+            + " | ".join(
+                [
+                    _table_cell(turns),
+                    _table_cell(candidate.get("reason", "")),
+                    _table_cell(candidate.get("possible_next_hook_type", "")),
+                    _table_cell(candidate.get("possible_next_question", "")),
+                    _table_cell(candidate.get("risk_if_continued", "")),
+                    _table_cell(candidate.get("recommended_closure_action", "")),
+                ]
+            )
+            + " |"
+        )
+    return "\n".join(rows)
 
 
 def render_judge_report_md(
@@ -308,6 +439,10 @@ def render_judge_report_md(
         "| Item | Score | Notes |",
         "|---|---:|---|",
         score_rows,
+        "",
+        "## Closure Candidates / Next Active Hook Candidate",
+        "",
+        _format_closure_candidates(parsed.get("closure_candidates", [])),
         "",
         "## Warnings",
         "",

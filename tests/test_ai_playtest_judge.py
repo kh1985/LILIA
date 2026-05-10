@@ -49,6 +49,21 @@ def _payload_with_overrides(**overrides) -> dict:
     return payload
 
 
+def _payload_with_closure_candidates() -> dict:
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    payload["closure_candidates"] = [
+        {
+            "closure_candidate_turns": [8, 10],
+            "reason": "戸が閉まり、約束も成立している",
+            "possible_next_hook_type": "relationship",
+            "possible_next_question": "翌日に約束をどう確かめるか",
+            "risk_if_continued": "同じ余韻を続けるとclosure driftになる",
+            "recommended_closure_action": "次ターンで場面を閉じ、翌日の入口へ渡す",
+        }
+    ]
+    return payload
+
+
 def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     prompt = judge.build_judge_prompt(
         persona="normal",
@@ -69,6 +84,10 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "同じ余韻モチーフを3回以上反復" in prompt
     assert "10ターン以上同じscene" in prompt
     assert "memory候補 / next hook / 次arc候補" in prompt
+    assert "closure_candidates" in prompt
+    assert "possible_next_hook_type" in prompt
+    assert "main|relationship|life" in prompt
+    assert "Play Mode本文に出てよい語として扱わない" in prompt
     # Meta + transcript embedded
     assert "persona: normal" in prompt
     assert "turns_completed: 10" in prompt
@@ -90,6 +109,31 @@ def test_parse_judge_response_accepts_fenced_json() -> None:
 def test_parse_judge_response_accepts_raw_json() -> None:
     parsed = judge.parse_judge_response(json.dumps(VALID_PAYLOAD))
     assert parsed["result"] == "PASS"
+    assert parsed["closure_candidates"] == []
+
+
+def test_parse_judge_response_accepts_closure_candidates() -> None:
+    parsed = judge.parse_judge_response(json.dumps(_payload_with_closure_candidates()))
+
+    assert parsed["closure_candidates"] == [
+        {
+            "closure_candidate_turns": ["8", "10"],
+            "reason": "戸が閉まり、約束も成立している",
+            "possible_next_hook_type": "relationship",
+            "possible_next_question": "翌日に約束をどう確かめるか",
+            "risk_if_continued": "同じ余韻を続けるとclosure driftになる",
+            "recommended_closure_action": "次ターンで場面を閉じ、翌日の入口へ渡す",
+        }
+    ]
+
+
+def test_parse_judge_response_normalizes_life_exploration_closure_candidate() -> None:
+    payload = _payload_with_closure_candidates()
+    payload["closure_candidates"][0]["possible_next_hook_type"] = "life_exploration"
+
+    parsed = judge.parse_judge_response(json.dumps(payload))
+
+    assert parsed["closure_candidates"][0]["possible_next_hook_type"] == "life"
 
 
 def test_parse_judge_response_normalizes_result_case() -> None:
@@ -150,6 +194,42 @@ def test_parse_judge_response_rejects_non_array_warnings() -> None:
         judge.parse_judge_response(json.dumps(payload))
 
 
+def test_parse_judge_response_rejects_non_array_closure_candidates() -> None:
+    payload = _payload_with_overrides(closure_candidates="Turn 10")
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
+def test_parse_judge_response_rejects_invalid_closure_hook_type() -> None:
+    payload = _payload_with_closure_candidates()
+    payload["closure_candidates"][0]["possible_next_hook_type"] = "next_arc"
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
+def test_parse_judge_response_rejects_multiple_next_hook_candidates() -> None:
+    payload = _payload_with_closure_candidates()
+    payload["closure_candidates"].append(
+        {
+            "closure_candidate_turns": [10],
+            "reason": "時計の問いに答えが出た",
+            "possible_next_hook_type": "main",
+            "possible_next_question": "次の式へ向かうか",
+            "risk_if_continued": "同じreveal説明が続く",
+            "recommended_closure_action": "短く閉じて次arc候補へ渡す",
+        }
+    )
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
+def test_parse_judge_response_rejects_malformed_closure_turns() -> None:
+    payload = _payload_with_closure_candidates()
+    payload["closure_candidates"][0]["closure_candidate_turns"] = "Turn 10"
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
 def test_parse_judge_response_rejects_empty() -> None:
     with pytest.raises(judge.JudgeParseError):
         judge.parse_judge_response("")
@@ -171,7 +251,7 @@ def test_parse_judge_response_filters_blank_array_items() -> None:
 
 
 def test_render_judge_report_md_contains_required_sections() -> None:
-    parsed = judge.parse_judge_response(json.dumps(VALID_PAYLOAD))
+    parsed = judge.parse_judge_response(json.dumps(_payload_with_closure_candidates()))
     report = judge.render_judge_report_md(
         parsed,
         persona="normal",
@@ -200,6 +280,9 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "| Inner / hidden leakage | 5/5 |" in report
     assert "| Over-leading | 4/5 |" in report
     assert "| Arc closure / Scene progression | 4/5 | closure後の次入口あり |" in report
+    assert "## Closure Candidates / Next Active Hook Candidate" in report
+    assert "| Closure turns | Reason | Next hook | Next question | Risk if continued | Recommended action |" in report
+    assert "| 8, 10 | 戸が閉まり、約束も成立している | relationship | 翌日に約束をどう確かめるか | 同じ余韻を続けるとclosure driftになる | 次ターンで場面を閉じ、翌日の入口へ渡す |" in report
     assert "## Warnings" in report
     assert "- 軽微なテンポの揺れ" in report
     assert "## Failures" in report
@@ -208,6 +291,23 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "- tempo guardの再確認" in report
     assert "## Notable Good Moments" in report
     assert "- 3ターン目の沈黙の使い方" in report
+
+
+def test_render_judge_report_md_marks_missing_closure_candidates_empty() -> None:
+    parsed = judge.parse_judge_response(json.dumps(VALID_PAYLOAD))
+    report = judge.render_judge_report_md(
+        parsed,
+        persona="normal",
+        turns_completed=10,
+        turns_requested=10,
+        source_session="saves/session_001",
+        engine="codex",
+        started_at="2026-05-08T06:00:00+09:00",
+        judged_at="2026-05-08T06:30:00+09:00",
+    )
+
+    assert "## Closure Candidates / Next Active Hook Candidate" in report
+    assert "## Closure Candidates / Next Active Hook Candidate\n\n- (なし)" in report
 
 
 def test_render_judge_report_md_partial_turns_label() -> None:

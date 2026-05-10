@@ -285,6 +285,23 @@ Judgeが出せる指摘例:
 - next hook「雨の日と閉店間際」「戸を叩く」「ココアの粉補充」は強いため、sceneを閉じて次回へ回してよい。
 - 文章品質は高いが、プレイヤーが能動的に返す入口が弱まっている。
 
+### Closure Candidate Reporting
+
+AI Playtest report は、Arc Closure / Scene Progression の総評だけでなく、closure候補を構造化して残す。
+next Active Hook候補は1本だけ推奨し、複数のclosure候補turnは `closure_candidate_turns` にまとめる。
+
+記録する項目:
+
+- `closure_candidate_turns`: sceneを閉じられそうなturn。
+- `reason`: closure候補と判断した根拠。
+- `possible_next_hook_type`: 次に前景化できそうなhookを `main` / `relationship` / `life` の1本だけで示す。
+- `possible_next_question`: 次Active Hook候補として使える問い。
+- `risk_if_continued`: 続けた場合のclosure driftリスク。
+- `recommended_closure_action`: sceneを閉じる、next hookへ渡す、memory候補へ回す等の推奨。
+
+これはreport専用の診断であり、自動で本文を書き換えたり、Active Hookを切り替えたり、story arcを生成したりしない。
+3本hookを選択肢UIとして出さず、Play Mode本文にも `closure_candidate` / `hook_type` / `score` などの管理語を出さない。
+
 ## Scene Change Check
 
 AI Playtestは、各sceneまたは10ターン単位で以下を評価する。
