@@ -56,6 +56,11 @@ transcript / JSONL / checkpoint file には、scene tick回数、`autosave_requi
 `hook_updates` は書いてよいが、実際のscene変化に基づく明示更新だけにする。
 Active Hook切替やnext_hook promotionは、event_card / scene / hotsetとの整合が足りる場合だけ扱う。
 
+Judgeが `closure_candidates` を返した場合、runner はcheckpoint artifactsを更新して、`checkpoint_turn_update.md` にreview用の `## next_hook` と安全側の `## hook_updates` 候補を入れてよい。
+この候補は `apply-turn --dry-run` の確認材料であり、本適用ではない。
+`hook_updates` は Candidate Next Hooks へ残すための候補に留め、full active event更新が無い限り別Active Hookへ切り替えない。
+reportには `closure_candidate_used`、`next_hook_candidate_path`、`hook_updates_candidate_included`、`dry_run_result` を残す。
+
 デフォルトでは、`autosave_required: true` を検出して停止し、人間または別タスクが fresh `turn_update.md` を確認してから applyする。
 Play Mode本文には、scene-tick、checkpoint、file path、diff、validator名などのメタ情報を混ぜない。
 
