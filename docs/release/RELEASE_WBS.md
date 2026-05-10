@@ -76,8 +76,8 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | TEMPO-003 | Passive Player Tempo Test | todo | P1 |  |  | passive AI Playerが10turn回っても、返答先に迷わないか確認できる |
 | TEMPO-004 | WebUI Readability Check | todo | P1 |  |  | 通常ターンがWebUI上で読みにくい長さになっていないか評価できる |
 | TEMPO-005 | Choice UI Restraint Rule | todo | P1 |  |  | 毎ターン露骨な選択肢UIを出さず、必要時だけ補助表示する方針がある |
-| ARC-001 | Story Completion判定 | todo | P0 |  |  | Reveal Ladder / event_card / story_deck から、現在のstoryが解決・保留・背景化・悪化・完了のどれか判定でき、別れ、戸が閉まる音、帰宅、就寝、翌朝などのscene closure候補を検出し、closure候補後に余韻が長すぎる場合WARNでき、scene closure / arc closure候補を判断できる |
-| ARC-002 | Next Story Arc生成 | todo | P0 |  |  | 現在storyが閉じた後、LILIAとの関係・記憶・未回収札から次のstory_spine / event_card候補を生成でき、story / scene closure後にmemory候補、next hook、次arc候補を作り、本文を引っ張りすぎず次のplayable入口へ接続できる |
+| ARC-001 | Story Completion判定 | review | P0 |  |  | Reveal Ladder / event_card / story_deck から、現在のstoryが解決・保留・背景化・悪化・完了のどれか判定でき、別れ、戸が閉まる音、帰宅、就寝、翌朝などのscene closure候補を検出し、closure候補後に余韻が長すぎる場合WARNでき、scene closure / arc closure候補を判断できる |
+| ARC-002 | Next Story Arc生成 | review | P0 |  |  | 現在storyが閉じた後、LILIAとの関係・記憶・未回収札から次のstory_spine / event_card候補を生成でき、story / scene closure後にmemory候補、next hook、次arc候補を作り、本文を引っ張りすぎず次のplayable入口へ接続できる |
 | ARC-003 | Travel / Location Branch | todo | P0 |  |  | 沖縄・鹿児島・ニューヨーク等の大移動宣言を即拒否せず、費用・時間・理由・LILIA同行可否を含むbranchとして扱える |
 | ARC-004 | Heroine Agency on Travel | todo | P0 |  |  | 親密度や関係理由が薄い時、LILIAが同行しない・保留する・条件を出す判断を人格として返せる |
 | ARC-005 | Open Arc Limit | todo | P0 |  |  | 未解決の遠出 / branch は最大2本まで保持し、3本目は既存arcの解決・保留・帰還を促す |
@@ -149,6 +149,8 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 - HOOK-006: `wanderer` personaを実行可能にし、3ターンplaytestでLife / Relationship / Main backgroundへの吸着を確認済み。10ターンAI Playtestで `scene-tick` checkpointは確認済みだが、実Save Mode適用 / resume連動は未確認のため `review`。
 - AI-005: AI Playtest runnerが各GM出力後にrun session側でscene-tickを実行し、normal / wanderer 10ターンrunで10/10 checkpoint到達を確認済み。`tests/resume_smoke/results/2026-05-10_ai_playtest_normal_passive_wanderer.md` に証跡あり。release確認待ちとして `review`。
 - AI-006: `--apply-turn-checkpoint` 明示時にturn_update候補、dry-run相当結果、checkpoint summary、report追記を作成し、normal 10ターンsmokeで `autosave_required: true` 後のdry-run PASSを確認済み。`tests/resume_smoke/results/2026-05-10_ai_checkpoint.md` に証跡あり。実apply-turn本適用とresume検証は未実施のため `review`。
+- ARC-001: AI Playtest reportが `story_completion_status` を軽量判定し、`continuing / closure_candidate / resolved / deferred / backgrounded / worsened / blocked` を扱える。`tests/resume_smoke/results/2026-05-10_story_completion_checkpoint.md` に証跡あり。本番stateへの適用は未実施のため `review`。
+- ARC-002: AI Playtest reportがNext Story Arc Candidateを1本だけ出し、checkpoint `turn_update` の `## next_hook` / `## hook_updates` 候補へ接続できる。`apply-turn --dry-run` はPASSしたが、実apply-turn / resume確認は未実施のため `review`。
 - ARC-009: AI Playtest Judgeの `arc_closure_scene_progression` に加え、closure候補turn、次Active Hook候補1本、継続時リスク、推奨closure actionをreportに出せる。`tests/resume_smoke/results/2026-05-10_arc_closure_candidates.md` に証跡あり。runtimeのclosure-to-hook自動接続は未実装のため `review`。
 - ARC-010: AI Playtest checkpointがclosure候補を `checkpoint_turn_update.md` の `## next_hook` と安全側の `## hook_updates` candidateへ接続し、`apply-turn --dry-run` で確認できる。`tests/resume_smoke/results/2026-05-10_closure_to_hook_checkpoint.md` に証跡あり。本適用 / runtime自動接続は未実施のため `review`。
 
