@@ -86,7 +86,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | ARC-008 | Arc Closure Guard仕様追加 | todo | P0 |  |  | docs/specs/PLAY_MODE_SPEC.mdに、sceneの核成立後に余韻を1〜2ターンで閉じ、memory候補 / next hook / 次arc候補へ移るルールがある |
 | ARC-009 | Arc Closure Judge追加 | review | P0 |  |  | AI Playtest Judgeが、余韻過多・同一モチーフ反復・長文低進行・closure候補を評価できる |
 | ARC-010 | Closure-to-Hook接続 | review | P0 |  |  | scene closure後に、次に触れるhookまたは次arc候補を提示できる |
-| ARC-011 | Long Log Tempo Regression | todo | P1 |  |  | 30〜40turn級ログで、closure後に余韻が長すぎないか確認できる |
+| ARC-011 | Long Log Tempo Regression | review | P1 |  |  | 30〜40turn級ログで、closure後に余韻が長すぎないか確認できる |
 | STORY-001 | STORY_FUNCTION_FRAMEWORK.md 作成 | todo | P1 |  |  | 15機能、三層構造、scene機能、LILIA用読み替えが定義されている |
 | STORY-002 | story_spineへStory Function Position追加検討 | todo | P1 |  |  | current_function / next_function_candidate / do_not_jump_to の導入方針が決まっている |
 | STORY-003 | event_cardへScene Function追加検討 | todo | P1 |  |  | scene_goal / obstacle / expected_change / withheld_information の導入方針が決まっている |
@@ -95,7 +95,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | STORY-006 | Story Functionを固定プロット化しないルール追加 | todo | P0 |  |  | 十五機能を順番強制せず、診断と生成補助に限定することが明文化されている |
 | REL-LOGIC-001 | AFFINITY / bond 非採用方針の明文化 | todo | P0 |  |  | LILIA初期βではAFFINITY / bondを採用しない理由が明記されている |
 | REL-LOGIC-002 | hiddenベクトル本格運用の保留 | todo | P0 |  |  | hiddenベクトルは初期βでは数値運用せず、将来の深化管理候補として保持すると明記されている |
-| REL-LOGIC-003 | Relationship Change Audit正本作成 | todo | P0 |  |  | docs/RELATIONSHIP_CHANGE_AUDIT.md に、関係変化の根拠・速度・保存先分離の監査ルールがある |
+| REL-LOGIC-003 | Relationship Change Audit正本作成 | done | P0 |  |  | docs/RELATIONSHIP_CHANGE_AUDIT.md に、関係変化の根拠・速度・保存先分離の監査ルールがある |
 | REL-LOGIC-004 | AI PlaytestへRelationship Change Audit追加 | todo | P1 |  |  | AI Playtestで早すぎる/遅すぎる/根拠なしの関係変化を検出できる |
 | REL-LOGIC-005 | relationship templateへhidden保留方針追加 | todo | P0 |  |  | templates/session/lilia/main/relationship.md に、初期βではhiddenを通常進行メーターにしない方針がある |
 | AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | docs/testing/AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
@@ -104,7 +104,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | AI-004 | transcript保存 | todo | P0 |  |  | GM出力、AI Player入力、turn番号がMarkdownまたはJSONLで保存される |
 | AI-005 | scene-tick連動 | review | P0 |  |  | 各ターン後にscene-tickが実行される |
 | AI-006 | apply-turn連動 | review | P0 |  |  | 指定ターン後にSave Mode更新をテストできる |
-| AI-007 | resume検証 | todo | P0 |  |  | save → resume 後の1ターン目を生成・評価できる |
+| AI-007 | resume検証 | review | P0 |  |  | save → resume 後の1ターン目を生成・評価できる |
 | AI-008 | Playtest Report生成 | todo | P0 |  |  | PASS / WARN / FAIL、破綻箇所、推奨修正がMarkdown出力される |
 | IMG-001 | 画像用キャラ正本作成 | todo | P0 |  |  | 採用できる基準絵が1枚以上ある |
 | IMG-002 | character_visual.yaml 作成 | todo | P0 |  |  | 髪・目・体型・服装・禁止事項・style が定義されている |
@@ -148,11 +148,14 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 - HOOK-005: `apply-turn` の明示 `hook_updates` 最小実装・test済み。別hookへのActive切替 / full active event更新は安全側に保留しているため `review`。
 - HOOK-006: `wanderer` personaを実行可能にし、3ターンplaytestでLife / Relationship / Main backgroundへの吸着を確認済み。10ターンAI Playtestで `scene-tick` checkpointは確認済みだが、実Save Mode適用 / resume連動は未確認のため `review`。
 - AI-005: AI Playtest runnerが各GM出力後にrun session側でscene-tickを実行し、normal / wanderer 10ターンrunで10/10 checkpoint到達を確認済み。`tests/resume_smoke/results/2026-05-10_ai_playtest_normal_passive_wanderer.md` に証跡あり。release確認待ちとして `review`。
-- AI-006: `--apply-turn-checkpoint` 明示時にturn_update候補、dry-run相当結果、checkpoint summary、report追記を作成し、normal 10ターンsmokeで `autosave_required: true` 後のdry-run PASSを確認済み。`tests/resume_smoke/results/2026-05-10_ai_checkpoint.md` に証跡あり。実apply-turn本適用とresume検証は未実施のため `review`。
+- AI-006: `--apply-turn-checkpoint` 明示時にturn_update候補、dry-run相当結果、checkpoint summary、report追記を作成し、normal 10ターンsmokeで `autosave_required: true` 後のdry-run PASSを確認済み。checkpoint文言品質改善は `tests/resume_smoke/results/2026-05-10_checkpoint_quality.md` に証跡あり。実運用での人間レビュー済みturn_update適用は未完了のため `review`。
+- AI-007: playtest run copyにcheckpoint `turn_update` を本適用し、`validate-session` / `resume --prompt-only` / `resume --run` の再開品質を確認済み。`tests/resume_smoke/results/2026-05-10_checkpoint_apply_smoke.md` と `tests/resume_smoke/results/2026-05-10_checkpoint_quality.md` に証跡あり。source `saves/` ではなくrun copy限定のため `review`。
 - ARC-001: AI Playtest reportが `story_completion_status` を軽量判定し、`continuing / closure_candidate / resolved / deferred / backgrounded / worsened / blocked` を扱える。`tests/resume_smoke/results/2026-05-10_story_completion_checkpoint.md` に証跡あり。本番stateへの適用は未実施のため `review`。
 - ARC-002: AI Playtest reportがNext Story Arc Candidateを1本だけ出し、checkpoint `turn_update` の `## next_hook` / `## hook_updates` 候補へ接続できる。`apply-turn --dry-run` はPASSしたが、実apply-turn / resume確認は未実施のため `review`。
 - ARC-009: AI Playtest Judgeの `arc_closure_scene_progression` に加え、closure候補turn、次Active Hook候補1本、継続時リスク、推奨closure actionをreportに出せる。`tests/resume_smoke/results/2026-05-10_arc_closure_candidates.md` に証跡あり。runtimeのclosure-to-hook自動接続は未実装のため `review`。
-- ARC-010: AI Playtest checkpointがclosure候補を `checkpoint_turn_update.md` の `## next_hook` と安全側の `## hook_updates` candidateへ接続し、`apply-turn --dry-run` で確認できる。`tests/resume_smoke/results/2026-05-10_closure_to_hook_checkpoint.md` に証跡あり。本適用 / runtime自動接続は未実施のため `review`。
+- ARC-010: AI Playtest checkpointがclosure候補を `checkpoint_turn_update.md` の `## next_hook` と安全側の `## hook_updates` candidateへ接続し、`apply-turn --dry-run` で確認できる。Arc Closure Drift対策後のnormal 10ターン再実行はPASS。`tests/resume_smoke/results/2026-05-10_closure_to_hook_checkpoint.md` と `tests/resume_smoke/results/2026-05-10_closure_drift_fix.md` に証跡あり。passive再実行とsegmented long-run確認が残るため `review`。
+- ARC-011: normal / wanderer / passiveのlong-run checkpoint smokeを記録し、normalはclosure drift対策後の再実行でPASS。`tests/resume_smoke/results/2026-05-10_longrun_normal_wanderer.md` と `tests/resume_smoke/results/2026-05-10_closure_drift_fix.md` に証跡あり。30〜40turn継続はautosave checkpointで分断されるため、segmented long-runは未完了として `review`。
+- REL-LOGIC-003: `docs/RELATIONSHIP_CHANGE_AUDIT.md` に、AFFINITY / bond非採用、hidden保留、関係変化の根拠・速度・保存先分離、監査質問、良い/悪い保存例、AI Playtest接続方針が明文化済み。Done Criteriaを満たしたため `done`。
 
 ## 8 Week Schedule
 
