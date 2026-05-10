@@ -112,8 +112,11 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "closure候補成立後に2ターン以上" in prompt
     assert "足音・通知・気配・沈黙・視線" in prompt
     assert "帰路、待機、独白、括弧内心" in prompt
+    assert "passive入力、短い同意、相づち、沈黙" in prompt
+    assert "閉店札・時計音・雨上がり・小物描写" in prompt
     assert "recommended_fixes" in prompt
     assert "次の1ターンで余韻整理またはnext hookへ渡す" in prompt
+    assert "次の連絡・見積もり・確認事項へ圧縮" in prompt
     assert "closure_candidates" in prompt
     assert "possible_next_hook_type" in prompt
     assert "main|relationship|life" in prompt
