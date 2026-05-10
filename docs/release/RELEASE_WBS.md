@@ -64,12 +64,12 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | P-002 | save / apply-turn 確認 | todo | P0 |  |  | Save Modeに入り、apply-turnで必要stateが更新される |
 | P-003 | resume 1ターン目確認 | todo | P0 |  |  | resume後に声・距離・余韻が戻る |
 | P-004 | event_card playable確認 | todo | P0 |  |  | event_cardが今触れる可視イベントになっている |
-| HOOK-001 | Three Hook Spine設計確定 | todo | P0 |  |  | Main Hook / Relationship Hook / Life-Exploration Hook の責務と状態遷移が明文化されている |
-| HOOK-002 | 3本hook初期生成 | todo | P0 |  |  | newgame / downstream docs生成時に3本hookが初期化される |
-| HOOK-003 | Active Hook接続 | todo | P0 |  |  | current/event_card.md に Active Hook があり、今触れる1本を前景化できる |
-| HOOK-004 | story_deck hook保持 | todo | P0 |  |  | story/story_deck.md に残り2本のhookと状態が保持される |
-| HOOK-005 | apply-turn hook更新 | todo | P0 |  |  | Save Mode / apply-turn で hook の進行・保留・背景化・悪化を更新できる |
-| HOOK-006 | wanderer playtest | todo | P0 |  |  | AI Playtestで脱線入力を試し、3本hookのどれかに自然に戻れる |
+| HOOK-001 | Three Hook Spine設計確定 | done | P0 |  |  | Main Hook / Relationship Hook / Life-Exploration Hook の責務と状態遷移が明文化されている |
+| HOOK-002 | 3本hook初期生成 | review | P0 |  |  | newgame / downstream docs生成時に3本hookが初期化される |
+| HOOK-003 | Active Hook接続 | review | P0 |  |  | current/event_card.md に Active Hook があり、今触れる1本を前景化できる |
+| HOOK-004 | story_deck hook保持 | review | P0 |  |  | story/story_deck.md に残り2本のhookと状態が保持される |
+| HOOK-005 | apply-turn hook更新 | review | P0 |  |  | Save Mode / apply-turn で hook の進行・保留・背景化・悪化を更新できる |
+| HOOK-006 | wanderer playtest | review | P0 |  |  | AI Playtestで脱線入力を試し、3本hookのどれかに自然に戻れる |
 | HOOK-007 | Lightweight Tempo Guard | todo | P0 |  |  | 1ターンに前景化するhookは原則1本、LILIAからの明示質問は原則1個、通常ターンの文字量目安、場面転換の上限、次に返せる入口、選択肢UIの抑制がdocs/specs/PLAY_MODE_SPEC.mdに定義されている |
 | TEMPO-001 | Tempo Guard詳細仕様追加 | todo | P0 |  |  | docs/specs/PLAY_MODE_SPEC.md にTurn Budget / One Foreground Rule / Question Limit / Exit Shape が定義され、Arc Closure Guardとして余韻過多、同一モチーフ反復、長文低進行を検出する基準がある |
 | TEMPO-002 | AI Playtest Tempo Guard追加 | todo | P0 |  |  | docs/testing/AI_PLAYTEST_PLAN.md で質問過多・hook過多・説明過多・返答入口不明を評価でき、JudgeがArc closure / Scene progressionと10ターン以上同じsceneに留まる場合のWARN基準を扱える |
@@ -136,6 +136,17 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | REL-001 | 身内テスト | todo | P0 |  |  | 5人以上が触り、離脱点を記録済み |
 | REL-002 | 外部テスト | todo | P0 |  |  | 忖度の少ない外部ユーザー5人以上が触る |
 | REL-003 | Go / No-Go判定 | todo | P0 |  |  | 有料βを開始するか、延期するかを判断済み |
+
+## Progress Notes
+
+この節はWBS表のDone Criteriaを変えず、status判断の短い根拠だけを残す。
+
+- HOOK-001: `docs/specs/THREE_HOOK_SPINE.md` と `docs/specs/STORY_FUNCTION_FRAMEWORK.md` で、3本hookの責務、状態、Active / Background / Candidate、3択UIではないこと、Life Hookの遠出 / 単独行動 / 同行判断を明文化済み。Done Criteriaを満たしたため `done`。
+- HOOK-002: newgame / downstream docsで3本hook初期生成のpromptとvalidator gateは実装済み。`tests/resume_smoke/results/2026-05-10_three_hook.md` に実session smokeあり。量産安定確認の余地があるため `review`。
+- HOOK-003: `current/event_card.md` の Active Hook wiring は `smoke_three_hook_20260510` で確認済み。Play Mode runtimeでの管理語漏れ確認はLLM CLI環境都合でfollow-upのため `review`。
+- HOOK-004: `story/story_deck.md` に Background Hooks / Candidate Next Hooks の保持構造を実装・test済み。長期playでの保持確認は未完了のため `review`。
+- HOOK-005: `apply-turn` の明示 `hook_updates` 最小実装・test済み。別hookへのActive切替 / full active event更新は安全側に保留しているため `review`。
+- HOOK-006: `wanderer` personaを実行可能にし、3ターンplaytestでLife / Relationship / Main backgroundへの吸着を確認済み。各ターン後の `scene-tick` / `apply-turn` 連動は未確認のため `review`。
 
 ## 8 Week Schedule
 
