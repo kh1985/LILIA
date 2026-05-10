@@ -61,9 +61,9 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | C-002 | 1ヒロイン方針確定 | todo | P0 |  |  | 初期βで使うヒロインと現実路線の範囲が決まっている |
 | C-003 | 異界 / 能力オプション後回し明文化 | todo | P0 |  |  | 初期βでは実装しないことが明記されている |
 | P-001 | 1ヒロイン実機プレイ10ターン | done | P0 |  |  | new → first scene → 10 turns が破綻しない |
-| P-002 | save / apply-turn 確認 | todo | P0 |  |  | Save Modeに入り、apply-turnで必要stateが更新される |
-| P-003 | resume 1ターン目確認 | todo | P0 |  |  | resume後に声・距離・余韻が戻る |
-| P-004 | event_card playable確認 | todo | P0 |  |  | event_cardが今触れる可視イベントになっている |
+| P-002 | save / apply-turn 確認 | review | P0 |  |  | Save Modeに入り、apply-turnで必要stateが更新される |
+| P-003 | resume 1ターン目確認 | review | P0 |  |  | resume後に声・距離・余韻が戻る |
+| P-004 | event_card playable確認 | review | P0 |  |  | event_cardが今触れる可視イベントになっている |
 | HOOK-001 | Three Hook Spine設計確定 | done | P0 |  |  | Main Hook / Relationship Hook / Life-Exploration Hook の責務と状態遷移が明文化されている |
 | HOOK-002 | 3本hook初期生成 | review | P0 |  |  | newgame / downstream docs生成時に3本hookが初期化される |
 | HOOK-003 | Active Hook接続 | review | P0 |  |  | current/event_card.md に Active Hook があり、今触れる1本を前景化できる |
@@ -147,11 +147,15 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 - HOOK-004: `story/story_deck.md` に Background Hooks / Candidate Next Hooks の保持構造を実装・test済み。長期playでの保持確認は未完了のため `review`。
 - HOOK-005: `apply-turn` の明示 `hook_updates` 最小実装・test済み。別hookへのActive切替 / full active event更新は安全側に保留しているため `review`。
 - HOOK-006: `wanderer` personaを実行可能にし、3ターンplaytestでLife / Relationship / Main backgroundへの吸着を確認済み。10ターンAI Playtestで `scene-tick` checkpointは確認済みだが、実Save Mode適用 / resume連動は未確認のため `review`。
+- P-002: AI Playtest checkpoint `turn_update` をplaytest run copyへ本適用し、`current/scene.md` / `current/event_card.md` / `current/hotset.md` / `story/story_deck.md` / `session.json` の更新を確認済み。`tests/resume_smoke/results/2026-05-10_checkpoint_apply_smoke.md` と `tests/resume_smoke/results/2026-05-10_segmented_longrun.md` に証跡あり。source `saves/` 適用や外部TTY自然Save Modeは未確認のため `review`。
+- P-003: checkpoint適用後のrun copyで `validate-session` PASS、`resume --prompt-only`、`resume --run` の自然再開を確認済み。Segment 2でもAI Playtest継続に成功。`tests/resume_smoke/results/2026-05-10_segmented_longrun.md` に証跡あり。外部TTY multi-turn後のresume第一声は未確認のため `review`。
+- P-004: checkpoint適用後、active stateの `scene` / `event_card` / `hotset` が同じ次入口を指し、resume本文に管理語は漏れなかった。汎用promotion文言（例: `hook_type: main / relationship / life`）がactive state内に残るため、品質改善待ちとして `review`。
 - AI-005: AI Playtest runnerが各GM出力後にrun session側でscene-tickを実行し、normal / wanderer 10ターンrunで10/10 checkpoint到達を確認済み。`tests/resume_smoke/results/2026-05-10_ai_playtest_normal_passive_wanderer.md` に証跡あり。release確認待ちとして `review`。
 - AI-006: `--apply-turn-checkpoint` 明示時にturn_update候補、dry-run相当結果、checkpoint summary、report追記を作成し、normal 10ターンsmokeで `autosave_required: true` 後のdry-run PASSを確認済み。checkpoint文言品質改善は `tests/resume_smoke/results/2026-05-10_checkpoint_quality.md` に証跡あり。実運用での人間レビュー済みturn_update適用は未完了のため `review`。
-- AI-007: playtest run copyにcheckpoint `turn_update` を本適用し、`validate-session` / `resume --prompt-only` / `resume --run` の再開品質を確認済み。`tests/resume_smoke/results/2026-05-10_checkpoint_apply_smoke.md` と `tests/resume_smoke/results/2026-05-10_checkpoint_quality.md` に証跡あり。source `saves/` ではなくrun copy限定のため `review`。
+- AI-007: playtest run copyにcheckpoint `turn_update` を本適用し、`validate-session` / `resume --prompt-only` / `resume --run` の再開品質を確認済み。さらに適用済みrun copyをsourceにした2区間目AI PlaytestもPASS。`tests/resume_smoke/results/2026-05-10_checkpoint_apply_smoke.md`、`tests/resume_smoke/results/2026-05-10_checkpoint_quality.md`、`tests/resume_smoke/results/2026-05-10_segmented_longrun.md` に証跡あり。source `saves/` ではなくrun copy限定のため `review`。
 - ARC-001: AI Playtest reportが `story_completion_status` を軽量判定し、`continuing / closure_candidate / resolved / deferred / backgrounded / worsened / blocked` を扱える。`tests/resume_smoke/results/2026-05-10_story_completion_checkpoint.md` に証跡あり。本番stateへの適用は未実施のため `review`。
 - ARC-002: AI Playtest reportがNext Story Arc Candidateを1本だけ出し、checkpoint `turn_update` の `## next_hook` / `## hook_updates` 候補へ接続できる。`apply-turn --dry-run` はPASSしたが、実apply-turn / resume確認は未実施のため `review`。
+- ARC-006: segmented long-run continuationとして、normal 10ターンcheckpoint、run copyへのcheckpoint本適用、validate/resume確認、適用済みrun copyからの2区間目10ターンAI Playtestまで成功。Segment 1はWARN、Segment 2はPASS。`tests/resume_smoke/results/2026-05-10_segmented_longrun.md` に証跡あり。ただしDone Criteriaの100ターン級には未到達で、active state内の汎用promotion文言改善も残るためstatusは `todo` 維持。
 - ARC-009: AI Playtest Judgeの `arc_closure_scene_progression` に加え、closure候補turn、次Active Hook候補1本、継続時リスク、推奨closure actionをreportに出せる。`tests/resume_smoke/results/2026-05-10_arc_closure_candidates.md` に証跡あり。runtimeのclosure-to-hook自動接続は未実装のため `review`。
 - ARC-010: AI Playtest checkpointがclosure候補を `checkpoint_turn_update.md` の `## next_hook` と安全側の `## hook_updates` candidateへ接続し、`apply-turn --dry-run` で確認できる。Arc Closure Drift対策後のnormal 10ターン再実行はPASS。`tests/resume_smoke/results/2026-05-10_closure_to_hook_checkpoint.md` と `tests/resume_smoke/results/2026-05-10_closure_drift_fix.md` に証跡あり。passive再実行とsegmented long-run確認が残るため `review`。
 - ARC-011: normal / wanderer / passiveのlong-run checkpoint smokeを記録し、normalはclosure drift対策後の再実行でPASS。`tests/resume_smoke/results/2026-05-10_longrun_normal_wanderer.md` と `tests/resume_smoke/results/2026-05-10_closure_drift_fix.md` に証跡あり。30〜40turn継続はautosave checkpointで分断されるため、segmented long-runは未完了として `review`。
