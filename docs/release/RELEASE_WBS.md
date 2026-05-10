@@ -85,7 +85,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | ARC-007 | High-intimacy Manual Run | todo | P0 |  |  | ユーザー本人が長期手動プレイし、関係が深まった後の声・境界線・同行判断・新story生成を確認する |
 | ARC-008 | Arc Closure Guard仕様追加 | todo | P0 |  |  | docs/specs/PLAY_MODE_SPEC.mdに、sceneの核成立後に余韻を1〜2ターンで閉じ、memory候補 / next hook / 次arc候補へ移るルールがある |
 | ARC-009 | Arc Closure Judge追加 | review | P0 |  |  | AI Playtest Judgeが、余韻過多・同一モチーフ反復・長文低進行・closure候補を評価できる |
-| ARC-010 | Closure-to-Hook接続 | todo | P0 |  |  | scene closure後に、次に触れるhookまたは次arc候補を提示できる |
+| ARC-010 | Closure-to-Hook接続 | review | P0 |  |  | scene closure後に、次に触れるhookまたは次arc候補を提示できる |
 | ARC-011 | Long Log Tempo Regression | todo | P1 |  |  | 30〜40turn級ログで、closure後に余韻が長すぎないか確認できる |
 | STORY-001 | STORY_FUNCTION_FRAMEWORK.md 作成 | todo | P1 |  |  | 15機能、三層構造、scene機能、LILIA用読み替えが定義されている |
 | STORY-002 | story_spineへStory Function Position追加検討 | todo | P1 |  |  | current_function / next_function_candidate / do_not_jump_to の導入方針が決まっている |
@@ -150,6 +150,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 - AI-005: AI Playtest runnerが各GM出力後にrun session側でscene-tickを実行し、normal / wanderer 10ターンrunで10/10 checkpoint到達を確認済み。`tests/resume_smoke/results/2026-05-10_ai_playtest_normal_passive_wanderer.md` に証跡あり。release確認待ちとして `review`。
 - AI-006: `--apply-turn-checkpoint` 明示時にturn_update候補、dry-run相当結果、checkpoint summary、report追記を作成し、normal 10ターンsmokeで `autosave_required: true` 後のdry-run PASSを確認済み。`tests/resume_smoke/results/2026-05-10_ai_checkpoint.md` に証跡あり。実apply-turn本適用とresume検証は未実施のため `review`。
 - ARC-009: AI Playtest Judgeの `arc_closure_scene_progression` に加え、closure候補turn、次Active Hook候補1本、継続時リスク、推奨closure actionをreportに出せる。`tests/resume_smoke/results/2026-05-10_arc_closure_candidates.md` に証跡あり。runtimeのclosure-to-hook自動接続は未実装のため `review`。
+- ARC-010: AI Playtest checkpointがclosure候補を `checkpoint_turn_update.md` の `## next_hook` と安全側の `## hook_updates` candidateへ接続し、`apply-turn --dry-run` で確認できる。`tests/resume_smoke/results/2026-05-10_closure_to_hook_checkpoint.md` に証跡あり。本適用 / runtime自動接続は未実施のため `review`。
 
 ## 8 Week Schedule
 
