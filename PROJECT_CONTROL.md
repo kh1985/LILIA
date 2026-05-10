@@ -20,8 +20,8 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 β前は `docs/release/RELEASE_WBS.md` のP0をタスク正本にする。
 ただし、設計思想や仕様判断は該当docsを優先する。
 
-1. `P-002` / `P-003` / `P-004`: save / apply-turn、resume 1ターン目、event_card playableの実機確認。
-2. `HOOK-001` から `HOOK-007`: Three Hook Spine MVP。脱線しても Main Hook / Relationship Hook / Life-Exploration Hook のどれかへ戻れること。
+1. `P-002` / `P-003`: save / apply-turn、resume 1ターン目のTTY実機確認。`P-004` はsmoke証跡あり。status判断は `docs/release/RELEASE_WBS.md` を優先する。
+2. `HOOK-006`: wanderer playtestで脱線入力から3本hookへ自然に戻れるか確認する。`HOOK-005` は最小実装済み。WBS status判断は別途Done Criteria単位で行う。
 3. `ARC-001` から `ARC-007`: Story Continuation / Travel Branch MVP。初期story完了後の次arc、大移動branch、LILIA同行可否、未解決arc上限。
 4. `AI-001` 以降: AI Playtest Smoke。normal / passive / boundary / attacker / wanderer / travelerを使い、巻き戻り、停滞、漏洩、脱線耐性を見る。
 5. `WEB-*` / `SEC-*`: WebUIと安全分離。商用βでは、ユーザー向けLLMがshell、filesystem、repo root、secret、他ユーザーsessionへ到達しないこと。
@@ -30,7 +30,7 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 
 注意:
 
-- `docs/release/COMMERCIALIZATION_ROADMAP.md` には商用βスコープがかなり書かれているが、`docs/release/RELEASE_WBS.md` の一部タスクはまだtodoである。次回以降、仕様記述済みと実装済みを分けて棚卸しする。
+- `docs/release/COMMERCIALIZATION_ROADMAP.md` に明文化済みのもの、実装済みのもの、β確認待ちのものが混在している。WBS statusを変える時は、`docs/release/RELEASE_WBS.md` のDone Criteria単位で根拠を残す。
 - `docs/testing/AI_PLAYTEST_PLAN.md` は大量ベンチを非目標にしている。一方、WBSには100ターン級smokeがある。これは常時大量ベンチではなく、β前の軽量release smokeとして扱う。
 
 ## 正本ファイル一覧
@@ -126,11 +126,11 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 
 優先順:
 
-1. `docs/release/RELEASE_WBS.md` のstatus棚卸し。既に仕様が書かれている `AI-001` / `AI-002` / `TEMPO-001` / `ARC-008` / `STORY-005` / `STORY-006` などを、仕様done・実装todoに分けて整理する。
+1. `HOOK-006`: wanderer playtestで脱線入力を試し、Main / Relationship / Life-Exploration のどれかへ自然に戻れるか確認する。
 2. `docs/HANDOFF.md` の圧縮。直近作業、次タスク、注意点に絞り、古いWave履歴は `docs/archive/IMPLEMENTATION_HISTORY.md` へ寄せる方針を作る。
 3. `docs/ROADMAP.md` の完了Wave詳細を履歴側へ寄せる候補整理。ROADMAPは現在地、次順、保留判断に寄せる。
-4. `P-002` / `P-003` / `P-004` の実機確認計画を1枚化する。`save -> apply-turn -> resume 1ターン目 -> event_card playable` を最短で見る。
-5. Three Hook Spine MVPの最小実装範囲を確定する。`HOOK-001` から始め、既存 `docs/specs/PLAY_MODE_SPEC.md` と `docs/STORY_RELATIONSHIP_ACCUMULATION.md` を正本として使う。
+4. `P-002` / `P-003` のTTY実機確認計画を1枚化する。`save -> apply-turn -> resume 1ターン目` を外部ターミナルで見る。
+5. `ARC-002〜007`: Story Continuation / Travel Branch MVPへ進む。
 6. `STATUS_DASHBOARD.html` を「snapshot / human view」と明記するか、WBSから生成する運用に寄せる。
 
 ## archive候補

@@ -49,10 +49,10 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 
 実装系へ戻る時の優先順:
 
-1. AI Playtest Judge に Arc Closure / Scene Progression 評価を追加する。
-2. `save` / `apply-turn` / `resume` smoke を実機確認する。
-3. `event_card` が playable になっているか確認する。
-4. Three Hook Spine MVPの最小設計を確定する。
+1. `HOOK-006`: wanderer playtestで脱線入力を試し、Main / Relationship / Life-Exploration のどれかへ自然に戻れるか確認する。`HOOK-005` は最小実装済みだが、WBS status判断は `docs/release/RELEASE_WBS.md` を優先する。
+2. `P-002` / `P-003`: 外部TTYで `save` / `apply-turn` / `resume` の実機確認を完了する。
+3. `ARC-002〜007`: Story Continuation / Travel Branch MVPへ進む。
+4. `AI-005〜007`: AI Playtestへscene-tick / apply-turn / resume連動を追加する。
 5. WebUI前のSecurity設計を固める。
 
 ## 5. 参照すべき正本リンク
