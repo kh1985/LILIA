@@ -102,7 +102,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer / traveler の6種が定義済み |
 | AI-003 | `./lilia ai-playtest` 実装 | todo | P0 |  |  | 指定ターン数、GM出力 → AI Player入力 → GM出力 の交互進行ができる |
 | AI-004 | transcript保存 | todo | P0 |  |  | GM出力、AI Player入力、turn番号がMarkdownまたはJSONLで保存される |
-| AI-005 | scene-tick連動 | todo | P0 |  |  | 各ターン後にscene-tickが実行される |
+| AI-005 | scene-tick連動 | review | P0 |  |  | 各ターン後にscene-tickが実行される |
 | AI-006 | apply-turn連動 | todo | P0 |  |  | 指定ターン後にSave Mode更新をテストできる |
 | AI-007 | resume検証 | todo | P0 |  |  | save → resume 後の1ターン目を生成・評価できる |
 | AI-008 | Playtest Report生成 | todo | P0 |  |  | PASS / WARN / FAIL、破綻箇所、推奨修正がMarkdown出力される |
@@ -146,7 +146,8 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 - HOOK-003: `current/event_card.md` の Active Hook wiring は `smoke_three_hook_20260510` で確認済み。Play Mode runtimeでの管理語漏れ確認はLLM CLI環境都合でfollow-upのため `review`。
 - HOOK-004: `story/story_deck.md` に Background Hooks / Candidate Next Hooks の保持構造を実装・test済み。長期playでの保持確認は未完了のため `review`。
 - HOOK-005: `apply-turn` の明示 `hook_updates` 最小実装・test済み。別hookへのActive切替 / full active event更新は安全側に保留しているため `review`。
-- HOOK-006: `wanderer` personaを実行可能にし、3ターンplaytestでLife / Relationship / Main backgroundへの吸着を確認済み。各ターン後の `scene-tick` / `apply-turn` 連動は未確認のため `review`。
+- HOOK-006: `wanderer` personaを実行可能にし、3ターンplaytestでLife / Relationship / Main backgroundへの吸着を確認済み。10ターンAI Playtestで `scene-tick` checkpointは確認済みだが、`apply-turn` / resume連動は未確認のため `review`。
+- AI-005: AI Playtest runnerが各GM出力後にrun session側でscene-tickを実行し、normal / wanderer 10ターンrunで10/10 checkpoint到達を確認済み。`tests/resume_smoke/results/2026-05-10_ai_playtest_normal_passive_wanderer.md` に証跡あり。release確認待ちとして `review`。
 
 ## 8 Week Schedule
 
