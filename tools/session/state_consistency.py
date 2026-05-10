@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+from typing import Mapping
 
 
 REQUIRED_EVENT_CARD_FIELDS = [
@@ -23,17 +24,15 @@ ACTIVE_STATE_FILES = [
 ]
 
 GROUNDING_GUARD_TEXT = (
-    "resume 1ターン目では、current/scene.md、current/event_card.md、current/hotset.md、"
-    "story/story_deck.md、lilia/main/memory.md、lilia/main/beliefs.md に明示されたものだけを"
+    "再開1ターン目では、保存済みの場面、出来事、温度、記憶、思い込みに明示されたものだけを"
     "場面の具体手がかりとして使う。\n"
-    "story/story_deck.md は素材棚として参照し、active scene/event_card/hotsetに接続していない"
-    "背景化materialを、resume 1ターン目の新しい証拠として前景化しない。\n"
-    "active event_cardにない小道具、書類、連絡手段、識別情報、過去の控え類を、"
+    "素材棚に残る背景情報を、今この場の新しい証拠として前景化しない。\n"
+    "今の出来事にない小道具、書類、連絡手段、識別情報、過去の控え類を、"
     "最初からそこにあったものとして足さない。\n"
     "電話や訪問などの入口でも、保存にない着信表示、連絡先の識別、場所の固有情報、控え類、"
-    "手元の補助記録をresume 1ターン目の既存情報として描写しない。\n"
-    "新しい具体物を出す場合は、active event_card の First Concrete Action と矛盾せず、"
-    "scene内で今発見されたものとして明示し、Save Modeでevent_card/story_deck/memory候補として残す。"
+    "手元の補助記録を再開1ターン目の既存情報として描写しない。\n"
+    "新しい具体物を出す場合は、今の最初の行動と矛盾せず、scene内で今発見されたものとして明示し、"
+    "次の保存時に短く残す。"
 )
 
 
@@ -279,6 +278,60 @@ def summarize_next_hook(next_hook: str) -> str:
     return text or "次に確認する小さな入口"
 
 
+def natural_text(value: object) -> str:
+    text = meaningful_text(str(value or ""))
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(
+        r"\b(?:candidate_id|hook_id|hook_type|current_function|story_completion_status|"
+        r"closure_candidate|checkpoint_only|recommended_next_arc_candidate|next_arc_candidate)\b"
+        r"\s*[:：]?\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\bmain\s*/\s*relationship\s*/\s*life\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(?:main|relationship|life)\b\s*[:：]?\s*$", "", text, flags=re.IGNORECASE)
+    text = text.replace("次arc", "次の確認")
+    text = text.replace("小arc", "小さな出来事")
+    text = re.sub(r"\s+", " ", text).strip(" -/／、。")
+    return text
+
+
+def context_value(context: Mapping[str, object] | None, *keys: str) -> str:
+    if not context:
+        return ""
+    for key in keys:
+        value = natural_text(context.get(key, ""))
+        if value:
+            return value
+    return ""
+
+
+def natural_hook_axis(hook_type: str) -> str:
+    return {
+        "main": "本筋の確認",
+        "relationship": "関係と境界線の確認",
+        "life": "生活・移動・自由行動の確認",
+    }.get(hook_type.strip().lower(), "次の場面の確認")
+
+
+def natural_story_function(value: str) -> str:
+    text = natural_text(value)
+    if not text:
+        return "次の問いへ渡す"
+    aliases = {
+        "handoff_to_next_question": "次の問いへ渡す",
+        "next_scene_handoff": "次sceneへ渡す",
+        "next_arc_seed": "次の小arcの種を置く",
+    }
+    lowered = text.lower()
+    if lowered in aliases:
+        return aliases[lowered]
+    if re.search(r"[A-Za-z_]{3,}", text):
+        return "次の問いへ渡す"
+    return text
+
+
 def infer_time_from_next_hook(next_hook: str) -> str:
     text = summarize_next_hook(next_hook)
     for keyword in ["翌朝", "翌日", "次の日", "次回", "後日", "夕方", "夜", "朝", "帰宅後"]:
@@ -287,15 +340,20 @@ def infer_time_from_next_hook(next_hook: str) -> str:
     return "保存された次の入口で示された次scene"
 
 
-def render_promoted_scene(next_hook: str, timestamp: str) -> str:
-    summary = summarize_next_hook(next_hook)
+def render_promoted_scene(
+    next_hook: str,
+    timestamp: str,
+    promotion_context: Mapping[str, object] | None = None,
+) -> str:
+    summary = context_value(promotion_context, "visible_entry", "next_candidate") or summarize_next_hook(next_hook)
+    reason = context_value(promotion_context, "reason", "foreground_reason") or "前sceneは一度閉じ、次の入口から再開する。"
     return "\n".join(
         [
             "# Scene",
             "",
             "## 今いる場所",
             "",
-            "- 保存された次の入口に明示された場所。明示がない場合は、前sceneから自然に戻れる場所。",
+            "- 次の入口で示された場面へ移る。場所が明示されていない場合は、前sceneから自然につながる場所で始める。",
             "",
             "## 現在時刻または場面時間",
             "",
@@ -315,7 +373,7 @@ def render_promoted_scene(next_hook: str, timestamp: str) -> str:
             "",
             "## 直前のやりとり",
             "",
-            "- 前sceneは一度閉じ、保存された次の入口から再開する。",
+            f"- {reason}",
             "",
             "## 初回sceneの入口",
             "",
@@ -328,37 +386,38 @@ def render_promoted_scene(next_hook: str, timestamp: str) -> str:
             "## 次にユーザーへ渡す行動余地",
             "",
             "- 状況を確認する / LILIAの手順を待つ / 必要な範囲だけ一緒に確認する / どこまで触れるか線引きを確認する。",
-            "",
-            "## State Consistency",
-            "",
-            f"- promoted_from_next_hook_at: {timestamp}",
         ]
     )
 
 
-def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
-    summary = summarize_next_hook(next_hook)
+def render_promoted_event_card(
+    next_hook: str,
+    timestamp: str,
+    promotion_context: Mapping[str, object] | None = None,
+) -> str:
+    summary = context_value(promotion_context, "visible_entry", "next_candidate") or summarize_next_hook(next_hook)
+    reason = context_value(promotion_context, "reason", "foreground_reason") or "前sceneは一度閉じ、次の入口へ移れる状態になった。"
+    risk = context_value(promotion_context, "risk_if_continued") or "同じ余韻を続けると、場面の進行が弱くなる。"
+    hook_axis = natural_hook_axis(str((promotion_context or {}).get("hook_type", "")))
+    story_function = natural_story_function(context_value(promotion_context, "function_candidate", "current_function"))
     return "\n".join(
         [
             "# Event Card",
             "",
             "## Active Hook",
             "",
-            "- hook_id: promoted_next_hook",
-            "- hook_type: main / relationship / life",
-            "- status: active",
-            "- foreground_reason: 保存された次の入口を次sceneの入口として前景化する。",
-            "- 注: Active Hookは今触れる1本だけ。3hookを3択UIとして並べない。",
+            f"- 今触れる軸: {hook_axis}",
+            f"- 前景化した理由: {reason}",
+            "- 注: 次の返答では、この出来事だけを前景化する。",
             "",
             "## Scene Function",
             "",
-            "- function: 始動",
-            f"- current_question: {summary}",
-            "- entry_state: 前sceneは一度閉じ、保存された次の入口から次sceneへ入る。",
-            "- exit_condition: 状況確認の入口が成立し、次に触れる可視問題が明確になる。",
-            "- change_delta: 保存された次の入口候補がactive event_cardへ昇格する。",
-            "- next_hook_candidate: Save Modeで必要になった場合だけ更新する。",
-            "- 注: Story Function名は内部タグ。Play Mode本文へそのまま出さない。",
+            f"- 場面の役割: {story_function}",
+            f"- 今の問い: {summary}",
+            "- 入り口の状態: 前sceneは一度閉じ、次の場面へ入る。",
+            "- 閉じる条件: 状況確認の入口が成立し、次に触れる可視問題が明確になる。",
+            "- 変化量: 次に扱う入口が、今触れる出来事として整理される。",
+            "- 次に残す入口: 必要になった時だけ、次の保存時に短く残す。",
             "",
             "## 表の出来事",
             "",
@@ -370,7 +429,7 @@ def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
             "",
             "## First Concrete Action",
             "",
-            "LILIAは保存された次の入口に沿って、状況確認の入口だけを出す。active event_cardにない具体手がかりは追加しない。",
+            "LILIAはこの入口に沿って、状況確認の入口だけを出す。ここにない具体手がかりは追加しない。",
             "",
             "## Handles 2-4",
             "",
@@ -385,7 +444,7 @@ def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
             "",
             "## If Ignored",
             "",
-            "この入口に触れなかった場合、次の入口は保留札として残り、LILIAの確認や距離の取り方に小さく戻る。",
+            f"{risk}",
             "",
             "## Next Visible Change",
             "",
@@ -394,16 +453,16 @@ def render_promoted_event_card(next_hook: str, timestamp: str) -> str:
             "## Grounding Guard",
             "",
             GROUNDING_GUARD_TEXT,
-            "",
-            "## State Consistency",
-            "",
-            f"- promoted_from_next_hook_at: {timestamp}",
         ]
     )
 
 
-def render_promoted_hotset(next_hook: str, timestamp: str) -> str:
-    summary = summarize_next_hook(next_hook)
+def render_promoted_hotset(
+    next_hook: str,
+    timestamp: str,
+    promotion_context: Mapping[str, object] | None = None,
+) -> str:
+    summary = context_value(promotion_context, "visible_entry", "next_candidate") or summarize_next_hook(next_hook)
     return "\n".join(
         [
             "# Hotset",
@@ -435,7 +494,7 @@ def render_promoted_hotset(next_hook: str, timestamp: str) -> str:
             "",
             f"- 次の1ターンに響くこと: {summary}",
             "- 第一反応の方向: 保存済みの距離を保って確認する",
-            "- まだ触れない方がいいこと: active event_cardにない具体手がかりを勝手に足さない",
+            "- まだ触れない方がいいこと: 保存されていない具体手がかりを勝手に足さない",
             "",
             "## 現在のイベント要約",
             "",
@@ -447,15 +506,11 @@ def render_promoted_hotset(next_hook: str, timestamp: str) -> str:
             "",
             "## 未確定の余白",
             "",
-            "- 新しい手がかりはscene内で発見された時だけ扱い、Save Modeで保存候補に残す。",
+            "- 新しい手がかりはscene内で発見された時だけ扱い、次の保存時に短く残す。",
             "",
             "## 次にユーザーへ向き合う時の空気",
             "",
             f"- {summary}",
-            "",
-            "## State Consistency",
-            "",
-            f"- promoted_from_next_hook_at: {timestamp}",
         ]
     )
 
@@ -482,6 +537,7 @@ def promote_next_hook_to_active_state(
     next_hook: str,
     timestamp: str,
     *,
+    promotion_context: Mapping[str, object] | None = None,
     update_scene: bool = True,
     update_event_card: bool = True,
     update_hotset: bool = True,
@@ -490,7 +546,7 @@ def promote_next_hook_to_active_state(
     updated: list[str] = []
     root = Path(session_root)
     if update_scene:
-        write_text(root / "current/scene.md", render_promoted_scene(next_hook, timestamp))
+        write_text(root / "current/scene.md", render_promoted_scene(next_hook, timestamp, promotion_context))
         updated.append("current/scene.md")
     if update_event_card:
         previous_event = read_text(root / "current/event_card.md")
@@ -499,9 +555,9 @@ def promote_next_hook_to_active_state(
             if background:
                 append_text(root / "story/story_deck.md", background)
                 updated.append("story/story_deck.md")
-        write_text(root / "current/event_card.md", render_promoted_event_card(next_hook, timestamp))
+        write_text(root / "current/event_card.md", render_promoted_event_card(next_hook, timestamp, promotion_context))
         updated.append("current/event_card.md")
     if update_hotset:
-        write_text(root / "current/hotset.md", render_promoted_hotset(next_hook, timestamp))
+        write_text(root / "current/hotset.md", render_promoted_hotset(next_hook, timestamp, promotion_context))
         updated.append("current/hotset.md")
     return list(dict.fromkeys(updated))

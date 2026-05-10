@@ -2144,6 +2144,34 @@ def apply_hook_updates(session_path: Path, body: str, timestamp: str, dry_run: b
     return updated
 
 
+def next_hook_promotion_context(sections: dict[str, str]) -> dict[str, str]:
+    body = sections.get("hook_updates", "")
+    if not body.strip():
+        return {}
+    context_fields = {
+        "hook_type",
+        "visible_entry",
+        "next_candidate",
+        "function_candidate",
+        "current_function",
+        "reason",
+        "foreground_reason",
+        "risk_if_continued",
+    }
+    for update in parse_hook_updates(body):
+        if not any(update.get(field) for field in context_fields):
+            continue
+        context: dict[str, str] = {}
+        for field in context_fields:
+            value = update.get(field, "")
+            if not value:
+                continue
+            context[field] = checkpoint_state_text(value) if field != "hook_type" else value.strip().lower()
+        if any(value for key, value in context.items() if key != "hook_type"):
+            return context
+    return {}
+
+
 def render_hotset_update(timestamp: str, body: str) -> str:
     return "\n".join(
         [
@@ -4090,6 +4118,7 @@ def command_apply_turn(args: list[str]) -> None:
     timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     updated: list[str] = []
     skipped: list[str] = []
+    promotion_context = next_hook_promotion_context(sections)
 
     def mark_updated(rel_path: str) -> None:
         if rel_path not in updated:
@@ -4124,6 +4153,7 @@ def command_apply_turn(args: list[str]) -> None:
                         session_path,
                         body,
                         timestamp,
+                        promotion_context=promotion_context,
                         update_scene="scene" not in sections,
                         update_event_card="event_card" not in sections,
                         update_hotset="hotset" not in sections,

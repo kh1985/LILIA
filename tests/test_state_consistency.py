@@ -14,6 +14,15 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/fixtures/stale_next_hook_session"
 FIXTURE_ONLY_UNSTORED_CLUES = ["薄紙", "鉛筆", "店名", "住所", "写真の裏の文字", "手元のメモ", "番号", "昨日の控え"]
+ACTIVE_STATE_MANAGEMENT_TERMS = [
+    "hook_type: main / relationship / life",
+    "candidate_id",
+    "story_completion_status",
+    "closure_candidate",
+    "current_function",
+    "checkpoint_only",
+    "promoted_from_next_hook_at",
+]
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -101,7 +110,40 @@ def test_next_hook_promotion_aligns_active_scene_event_hotset(tmp_path: Path) ->
     combined = "\n".join([scene, event_card, hotset])
     for clue in FIXTURE_ONLY_UNSTORED_CLUES:
         assert clue not in combined
+    for term in ACTIVE_STATE_MANAGEMENT_TERMS:
+        assert term not in combined
 
+    assert validate_state_consistency(session).status == "PASS"
+
+
+def test_next_hook_promotion_uses_natural_context_without_management_terms(tmp_path: Path) -> None:
+    session = copy_fixture(tmp_path)
+    next_hook = "翌日の夕方、依頼主に連絡がつかなかった件をもう一度確認に来てもらう。"
+
+    promote_next_hook_to_active_state(
+        session,
+        next_hook,
+        "2026-05-10T16:30:00+09:00",
+        promotion_context={
+            "hook_type": "relationship",
+            "visible_entry": "翌日の夕方、依頼主に連絡がつかなかった件をもう一度確認する。",
+            "function_candidate": "handoff_to_next_question",
+            "reason": "夜の場面は一度閉じ、翌日の確認へ移れる状態になった。",
+            "risk_if_continued": "同じ余韻を続けると、確認すべき一点がぼやける。",
+        },
+    )
+
+    scene = (session / "current/scene.md").read_text(encoding="utf-8")
+    event_card = (session / "current/event_card.md").read_text(encoding="utf-8")
+    hotset = (session / "current/hotset.md").read_text(encoding="utf-8")
+    combined = "\n".join([scene, event_card, hotset])
+
+    assert "翌日の夕方" in combined
+    assert "関係と境界線の確認" in event_card
+    assert "次の問いへ渡す" in event_card
+    for term in ACTIVE_STATE_MANAGEMENT_TERMS:
+        assert term not in combined
+    assert "handoff_to_next_question" not in combined
     assert validate_state_consistency(session).status == "PASS"
 
 
