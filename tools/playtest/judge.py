@@ -16,6 +16,15 @@ from typing import Any
 
 JUDGE_RESULTS: tuple[str, ...] = ("PASS", "WARN", "FAIL")
 CLOSURE_HOOK_TYPES: tuple[str, ...] = ("main", "relationship", "life")
+STORY_COMPLETION_STATUSES: tuple[str, ...] = (
+    "continuing",
+    "closure_candidate",
+    "resolved",
+    "deferred",
+    "backgrounded",
+    "worsened",
+    "blocked",
+)
 _CLOSURE_HOOK_TYPE_ALIASES: dict[str, str] = {
     "main": "main",
     "relationship": "relationship",
@@ -77,6 +86,15 @@ JUDGE_INSTRUCTION = (
     "- vagueな余韻だけをhook候補にしない。行動、場所、人、物、約束、未解決の問いなど、playable入口がある場合だけ候補にする。\n"
     "- closure_candidate、hook_type、score、rubric、validator等の管理語はreport JSONでのみ使う。Play Mode本文に出てよい語として扱わない。\n"
     "\n"
+    "## Story Completion / Next Story Arc Reporting\n"
+    "- story_completion_statusはreport専用の軽量判定である。自動で本番stateへ適用しない。\n"
+    "- statusは continuing / closure_candidate / resolved / deferred / backgrounded / worsened / blocked のいずれかにする。\n"
+    "- closure_candidatesがあり、次arc候補へ渡せるがstory全体は未解決の場合は、continuingではなくclosure_candidateを使う。\n"
+    "- recommended_next_arc_candidateは1本だけにする。複数候補や3択UIとして並べない。\n"
+    "- suggested_active_hook_type は main / relationship / life のいずれかにする。\n"
+    "- should_apply_now は必ず false、checkpoint_only は必ず true にする。\n"
+    "- story_completion_status、next_arc_candidate、story_function等の管理語はreport JSONでのみ使い、Play Mode本文に出てよい語として扱わない。\n"
+    "\n"
     "## スコア基準\n"
     "- 5: 問題なし。\n"
     "- 4: 良好。軽微な懸念のみ。\n"
@@ -119,13 +137,23 @@ JUDGE_INSTRUCTION = (
     '      "risk_if_continued": "続けた場合のdriftリスク",\n'
     '      "recommended_closure_action": "閉じ方または次hookへの渡し方"\n'
     "    }\n"
-    "  ]\n"
+    "  ],\n"
+    '  "story_completion": {\n'
+    '    "story_completion_status": "continuing|closure_candidate|resolved|deferred|backgrounded|worsened|blocked",\n'
+    '    "reason": "story/arc状態判定の短い根拠",\n'
+    '    "recommended_next_arc_candidate": "次story arc候補を1本だけ",\n'
+    '    "suggested_active_hook_type": "main|relationship|life",\n'
+    '    "suggested_story_function": "次arc候補の軽いstory function",\n'
+    '    "should_apply_now": false,\n'
+    '    "checkpoint_only": true\n'
+    "  }\n"
     "}\n"
     "```\n"
     "\n"
     "配列が空の場合は `[]` を返してください。null や省略は禁止です。\n"
     "closure_candidatesがない場合も `[]` を返してください。\n"
     "closure_candidatesは0件または1件だけにしてください。複数turnが候補なら `closure_candidate_turns` にまとめてください。\n"
+    "story_completionが判定できない場合は continuing とし、recommended_next_arc_candidateは空文字にしてください。\n"
     "notesは80字以内、各配列要素も120字以内を目安に簡潔に書いてください。\n"
 )
 
@@ -339,6 +367,54 @@ def parse_judge_response(text: str) -> dict[str, Any]:
             )
         return candidates
 
+    def _story_completion() -> dict[str, Any] | None:
+        value = data.get("story_completion")
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            raise JudgeParseError("judge 'story_completion' must be an object")
+
+        status = _required_string(value, "story_completion_status")
+        if status not in STORY_COMPLETION_STATUSES:
+            raise JudgeParseError(
+                "judge story_completion.story_completion_status must be one of "
+                f"{STORY_COMPLETION_STATUSES}, got {status!r}"
+            )
+
+        hook_type_raw = _required_string(value, "suggested_active_hook_type").lower()
+        hook_type = _CLOSURE_HOOK_TYPE_ALIASES.get(hook_type_raw)
+        if hook_type not in CLOSURE_HOOK_TYPES:
+            raise JudgeParseError(
+                "judge story_completion.suggested_active_hook_type "
+                f"must be one of {CLOSURE_HOOK_TYPES}, got {hook_type_raw!r}"
+            )
+
+        should_apply_now = value.get("should_apply_now")
+        if not isinstance(should_apply_now, bool):
+            raise JudgeParseError("judge story_completion.should_apply_now must be a boolean")
+        if should_apply_now:
+            raise JudgeParseError("judge story_completion.should_apply_now must be false")
+
+        checkpoint_only = value.get("checkpoint_only")
+        if not isinstance(checkpoint_only, bool):
+            raise JudgeParseError("judge story_completion.checkpoint_only must be a boolean")
+        if not checkpoint_only:
+            raise JudgeParseError("judge story_completion.checkpoint_only must be true")
+
+        return {
+            "story_completion_status": status,
+            "reason": _required_string(value, "reason"),
+            "recommended_next_arc_candidate": _required_string(
+                value, "recommended_next_arc_candidate"
+            ),
+            "suggested_active_hook_type": hook_type,
+            "suggested_story_function": _required_string(
+                value, "suggested_story_function"
+            ),
+            "should_apply_now": False,
+            "checkpoint_only": True,
+        }
+
     warnings = compatibility_warnings + _string_list("warnings")
     if compatibility_warnings and result == "PASS":
         result = "WARN"
@@ -352,6 +428,7 @@ def parse_judge_response(text: str) -> dict[str, Any]:
         "recommended_fixes": _string_list("recommended_fixes"),
         "notable_good_moments": _string_list("notable_good_moments"),
         "closure_candidates": _closure_candidates(),
+        "story_completion": _story_completion(),
     }
 
 
@@ -390,6 +467,30 @@ def _format_closure_candidates(candidates: list[dict[str, Any]]) -> str:
             )
             + " |"
         )
+    return "\n".join(rows)
+
+
+def _format_story_completion(story_completion: dict[str, Any] | None) -> str:
+    if not story_completion:
+        return "- (なし)"
+
+    rows = [
+        "| Status | Reason | Next arc candidate | Active hook | Story function | should_apply_now | checkpoint_only |",
+        "|---|---|---|---|---|---|---|",
+        "| "
+        + " | ".join(
+            [
+                _table_cell(story_completion.get("story_completion_status", "")),
+                _table_cell(story_completion.get("reason", "")),
+                _table_cell(story_completion.get("recommended_next_arc_candidate", "")),
+                _table_cell(story_completion.get("suggested_active_hook_type", "")),
+                _table_cell(story_completion.get("suggested_story_function", "")),
+                _table_cell(str(story_completion.get("should_apply_now", False)).lower()),
+                _table_cell(str(story_completion.get("checkpoint_only", True)).lower()),
+            ]
+        )
+        + " |",
+    ]
     return "\n".join(rows)
 
 
@@ -443,6 +544,10 @@ def render_judge_report_md(
         "## Closure Candidates / Next Active Hook Candidate",
         "",
         _format_closure_candidates(parsed.get("closure_candidates", [])),
+        "",
+        "## Story Completion / Next Story Arc Candidate",
+        "",
+        _format_story_completion(parsed.get("story_completion")),
         "",
         "## Warnings",
         "",

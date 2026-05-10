@@ -61,6 +61,12 @@ Judgeが `closure_candidates` を返した場合、runner はcheckpoint artifact
 `hook_updates` は Candidate Next Hooks へ残すための候補に留め、full active event更新が無い限り別Active Hookへ切り替えない。
 reportには `closure_candidate_used`、`next_hook_candidate_path`、`hook_updates_candidate_included`、`dry_run_result` を残す。
 
+Judgeが `story_completion` を返した場合も、それはreport上の軽量判定であり、自動本適用ではない。
+`story_completion_status` は `continuing / closure_candidate / resolved / deferred / backgrounded / worsened / blocked` のいずれかとし、Next Story Arc Candidateは1本だけにする。
+`closure_candidates` とcheckpointが同時にある場合だけ、runner は `checkpoint_turn_update.md` の `## next_hook` / `## hook_updates` 候補へ `recommended_next_arc_candidate` を反映してよい。
+この場合も `should_apply_now: false`、`checkpoint_only: true` を維持し、人間が transcript / scene / event_card / hotset の整合を確認してから本適用する。
+Play Mode本文には `story_completion_status`、`next_arc_candidate`、`story_function` などの管理語を混ぜない。
+
 デフォルトでは、`autosave_required: true` を検出して停止し、人間または別タスクが fresh `turn_update.md` を確認してから applyする。
 Play Mode本文には、scene-tick、checkpoint、file path、diff、validator名などのメタ情報を混ぜない。
 
@@ -306,6 +312,25 @@ next Active Hook候補は1本だけ推奨し、複数のclosure候補turnは `cl
 
 これはreport専用の診断であり、自動で本文を書き換えたり、Active Hookを切り替えたり、story arcを生成したりしない。
 3本hookを選択肢UIとして出さず、Play Mode本文にも `closure_candidate` / `hook_type` / `score` などの管理語を出さない。
+
+### Story Completion / Next Story Arc Reporting
+
+AI Playtest report は、scene closure候補に加えて、現在の小story / arcがどの状態にあるかを軽量に記録してよい。
+これは本番stateへの自動適用ではなく、次の人間確認やcheckpoint dry-runの材料である。
+
+記録する項目:
+
+- `story_completion_status`: `continuing / closure_candidate / resolved / deferred / backgrounded / worsened / blocked` のいずれか。
+- `reason`: transcriptに基づく短い根拠。
+- `recommended_next_arc_candidate`: 次のstory arc候補を1本だけ。
+- `suggested_active_hook_type`: `main / relationship / life` のうち1本。
+- `suggested_story_function`: 次arc候補の軽い機能名。
+- `should_apply_now`: 必ず `false`。
+- `checkpoint_only`: 必ず `true`。
+
+`autosave_required: true` かつ `--apply-turn-checkpoint` が有効で、closure candidateもある場合だけ、runner は `recommended_next_arc_candidate` を `checkpoint_turn_update.md` の候補へ反映してよい。
+この候補は `apply-turn --dry-run` の確認材料であり、本適用、Active Hook切替、story arc生成は行わない。
+Next Story Arc Candidateは1本だけにし、3択UIや複数候補リストとしてPlay Mode本文へ出さない。
 
 ## Scene Change Check
 

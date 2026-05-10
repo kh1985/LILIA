@@ -64,6 +64,20 @@ def _payload_with_closure_candidates() -> dict:
     return payload
 
 
+def _payload_with_story_completion() -> dict:
+    payload = _payload_with_closure_candidates()
+    payload["story_completion"] = {
+        "story_completion_status": "closure_candidate",
+        "reason": "約束成立で小arcを閉じられる",
+        "recommended_next_arc_candidate": "翌日に約束を確認し、時計の状態を受け取る",
+        "suggested_active_hook_type": "relationship",
+        "suggested_story_function": "handoff_to_next_question",
+        "should_apply_now": False,
+        "checkpoint_only": True,
+    }
+    return payload
+
+
 def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     prompt = judge.build_judge_prompt(
         persona="normal",
@@ -87,6 +101,10 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "closure_candidates" in prompt
     assert "possible_next_hook_type" in prompt
     assert "main|relationship|life" in prompt
+    assert "story_completion_status" in prompt
+    assert "recommended_next_arc_candidate" in prompt
+    assert "should_apply_now" in prompt
+    assert "checkpoint_only" in prompt
     assert "Play Mode本文に出てよい語として扱わない" in prompt
     # Meta + transcript embedded
     assert "persona: normal" in prompt
@@ -110,6 +128,7 @@ def test_parse_judge_response_accepts_raw_json() -> None:
     parsed = judge.parse_judge_response(json.dumps(VALID_PAYLOAD))
     assert parsed["result"] == "PASS"
     assert parsed["closure_candidates"] == []
+    assert parsed["story_completion"] is None
 
 
 def test_parse_judge_response_accepts_closure_candidates() -> None:
@@ -134,6 +153,29 @@ def test_parse_judge_response_normalizes_life_exploration_closure_candidate() ->
     parsed = judge.parse_judge_response(json.dumps(payload))
 
     assert parsed["closure_candidates"][0]["possible_next_hook_type"] == "life"
+
+
+def test_parse_judge_response_accepts_story_completion() -> None:
+    parsed = judge.parse_judge_response(json.dumps(_payload_with_story_completion()))
+
+    assert parsed["story_completion"] == {
+        "story_completion_status": "closure_candidate",
+        "reason": "約束成立で小arcを閉じられる",
+        "recommended_next_arc_candidate": "翌日に約束を確認し、時計の状態を受け取る",
+        "suggested_active_hook_type": "relationship",
+        "suggested_story_function": "handoff_to_next_question",
+        "should_apply_now": False,
+        "checkpoint_only": True,
+    }
+
+
+def test_parse_judge_response_normalizes_life_exploration_story_hook_type() -> None:
+    payload = _payload_with_story_completion()
+    payload["story_completion"]["suggested_active_hook_type"] = "life_exploration"
+
+    parsed = judge.parse_judge_response(json.dumps(payload))
+
+    assert parsed["story_completion"]["suggested_active_hook_type"] == "life"
 
 
 def test_parse_judge_response_normalizes_result_case() -> None:
@@ -230,6 +272,37 @@ def test_parse_judge_response_rejects_malformed_closure_turns() -> None:
         judge.parse_judge_response(json.dumps(payload))
 
 
+def test_parse_judge_response_rejects_invalid_story_completion_status() -> None:
+    payload = _payload_with_story_completion()
+    payload["story_completion"]["story_completion_status"] = "done"
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
+def test_parse_judge_response_rejects_multiple_next_arc_candidates() -> None:
+    payload = _payload_with_story_completion()
+    payload["story_completion"]["recommended_next_arc_candidate"] = [
+        "翌日の電話",
+        "別の依頼",
+    ]
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
+def test_parse_judge_response_rejects_story_completion_auto_apply() -> None:
+    payload = _payload_with_story_completion()
+    payload["story_completion"]["should_apply_now"] = True
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
+def test_parse_judge_response_rejects_story_completion_non_checkpoint() -> None:
+    payload = _payload_with_story_completion()
+    payload["story_completion"]["checkpoint_only"] = False
+    with pytest.raises(judge.JudgeParseError):
+        judge.parse_judge_response(json.dumps(payload))
+
+
 def test_parse_judge_response_rejects_empty() -> None:
     with pytest.raises(judge.JudgeParseError):
         judge.parse_judge_response("")
@@ -251,7 +324,7 @@ def test_parse_judge_response_filters_blank_array_items() -> None:
 
 
 def test_render_judge_report_md_contains_required_sections() -> None:
-    parsed = judge.parse_judge_response(json.dumps(_payload_with_closure_candidates()))
+    parsed = judge.parse_judge_response(json.dumps(_payload_with_story_completion()))
     report = judge.render_judge_report_md(
         parsed,
         persona="normal",
@@ -283,6 +356,9 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "## Closure Candidates / Next Active Hook Candidate" in report
     assert "| Closure turns | Reason | Next hook | Next question | Risk if continued | Recommended action |" in report
     assert "| 8, 10 | 戸が閉まり、約束も成立している | relationship | 翌日に約束をどう確かめるか | 同じ余韻を続けるとclosure driftになる | 次ターンで場面を閉じ、翌日の入口へ渡す |" in report
+    assert "## Story Completion / Next Story Arc Candidate" in report
+    assert "| Status | Reason | Next arc candidate | Active hook | Story function | should_apply_now | checkpoint_only |" in report
+    assert "| closure_candidate | 約束成立で小arcを閉じられる | 翌日に約束を確認し、時計の状態を受け取る | relationship | handoff_to_next_question | false | true |" in report
     assert "## Warnings" in report
     assert "- 軽微なテンポの揺れ" in report
     assert "## Failures" in report
@@ -308,6 +384,8 @@ def test_render_judge_report_md_marks_missing_closure_candidates_empty() -> None
 
     assert "## Closure Candidates / Next Active Hook Candidate" in report
     assert "## Closure Candidates / Next Active Hook Candidate\n\n- (なし)" in report
+    assert "## Story Completion / Next Story Arc Candidate" in report
+    assert "## Story Completion / Next Story Arc Candidate\n\n- (なし)" in report
 
 
 def test_render_judge_report_md_partial_turns_label() -> None:

@@ -4572,6 +4572,7 @@ def build_ai_playtest_checkpoint_turn_update_prompt(
     tick: dict[str, int | bool],
     history: list[dict[str, str]],
     closure_candidate: Optional[dict[str, object]] = None,
+    story_completion: Optional[dict[str, object]] = None,
 ) -> str:
     recent_history = history[-8:]
     parts = [
@@ -4626,6 +4627,20 @@ def build_ai_playtest_checkpoint_turn_update_prompt(
                 render_ai_playtest_closure_candidate_note(closure_candidate),
             ]
         )
+    if story_completion is not None:
+        parts.extend(
+            [
+                "",
+                "## Story Completion From Judge",
+                "",
+                "- Use this only as review material for Save Mode.",
+                "- Recommend at most one Next Story Arc Candidate.",
+                "- Do not apply story status automatically.",
+                "- Convert it into `## next_hook` / `## hook_updates` only as checkpoint candidates.",
+                "",
+                render_ai_playtest_story_completion_note(story_completion),
+            ]
+        )
     return "\n".join(parts).rstrip() + "\n"
 
 
@@ -4636,6 +4651,7 @@ def build_ai_playtest_checkpoint_turn_update_candidate(
     turn: int,
     tick: dict[str, int | bool],
     closure_candidate: Optional[dict[str, object]] = None,
+    story_completion: Optional[dict[str, object]] = None,
 ) -> str:
     lines = [
         "# AI Playtest Turn Update Candidate",
@@ -4651,6 +4667,7 @@ def build_ai_playtest_checkpoint_turn_update_candidate(
         f"- autosave_required: {str(tick['autosave_required']).lower()}",
         "- apply_turn_executed: false",
         f"- closure_candidate_used: {str(closure_candidate is not None).lower()}",
+        f"- story_completion_used: {str(story_completion is not None).lower()}",
         "",
     ]
     if closure_candidate is None:
@@ -4663,7 +4680,12 @@ def build_ai_playtest_checkpoint_turn_update_candidate(
             ]
         )
     else:
-        lines.extend(render_ai_playtest_closure_turn_update_sections(closure_candidate))
+        lines.extend(
+            render_ai_playtest_closure_turn_update_sections(
+                closure_candidate,
+                story_completion=story_completion,
+            )
+        )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -4689,6 +4711,21 @@ def render_ai_playtest_closure_candidate_note(candidate: dict[str, object]) -> s
     )
 
 
+def render_ai_playtest_story_completion_note(candidate: dict[str, object]) -> str:
+    hook_type = turn_update_review_text(candidate.get("suggested_active_hook_type", "")) or "-"
+    return "\n".join(
+        [
+            f"- story_completion_status: {turn_update_review_text(candidate.get('story_completion_status', ''))}",
+            f"- suggested_active_hook_type: {hook_type}",
+            f"- suggested_story_function: {turn_update_review_text(candidate.get('suggested_story_function', ''))}",
+            f"- recommended_next_arc_candidate: {turn_update_review_text(candidate.get('recommended_next_arc_candidate', ''))}",
+            f"- reason: {turn_update_review_text(candidate.get('reason', ''))}",
+            f"- should_apply_now: {str(candidate.get('should_apply_now', False)).lower()}",
+            f"- checkpoint_only: {str(candidate.get('checkpoint_only', True)).lower()}",
+        ]
+    )
+
+
 def closure_candidate_slug(candidate: dict[str, object]) -> str:
     hook_type = str(candidate.get("possible_next_hook_type", "hook") or "hook")
     turns = "_".join(str(item) for item in candidate.get("closure_candidate_turns", []))
@@ -4696,18 +4733,39 @@ def closure_candidate_slug(candidate: dict[str, object]) -> str:
     return slug or "closure_candidate"
 
 
-def render_ai_playtest_closure_turn_update_sections(candidate: dict[str, object]) -> list[str]:
-    hook_type = turn_update_review_text(candidate.get("possible_next_hook_type", ""))
+def render_ai_playtest_closure_turn_update_sections(
+    candidate: dict[str, object],
+    *,
+    story_completion: Optional[dict[str, object]] = None,
+) -> list[str]:
+    story_status = turn_update_review_text(
+        story_completion.get("story_completion_status", "") if story_completion else ""
+    )
+    story_hook_type = turn_update_review_text(
+        story_completion.get("suggested_active_hook_type", "") if story_completion else ""
+    )
+    hook_type = story_hook_type or turn_update_review_text(candidate.get("possible_next_hook_type", ""))
     next_question = turn_update_review_text(candidate.get("possible_next_question", ""))
+    next_arc = turn_update_review_text(
+        story_completion.get("recommended_next_arc_candidate", "") if story_completion else ""
+    )
+    story_function = turn_update_review_text(
+        story_completion.get("suggested_story_function", "") if story_completion else ""
+    )
+    story_reason = turn_update_review_text(
+        story_completion.get("reason", "") if story_completion else ""
+    )
     reason = turn_update_review_text(candidate.get("reason", ""))
     risk = turn_update_review_text(candidate.get("risk_if_continued", ""))
     action = turn_update_review_text(candidate.get("recommended_closure_action", ""))
     candidate_id = closure_candidate_slug(candidate)
-    next_hook_body = next_question or action or reason or "次sceneへ渡す入口を人間が確認する。"
+    next_hook_body = next_arc or next_question or action or reason or "次sceneへ渡す入口を人間が確認する。"
+    if next_arc and next_question and next_question not in next_hook_body:
+        next_hook_body = f"{next_hook_body} / closure入口: {next_question}"
     if action and action not in next_hook_body:
         next_hook_body = f"{next_hook_body} / {action}"
 
-    return [
+    lines = [
         "## next_hook",
         "",
         next_hook_body,
@@ -4717,13 +4775,22 @@ def render_ai_playtest_closure_turn_update_sections(candidate: dict[str, object]
         f"- candidate_id: {candidate_id}",
         f"- hook_type: {hook_type}",
         "- update_target: candidate",
-        "- function_candidate: closure_handoff",
-        f"- visible_entry: {next_question}",
+        f"- function_candidate: {story_function or 'closure_handoff'}",
+        f"- visible_entry: {next_arc or next_question}",
         "- promotion_condition: 人間がcheckpoint transcriptを確認し、scene / event_card / hotset が同じ入口へ揃う時だけactive stateへ昇格する。",
         "- grounding_guard: Candidateのままではactive eventとして使わない。保存にない具体手がかりを足さない。",
         f"- reason: {reason}",
         f"- risk_if_continued: {risk}",
     ]
+    if story_completion is not None:
+        lines.extend(
+            [
+                f"- story_completion_status: {story_status}",
+                f"- next_arc_candidate: {next_arc}",
+                f"- story_reason: {story_reason}",
+            ]
+        )
+    return lines
 
 
 def collect_apply_turn_dry_run_result(session_path: Path, update_path: Path) -> dict[str, object]:
@@ -4867,6 +4934,7 @@ def render_ai_playtest_checkpoint_summary(
     dry_run_path: Optional[Path],
     dry_run_result: Optional[dict[str, object]],
     closure_candidate: Optional[dict[str, object]] = None,
+    story_completion: Optional[dict[str, object]] = None,
 ) -> str:
     dry_status = "not_run" if dry_run_result is None else str(dry_run_result.get("status", "FAIL"))
     hook_updates_included = False
@@ -4876,6 +4944,7 @@ def render_ai_playtest_checkpoint_summary(
         hook_updates_included = "## hook_updates" in candidate_text
         if "## next_hook" in candidate_text:
             next_hook_candidate_path = relative_to_root_text(candidate_path)
+    next_arc_candidate_path = relative_to_root_text(candidate_path) if story_completion is not None and candidate_path is not None else ""
     lines = [
         "# AI Playtest Checkpoint Summary",
         "",
@@ -4885,10 +4954,19 @@ def render_ai_playtest_checkpoint_summary(
         f"- checkpoint_mode: {checkpoint_mode}",
         f"- apply_turn_executed: false",
         f"- closure_candidate_used: {str(closure_candidate is not None).lower()}",
+        f"- story_completion_used: {str(story_completion is not None).lower()}",
         f"- next_hook_candidate_path: {next_hook_candidate_path or '-'}",
+        f"- next_arc_candidate_path: {next_arc_candidate_path or '-'}",
         f"- hook_updates_candidate_included: {str(hook_updates_included).lower()}",
         f"- dry_run_result: {dry_status}",
     ]
+    if story_completion is not None:
+        lines.extend(
+            [
+                f"- story_completion_status: {turn_update_review_text(story_completion.get('story_completion_status', ''))}",
+                f"- recommended_next_arc_candidate: {turn_update_review_text(story_completion.get('recommended_next_arc_candidate', ''))}",
+            ]
+        )
     if candidate_path is not None:
         lines.append(f"- turn_update_candidate: {relative_to_root_text(candidate_path)}")
     if dry_run_path is not None:
@@ -4902,6 +4980,7 @@ def render_ai_playtest_checkpoint_summary(
             "- Checkpoint artifacts are runner metadata, not Play Mode text.",
             "- No real apply-turn was executed.",
             "- Closure candidates, if present, are review candidates only and do not switch Active Hook automatically.",
+            "- Story completion candidates, if present, are checkpoint-only and do not create a story arc automatically.",
             "- Resume quality is not evaluated by this checkpoint alone.",
         ]
     )
@@ -4917,6 +4996,7 @@ def write_ai_playtest_apply_turn_checkpoint(
     tick: dict[str, int | bool],
     history: list[dict[str, str]],
     closure_candidate: Optional[dict[str, object]] = None,
+    story_completion: Optional[dict[str, object]] = None,
 ) -> dict[str, object]:
     prompt_path = run_dir / "checkpoint_turn_update_prompt.md"
     candidate_path = run_dir / "checkpoint_turn_update.md"
@@ -4931,6 +5011,7 @@ def write_ai_playtest_apply_turn_checkpoint(
             tick=tick,
             history=history,
             closure_candidate=closure_candidate,
+            story_completion=story_completion,
         ),
         encoding="utf-8",
     )
@@ -4941,6 +5022,7 @@ def write_ai_playtest_apply_turn_checkpoint(
             turn=turn,
             tick=tick,
             closure_candidate=closure_candidate,
+            story_completion=story_completion,
         ),
         encoding="utf-8",
     )
@@ -4958,6 +5040,7 @@ def write_ai_playtest_apply_turn_checkpoint(
             dry_run_path=dry_run_path,
             dry_run_result=dry_run_result,
             closure_candidate=closure_candidate,
+            story_completion=story_completion,
         ),
         encoding="utf-8",
     )
@@ -4969,6 +5052,7 @@ def write_ai_playtest_apply_turn_checkpoint(
         "summary_path": summary_path,
         "dry_run_result": dry_run_result,
         "closure_candidate": closure_candidate,
+        "story_completion": story_completion,
     }
 
 
@@ -5052,6 +5136,31 @@ def first_closure_candidate(parsed_judge: Optional[dict[str, object]]) -> Option
     return candidate
 
 
+def story_completion_for_checkpoint(
+    parsed_judge: Optional[dict[str, object]],
+    closure_candidate: Optional[dict[str, object]],
+) -> Optional[dict[str, object]]:
+    if not parsed_judge or closure_candidate is None:
+        return None
+    value = parsed_judge.get("story_completion")
+    if not isinstance(value, dict):
+        return None
+    if value.get("story_completion_status") not in {
+        "closure_candidate",
+        "resolved",
+        "deferred",
+        "backgrounded",
+    }:
+        return None
+    if value.get("should_apply_now") is not False or value.get("checkpoint_only") is not True:
+        return None
+    if str(value.get("suggested_active_hook_type", "") or "") not in {"main", "relationship", "life"}:
+        return None
+    if not str(value.get("recommended_next_arc_candidate", "") or "").strip():
+        return None
+    return value
+
+
 def read_ai_playtest_save_checkpoint(path: Path) -> tuple[int, dict[str, int | bool]] | None:
     if not path.exists():
         return None
@@ -5079,6 +5188,7 @@ def update_ai_playtest_checkpoint_with_closure_candidate(
     transcript_md: Path,
     closure_candidate: dict[str, object],
     history: list[dict[str, str]],
+    story_completion: Optional[dict[str, object]] = None,
 ) -> Optional[dict[str, object]]:
     checkpoint = read_ai_playtest_save_checkpoint(run_dir / "save_checkpoint.md")
     if checkpoint is None:
@@ -5092,6 +5202,7 @@ def update_ai_playtest_checkpoint_with_closure_candidate(
         tick=tick,
         history=history,
         closure_candidate=closure_candidate,
+        story_completion=story_completion,
     )
 
 
@@ -5469,6 +5580,7 @@ def run_ai_playtest_session(
             quiet=quiet,
         )
     closure_candidate = first_closure_candidate(parsed_judge)
+    story_completion = story_completion_for_checkpoint(parsed_judge, closure_candidate)
     if apply_turn_checkpoint and closure_candidate is not None:
         update_ai_playtest_checkpoint_with_closure_candidate(
             run_dir=run_dir,
@@ -5476,6 +5588,7 @@ def run_ai_playtest_session(
             transcript_md=transcript_md,
             closure_candidate=closure_candidate,
             history=history,
+            story_completion=story_completion,
         )
     append_checkpoint_summary_to_report(run_dir)
 

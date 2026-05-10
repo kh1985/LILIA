@@ -413,6 +413,15 @@ def test_ai_playtest_apply_turn_checkpoint_uses_judge_closure_candidate(
                 "recommended_closure_action": "次sceneを電話へ渡す",
             }
         ],
+        "story_completion": {
+            "story_completion_status": "closure_candidate",
+            "reason": "閉店sceneは一度閉じ、翌日の電話へ小arcを渡せる",
+            "recommended_next_arc_candidate": "翌日昼過ぎ、澪からの電話にどう出るか",
+            "suggested_active_hook_type": "relationship",
+            "suggested_story_function": "handoff_to_next_question",
+            "should_apply_now": False,
+            "checkpoint_only": True,
+        },
     }
 
     monkeypatch.setattr(
@@ -447,11 +456,15 @@ def test_ai_playtest_apply_turn_checkpoint_uses_judge_closure_candidate(
 
     candidate = (run_dir / "checkpoint_turn_update.md").read_text(encoding="utf-8")
     assert "- closure_candidate_used: true" in candidate
+    assert "- story_completion_used: true" in candidate
     assert "## next_hook" in candidate
     assert "翌日昼過ぎ、澪からの電話にどう出るか" in candidate
     assert "## hook_updates" in candidate
     assert "- hook_type: relationship" in candidate
     assert "- update_target: candidate" in candidate
+    assert "- function_candidate: handoff_to_next_question" in candidate
+    assert "- story_completion_status: closure_candidate" in candidate
+    assert "- next_arc_candidate: 翌日昼過ぎ、澪からの電話にどう出るか" in candidate
     assert "active stateへ昇格する" in candidate
 
     dry_run = (run_dir / "checkpoint_apply_turn_dry_run.md").read_text(encoding="utf-8")
@@ -465,7 +478,11 @@ def test_ai_playtest_apply_turn_checkpoint_uses_judge_closure_candidate(
 
     report = (run_dir / "report.md").read_text(encoding="utf-8")
     assert "## Closure Candidates / Next Active Hook Candidate" in report
+    assert "## Story Completion / Next Story Arc Candidate" in report
     assert "- closure_candidate_used: true" in report
+    assert "- story_completion_used: true" in report
+    assert "- next_arc_candidate_path:" in report
+    assert "- recommended_next_arc_candidate: 翌日昼過ぎ、澪からの電話にどう出るか" in report
     assert "- hook_updates_candidate_included: true" in report
     assert "- apply_turn_executed: false" in report
 
@@ -510,6 +527,15 @@ def test_ai_playtest_closure_checkpoint_sanitizes_judge_heading_injection(
         "risk_if_continued": "# hidden heading",
         "recommended_closure_action": "\n## beliefs\n- injected belief",
     }
+    story_completion = {
+        "story_completion_status": "closure_candidate",
+        "reason": "\n## event_card\n- injected event",
+        "recommended_next_arc_candidate": "\n## scene\n- injected scene",
+        "suggested_active_hook_type": "relationship",
+        "suggested_story_function": "# injected function",
+        "should_apply_now": False,
+        "checkpoint_only": True,
+    }
 
     artifacts = lilia.update_ai_playtest_checkpoint_with_closure_candidate(
         run_dir=run_dir,
@@ -517,13 +543,17 @@ def test_ai_playtest_closure_checkpoint_sanitizes_judge_heading_injection(
         transcript_md=transcript,
         closure_candidate=closure_candidate,
         history=[{"turn": 1, "role": "gm", "text": "本文"}],
+        story_completion=story_completion,
     )
     assert artifacts is not None
 
     candidate = (run_dir / "checkpoint_turn_update.md").read_text(encoding="utf-8")
     assert "\n## memory" not in candidate
     assert "\n## beliefs" not in candidate
+    assert "\n## event_card" not in candidate
+    assert "\n## scene" not in candidate
     assert "review: hidden heading" in candidate
+    assert "review: injected function" in candidate
     assert "## next_hook" in candidate
     assert "## hook_updates" in candidate
 
@@ -533,10 +563,52 @@ def test_ai_playtest_closure_checkpoint_sanitizes_judge_heading_injection(
     assert "- hook_updates" in dry_run
     assert "- memory" not in dry_run
     assert "- beliefs" not in dry_run
+    assert "- event_card" not in dry_run
+    assert "- scene" not in dry_run
 
     prompt = (run_dir / "checkpoint_turn_update_prompt.md").read_text(encoding="utf-8")
     assert "Recent transcript excerpt:" in prompt
     assert "### GM (turn 1)" in prompt
+    assert "Story Completion From Judge" in prompt
+
+
+def test_story_completion_checkpoint_requires_closure_candidate(tmp_path: Path) -> None:
+    lilia = load_lilia()
+    parsed = {
+        "story_completion": {
+            "story_completion_status": "resolved",
+            "reason": "小arcが閉じた",
+            "recommended_next_arc_candidate": "翌朝の確認へ進む",
+            "suggested_active_hook_type": "main",
+            "suggested_story_function": "next_arc_seed",
+            "should_apply_now": False,
+            "checkpoint_only": True,
+        }
+    }
+
+    assert lilia.story_completion_for_checkpoint(parsed, None) is None
+
+
+def test_story_completion_checkpoint_filters_unsafe_status() -> None:
+    lilia = load_lilia()
+    closure = {
+        "closure_candidate_turns": ["1"],
+        "possible_next_hook_type": "main",
+        "possible_next_question": "次に進む",
+    }
+    parsed = {
+        "story_completion": {
+            "story_completion_status": "continuing",
+            "reason": "まだ続く",
+            "recommended_next_arc_candidate": "次に進む",
+            "suggested_active_hook_type": "main",
+            "suggested_story_function": "next_arc_seed",
+            "should_apply_now": False,
+            "checkpoint_only": True,
+        }
+    }
+
+    assert lilia.story_completion_for_checkpoint(parsed, closure) is None
 
 
 def test_ai_playtest_session_checkpoint_does_not_mutate_source_and_reports(
