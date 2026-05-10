@@ -667,10 +667,71 @@ def _check_story_deck_three_hook_spine(documents: dict[str, str], errors: list[s
         "relationship": _extract_subline_value(_markdown_subsection(spine, "Relationship Hook"), "hook_id"),
         "life": _extract_subline_value(_markdown_subsection(spine, "Life-Exploration Hook"), "hook_id"),
     }
+    known_story_hook_ids = {
+        hook_id
+        for hook_id in story_hook_ids.values()
+        if hook_id and not _placeholder_value(hook_id)
+    }
+    if (
+        event_hook_id
+        and not _placeholder_value(event_hook_id)
+        and event_hook_id != "promoted_next_hook"
+        and known_story_hook_ids
+        and event_hook_id not in known_story_hook_ids
+    ):
+        errors.append("current/event_card.md: Active Hook hook_id must exist in story/story_deck.md")
     if event_hook_id and event_hook_type in story_hook_ids:
         story_hook_id = story_hook_ids[event_hook_type]
         if story_hook_id and not _placeholder_value(story_hook_id) and event_hook_id != story_hook_id:
             errors.append("current/event_card.md: Active Hook hook_id must match story/story_deck.md hook_id")
+
+    _check_story_deck_hook_shelves(sections, errors)
+
+
+def _check_story_deck_hook_shelves(sections: dict[str, str], errors: list[str]) -> None:
+    background_hooks = sections.get("background hooks", "")
+    candidate_hooks = sections.get("candidate next hooks", "")
+
+    if _hook_shelf_has_real_content(background_hooks):
+        if _hook_shelf_marks_active(background_hooks):
+            errors.append("story/story_deck.md: Background Hooks must not mark hooks active")
+        if _hook_shelf_copies_event_card(background_hooks):
+            errors.append("story/story_deck.md: Background Hooks must not copy current/event_card.md active fields")
+
+    if _hook_shelf_has_real_content(candidate_hooks):
+        if _hook_shelf_marks_active(candidate_hooks):
+            errors.append("story/story_deck.md: Candidate Next Hooks must not mark hooks active before promotion")
+        if _hook_shelf_copies_event_card(candidate_hooks):
+            errors.append("story/story_deck.md: Candidate Next Hooks must not be formatted as an active event_card")
+
+
+def _hook_shelf_has_real_content(section: str) -> bool:
+    for raw_line in section.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or line.startswith("注"):
+            continue
+        if line in {"-", "- 未設定", "未設定", "- TODO", "TODO"}:
+            continue
+        if re.match(r"^[-*]\s*[^:：]+[:：]\s*$", line):
+            continue
+        return True
+    return False
+
+
+def _hook_shelf_marks_active(section: str) -> bool:
+    return bool(re.search(r"^\s*[-*]?\s*status\s*[:：]\s*active\s*$", section, flags=re.MULTILINE))
+
+
+def _hook_shelf_copies_event_card(section: str) -> bool:
+    active_field_labels = [
+        "Visible Problem",
+        "First Concrete Action",
+        "Handles 2-4",
+        "Relationship Stake",
+        "If Ignored",
+        "Next Visible Change",
+    ]
+    return sum(1 for label in active_field_labels if label in section) >= 3
 
 
 def _check_event_card_hook_scaffold(sections: dict[str, str], errors: list[str]) -> None:

@@ -756,7 +756,11 @@ opening_caveats:
 16. `## 直前のやりとり` は Opening Plan の `4_jobs.hook` と整合させる。
 17. story/story_deck.md の `## Three Hook Spine` は素材棚である。
     Main / Relationship / Life-Explorationを3択UIとして並べず、現在のActive Hook本体は current/event_card.md へ置く。
-    Background Hooks / Candidate Next Hooks は、今すぐPlay Modeで前景化しない候補として短く保持する。
+    Background Hooks / Candidate Next Hooks はmaterial shelfであり、今すぐPlay Modeで前景化しない候補として短く保持する。
+    Active Hook以外の2本hookを消さず、activeでないhookはBackground Hooksへ残す。
+    next_hook候補はCandidate Next Hooksへ残す。ただしCandidate Hookをresume入口に使う場合はcandidate promotionが必要で、
+    current/scene.md / current/event_card.md / current/hotset.md のactive stateが同じ入口を指すようにそろえる。
+    Background / Candidate Hookのhook_id、status、candidate_idなどの管理語はPlay Mode本文に出さない。
 18. story/story_deck.md の `## Three Hook Spine` では、初期3hookを必ず埋める。
     空欄、未設定、TODO、placeholderを残さない。profile / character.yaml / story_spine / relationship_spine / Q&Aから短く生成する。
     必ず `## Three Hook Spine` の直下に、以下の `###` 小見出しとfield名をこの順番で出す。
@@ -799,6 +803,10 @@ opening_caveats:
     - Life-Exploration Hook: hook_id / status / current_function / current_question / available_scope / travel_or_life_option / heroine_attendance / exit_condition / next_candidate
       生活、場所、移動、帰宅、食事、単独行動、遠出、同行/非同行の受け皿を扱う。初期値は現在の場所・生活圏に自然な入口にする。
     statusは初期Active Hookに対応する1本だけ `active` 参照にしてよい。それ以外は background / pending など軽い状態にする。
+    `## Background Hooks` には、少なくとも hook_id / hook_type / status / reason_backgrounded / return_condition / last_known_state を使える形で、
+    今は前景化していないhookを素材棚として残す。
+    `## Candidate Next Hooks` には、少なくとも candidate_id / source_hook_id / hook_type / function_candidate / visible_entry / promotion_condition / grounding_guard を使える形で、
+    scene closure後の次候補を素材棚として残す。ここに残しただけではactive eventにしない。
 19. current/event_card.md の `## Active Hook` には、初期sceneで今触れるhookを1本だけ入れる。
     通常はMain Hookをactiveにする。Q&Aやprofile上、関係起点が強い場合だけRelationship Hookにしてよい。
     Life Hookをactiveにするのは、初回sceneが移動、再訪、生活導線から始まる場合だけ。

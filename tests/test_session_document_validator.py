@@ -206,8 +206,27 @@ def _playable_three_hook_spine() -> str:
 def _playable_story_deck(overrides: dict[str, str] | None = None) -> str:
     body = {heading: "- さくら固有の短い初期値。" for heading in _headings("story/story_deck.md")}
     body["Three Hook Spine"] = _playable_three_hook_spine()
-    body["Background Hooks"] = "- relationship_first_trust: 今は背景。会釈と警戒の温度として残す。"
-    body["Candidate Next Hooks"] = "- life_revisit_route: 翌日また寄る生活導線。まだactiveではない。"
+    body["Background Hooks"] = "\n".join(
+        [
+            "- hook_id: relationship_first_trust",
+            "- hook_type: relationship",
+            "- status: background",
+            "- reason_backgrounded: 初回は忘れ物返却を前景化し、警戒と会釈は温度として残す。",
+            "- return_condition: 次に会った時の会釈や呼び止め方が見えた時。",
+            "- last_known_state: 会釈だけの距離と、忘れ物を雑に扱わないかの警戒。",
+        ]
+    )
+    body["Candidate Next Hooks"] = "\n".join(
+        [
+            "- candidate_id: life_revisit_route_next",
+            "- source_hook_id: life_revisit_route",
+            "- hook_type: life",
+            "- function_candidate: 始動",
+            "- visible_entry: 翌日また寄る生活導線。",
+            "- promotion_condition: resume入口に使う時だけcurrent/scene.md / current/event_card.md / current/hotset.mdへ昇格する。",
+            "- grounding_guard: Candidateのままではactive eventとして使わない。",
+        ]
+    )
     body.update(overrides or {})
     return _doc("story/story_deck.md", body)
 
@@ -216,8 +235,8 @@ def _playable_event_card(overrides: dict[str, str] | None = None) -> str:
     body = {
         "Active Hook": "\n".join(
             [
-                "- hook_id: test_active_hook",
-                "- hook_type: relationship",
+                "- hook_id: main_initial_request",
+                "- hook_type: main",
                 "- status: active",
                 "- foreground_reason: 忘れ物を返す場面を関係の入口として前景化する。",
                 "- 注: Active Hookは今触れる1本だけ。3hookを3択UIとして並べない。",
@@ -382,6 +401,25 @@ def test_validator_rejects_relationship_hook_affinity_route() -> None:
     assert any("affinity/route" in error for error in errors)
 
 
+def test_validator_rejects_missing_active_hook_id_in_story_deck() -> None:
+    docs = _valid_documents()
+    docs["current/event_card.md"] = _playable_event_card(
+        {
+            "Active Hook": "\n".join(
+                [
+                    "- hook_id: missing_hook",
+                    "- hook_type: main",
+                    "- status: active",
+                    "- foreground_reason: 忘れ物を返す場面を前景化する。",
+                ]
+            )
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("hook_id must exist" in error for error in errors)
+
+
 def test_validator_rejects_mismatched_active_hook_id() -> None:
     docs = _valid_documents()
     docs["current/event_card.md"] = _playable_event_card(
@@ -399,6 +437,73 @@ def test_validator_rejects_mismatched_active_hook_id() -> None:
     valid, errors = validate_session_documents(docs, ANSWERS)
     assert not valid
     assert any("hook_id must match" in error for error in errors)
+
+
+def test_validator_rejects_multiple_active_three_hooks() -> None:
+    docs = _valid_documents()
+    docs["story/story_deck.md"] = _playable_story_deck(
+        {"Three Hook Spine": _playable_three_hook_spine().replace("- status: background", "- status: active", 1)}
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("must not mark multiple hooks active" in error for error in errors)
+
+
+def test_validator_rejects_background_hook_marked_active() -> None:
+    docs = _valid_documents()
+    docs["story/story_deck.md"] = _playable_story_deck(
+        {
+            "Background Hooks": "\n".join(
+                [
+                    "- hook_id: relationship_first_trust",
+                    "- hook_type: relationship",
+                    "- status: active",
+                    "- reason_backgrounded: 関係hookを候補棚に残す。",
+                ]
+            )
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("Background Hooks must not mark hooks active" in error for error in errors)
+
+
+def test_validator_rejects_candidate_hook_marked_active() -> None:
+    docs = _valid_documents()
+    docs["story/story_deck.md"] = _playable_story_deck(
+        {
+            "Candidate Next Hooks": "\n".join(
+                [
+                    "- candidate_id: life_revisit_route_next",
+                    "- source_hook_id: life_revisit_route",
+                    "- hook_type: life",
+                    "- status: active",
+                    "- visible_entry: 翌日また寄る生活導線。",
+                ]
+            )
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("Candidate Next Hooks must not mark hooks active" in error for error in errors)
+
+
+def test_validator_rejects_background_hook_copying_event_card_fields() -> None:
+    docs = _valid_documents()
+    docs["story/story_deck.md"] = _playable_story_deck(
+        {
+            "Background Hooks": "\n".join(
+                [
+                    "Visible Problem: 忘れ物に気づいていないユイ。",
+                    "First Concrete Action: イヤホンを差し出す。",
+                    "Relationship Stake: 丁寧に扱われるか。",
+                ]
+            )
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("Background Hooks must not copy" in error for error in errors)
 
 
 def test_validator_rejects_blank_scene_function_field() -> None:

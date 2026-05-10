@@ -49,6 +49,13 @@ def test_group_a_prompt_has_three_hook_initial_generation_rules() -> None:
     assert "hook_id" in prompt
     assert "exit_condition" in prompt
     assert "change_delta" in prompt
+    assert "material shelf" in prompt
+    assert "candidate promotion" in prompt
+    assert "Background Hooks" in prompt
+    assert "Candidate Next Hooks" in prompt
+    assert "current/scene.md / current/event_card.md / current/hotset.md" in prompt
+    assert "candidate_id" in prompt
+    assert "grounding_guard" in prompt
     assert "3択UIとして並べず" in prompt
     assert "Play Mode本文として説明しない" in prompt
 
