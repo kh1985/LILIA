@@ -98,6 +98,11 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "同じ余韻モチーフを3回以上反復" in prompt
     assert "10ターン以上同じscene" in prompt
     assert "memory候補 / next hook / 次arc候補" in prompt
+    assert "closure候補成立後に2ターン以上" in prompt
+    assert "足音・通知・気配・沈黙・視線" in prompt
+    assert "帰路、待機、独白、括弧内心" in prompt
+    assert "recommended_fixes" in prompt
+    assert "次の1ターンで余韻整理またはnext hookへ渡す" in prompt
     assert "closure_candidates" in prompt
     assert "possible_next_hook_type" in prompt
     assert "main|relationship|life" in prompt
