@@ -44,7 +44,18 @@ transcript / JSONL / checkpoint file には、scene tick回数、`autosave_requi
 - LLM出力から勝手に保存内容を推論しすぎると、hook stateやnext_hook promotionを壊す。
 - 同じ `turn_update.md` を再適用すると duplicate guard によって止まるべきであり、runnerが隠れて再利用してはいけない。
 
-将来、`apply-turn` checkpointを自動化する場合も、明示flagがある時だけにする。
+`--apply-turn-checkpoint` を明示した場合だけ、runner は checkpoint artifacts を作る。
+
+- `checkpoint_turn_update_prompt.md`: 人間または別タスクが fresh `turn_update.md` を作るためのprompt。
+- `checkpoint_turn_update.md`: `apply-turn --dry-run` 経路確認用のreview skeleton。これをそのまま本適用しない。
+- `checkpoint_apply_turn_dry_run.md`: run sessionに対するdry-run相当の確認結果。
+- `checkpoint_summary.md`: checkpoint mode、candidate path、dry-run result、本適用していないことの要約。
+
+このmodeでも `apply-turn` 本適用はしない。
+本適用は、人間が transcript と候補を確認し、必要なセクションだけに置き換えてから行う。
+`hook_updates` は書いてよいが、実際のscene変化に基づく明示更新だけにする。
+Active Hook切替やnext_hook promotionは、event_card / scene / hotsetとの整合が足りる場合だけ扱う。
+
 デフォルトでは、`autosave_required: true` を検出して停止し、人間または別タスクが fresh `turn_update.md` を確認してから applyする。
 Play Mode本文には、scene-tick、checkpoint、file path、diff、validator名などのメタ情報を混ぜない。
 

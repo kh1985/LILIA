@@ -180,7 +180,7 @@ Usage:
   ./lilia list-sessions
   ./lilia prompt-only new [session_name]
   ./lilia prompt-only resume [session_name]
-  ./lilia ai-playtest <session_name> --persona normal|passive|boundary|wanderer --turns 10 [--engine codex|claude|auto] [--judge | --no-judge] [--no-scene-tick] [--verbose | --quiet]
+  ./lilia ai-playtest <session_name> --persona normal|passive|boundary|wanderer --turns 10 [--engine codex|claude|auto] [--judge | --no-judge] [--no-scene-tick] [--apply-turn-checkpoint] [--verbose | --quiet]
   ./lilia growth-smoke <session_name> [--persona normal] [--segments 3] [--turns-per-segment 10] [--engine codex|claude|auto] [--judge | --no-judge] [--judge-engine codex|claude|auto] [--verbose | --quiet]
   ./lilia long-growth <session_name> ...   growth-smoke の alias
   ./lilia menu                     対話式の日本語開発メニューを起動する (alias: dev-menu)
@@ -4309,7 +4309,7 @@ AI_PLAYTEST_GM_INSTRUCTION = (
 
 def parse_ai_playtest_options(
     args: list[str],
-) -> tuple[list[str], str, int, str, bool, bool, bool, bool]:
+) -> tuple[list[str], str, int, str, bool, bool, bool, bool, bool]:
     persona = "normal"
     turns = 10
     engine = "auto"
@@ -4317,6 +4317,7 @@ def parse_ai_playtest_options(
     quiet = False
     judge = True
     scene_tick = True
+    apply_turn_checkpoint = False
     judge_seen = False
     no_judge_seen = False
     cleaned: list[str] = []
@@ -4363,6 +4364,8 @@ def parse_ai_playtest_options(
             judge = False
         elif arg == "--no-scene-tick":
             scene_tick = False
+        elif arg in {"--apply-turn-checkpoint", "--checkpoint-dry-run"}:
+            apply_turn_checkpoint = True
         else:
             cleaned.append(arg)
         index += 1
@@ -4381,7 +4384,7 @@ def parse_ai_playtest_options(
         die("--engine must be codex, claude, or auto")
     if verbose and quiet:
         die("choose either --verbose or --quiet, not both")
-    return cleaned, persona, turns, engine, verbose, quiet, scene_tick, judge
+    return cleaned, persona, turns, engine, verbose, quiet, scene_tick, apply_turn_checkpoint, judge
 
 
 def ai_playtest_run_dir(persona: str, session_name: str) -> Path:
@@ -4487,6 +4490,8 @@ def append_ai_playtest_scene_tick(
         "turns_since_save": tick["turns_since_save"],
         "autosave_required": tick["autosave_required"],
     }
+    if tick["autosave_required"]:
+        record["apply_turn_executed"] = False
     with jsonl_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
@@ -4503,6 +4508,7 @@ def append_ai_playtest_scene_tick(
         lines.extend(
             [
                 "- checkpoint: Save Mode required before the next GM play response.",
+                "- apply_turn_executed: false",
                 "- instruction: inspect the transcript, write a fresh `turn_update.md`, "
                 "and apply it only from an explicit checkpoint workflow. "
                 "The AI Playtest runner does not run `apply-turn` automatically.",
@@ -4518,22 +4524,412 @@ def write_ai_playtest_save_checkpoint(
     turn: int,
     tick: dict[str, int | bool],
     session_path: Path,
+    checkpoint_mode: str = "off",
+    turn_update_candidate: Optional[Path] = None,
+    apply_turn_dry_run: Optional[Path] = None,
+    checkpoint_summary: Optional[Path] = None,
 ) -> None:
+    extra_lines = [
+        f"- checkpoint_mode: {checkpoint_mode}",
+    ]
+    if turn_update_candidate is not None:
+        extra_lines.append(f"- turn_update_candidate: {relative_to_root_text(turn_update_candidate)}")
+    if apply_turn_dry_run is not None:
+        extra_lines.append(f"- apply_turn_dry_run: {relative_to_root_text(apply_turn_dry_run)}")
+    if checkpoint_summary is not None:
+        extra_lines.append(f"- checkpoint_summary: {relative_to_root_text(checkpoint_summary)}")
     body = (
         "# AI Playtest Save Checkpoint\n\n"
         "AI Playtest stopped before the next GM play response because "
         "`autosave_required: true` was reached.\n\n"
         f"- turn: {turn}\n"
-        f"- session: {session_path}\n"
+        f"- session: {relative_to_root_text(session_path)}\n"
         f"- scene_tick: {tick['display_turn']}/{tick['interval_turns']}\n"
         f"- turns_since_save: {tick['turns_since_save']}\n"
         f"- autosave_required: {str(tick['autosave_required']).lower()}\n"
-        "- apply_turn_executed: false\n\n"
+        "- apply_turn_executed: false\n"
+        + "\n".join(extra_lines)
+        + "\n\n"
         "Next step: inspect the transcript, write a fresh `turn_update.md`, then apply it only from "
         "an explicit checkpoint workflow against a disposable smoke session or a future path-aware "
         "playtest apply-turn command. Do not reuse stale turn_update content.\n"
     )
     path.write_text(body, encoding="utf-8")
+
+
+def relative_to_root_text(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def build_ai_playtest_checkpoint_turn_update_prompt(
+    *,
+    session_path: Path,
+    transcript_md: Path,
+    turn: int,
+    tick: dict[str, int | bool],
+    history: list[dict[str, str]],
+) -> str:
+    recent_history = history[-8:]
+    parts = [
+        "# AI Playtest Save Checkpoint Prompt",
+        "",
+        "Use this prompt to replace `checkpoint_turn_update.md` with a fresh Save Mode update if a human decides to apply one.",
+        "",
+        "Rules:",
+        "- Do not run apply-turn from this prompt.",
+        "- Write only sections that actually changed.",
+        "- Keep Play Mode / Save Mode separated; do not insert save logs into playable text.",
+        "- Prefer memory / relationship / beliefs / hotset / event_card / next_hook / hook_updates only when supported by the transcript.",
+        "- If hook_updates are used, update only explicit hook state changes; do not create a heavy hook engine.",
+        "- Do not expose hook_id / status / current_function / validator wording in Play Mode text.",
+        "- Do not make Relationship Hook into affinity, bond, or route progress.",
+        "",
+        "Checkpoint:",
+        f"- session: {relative_to_root_text(session_path)}",
+        f"- transcript: {relative_to_root_text(transcript_md)}",
+        f"- turn: {turn}",
+        f"- scene_tick: {tick['display_turn']}/{tick['interval_turns']}",
+        f"- autosave_required: {str(tick['autosave_required']).lower()}",
+        "",
+        "Allowed turn_update headings:",
+        "- ## scene",
+        "- ## hotset",
+        "- ## event_card",
+        "- ## memory",
+        "- ## relationship",
+        "- ## beliefs",
+        "- ## relationship_overview",
+        "- ## decision_index",
+        "- ## story_deck",
+        "- ## story_spine",
+        "- ## knowledge_state",
+        "- ## next_hook",
+        "- ## hook_updates",
+        "",
+        "Recent transcript excerpt:",
+        render_history_block(recent_history),
+    ]
+    return "\n".join(parts).rstrip() + "\n"
+
+
+def build_ai_playtest_checkpoint_turn_update_candidate(
+    *,
+    session_path: Path,
+    transcript_md: Path,
+    turn: int,
+    tick: dict[str, int | bool],
+) -> str:
+    return (
+        "# AI Playtest Turn Update Candidate\n\n"
+        "This is a review skeleton generated by `./lilia ai-playtest --apply-turn-checkpoint`.\n"
+        "It exists so the runner can exercise `apply-turn --dry-run` safely.\n"
+        "Do not apply this file as-is. Replace the section below with actual Save Mode updates after human review.\n\n"
+        f"- session: {relative_to_root_text(session_path)}\n"
+        f"- transcript: {relative_to_root_text(transcript_md)}\n"
+        f"- checkpoint_turn: {turn}\n"
+        f"- scene_tick: {tick['display_turn']}/{tick['interval_turns']}\n"
+        f"- autosave_required: {str(tick['autosave_required']).lower()}\n"
+        "- apply_turn_executed: false\n\n"
+        "## state\n\n"
+        "- [review-required] AI Playtest reached an autosave checkpoint. "
+        "Inspect the transcript and replace this skeleton with only the state changes that actually happened before any real apply-turn.\n"
+    )
+
+
+def collect_apply_turn_dry_run_result(session_path: Path, update_path: Path) -> dict[str, object]:
+    timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    sections = parse_turn_update(update_path)
+    if not sections:
+        return {
+            "status": "FAIL",
+            "timestamp": timestamp,
+            "error": "turn_update.md has no non-empty supported sections",
+            "sections": [],
+            "updated": [],
+            "skipped": [],
+            "warnings": [],
+            "apply_turn_executed": False,
+        }
+
+    updated: list[str] = []
+    skipped: list[str] = []
+    warnings: list[str] = []
+
+    def mark_updated(rel_path: str) -> None:
+        if rel_path not in updated:
+            updated.append(rel_path)
+
+    def mark_skipped(message: str) -> None:
+        if message not in skipped:
+            skipped.append(message)
+
+    try:
+        fingerprint = turn_update_fingerprint(sections)
+        session_data = read_session_json(session_path)
+        duplicate = find_applied_turn_update(session_data, fingerprint)
+        if duplicate is not None:
+            warnings.append(duplicate_turn_update_message(duplicate, fingerprint))
+
+        for key, body in sections.items():
+            if key == "hook_updates":
+                for rel_path in apply_hook_updates(session_path, body, timestamp, True):
+                    mark_updated(rel_path)
+                continue
+            if key == "next_hook":
+                promoted_paths = [
+                    rel_path
+                    for rel_path, section_key in [
+                        ("current/scene.md", "scene"),
+                        ("current/event_card.md", "event_card"),
+                        ("current/hotset.md", "hotset"),
+                    ]
+                    if section_key not in sections
+                ]
+                for rel_path in promoted_paths:
+                    mark_updated(rel_path)
+                mark_updated("current/event_card.md")
+                mark_updated("story/story_deck.md")
+                continue
+            rel_path = TURN_UPDATE_TARGETS[key]
+            if key == "knowledge_state" and not (session_path / rel_path).exists():
+                mark_skipped(f"{rel_path} missing; skipped knowledge_state merge for legacy session")
+                continue
+            mark_updated(rel_path)
+    except Exception as exc:
+        return {
+            "status": "FAIL",
+            "timestamp": timestamp,
+            "error": f"{type(exc).__name__}: {exc}",
+            "sections": list(sections),
+            "updated": updated,
+            "skipped": skipped,
+            "warnings": warnings,
+            "apply_turn_executed": False,
+        }
+
+    return {
+        "status": "WARN" if warnings else "PASS",
+        "timestamp": timestamp,
+        "error": "",
+        "sections": list(sections),
+        "updated": updated,
+        "skipped": skipped,
+        "warnings": warnings,
+        "apply_turn_executed": False,
+    }
+
+
+def render_apply_turn_dry_run_result(result: dict[str, object], update_path: Path, session_path: Path) -> str:
+    lines = [
+        "# AI Playtest Apply-Turn Dry Run",
+        "",
+        f"- dry_run_result: {result.get('status', 'FAIL')}",
+        "- dry_run: true",
+        "- apply_turn_executed: false",
+        f"- session: {relative_to_root_text(session_path)}",
+        f"- turn_update_candidate: {relative_to_root_text(update_path)}",
+        f"- timestamp: {result.get('timestamp', '')}",
+        "",
+        "## Sections",
+        "",
+    ]
+    sections = result.get("sections", [])
+    if isinstance(sections, list) and sections:
+        lines.extend(f"- {section}" for section in sections)
+    else:
+        lines.append("- none")
+    lines.extend(["", "## Would Update", ""])
+    updated = result.get("updated", [])
+    if isinstance(updated, list) and updated:
+        lines.extend(f"- {rel_path}" for rel_path in updated)
+    else:
+        lines.append("- none")
+    skipped = result.get("skipped", [])
+    if isinstance(skipped, list) and skipped:
+        lines.extend(["", "## Skipped", ""])
+        lines.extend(f"- {message}" for message in skipped)
+    warnings = result.get("warnings", [])
+    if isinstance(warnings, list) and warnings:
+        lines.extend(["", "## Warnings", ""])
+        lines.extend(f"- {message}" for message in warnings)
+    error = str(result.get("error", "") or "")
+    if error:
+        lines.extend(["", "## Error", "", error])
+    lines.extend(
+        [
+            "",
+            "## Boundary",
+            "",
+            "- This dry-run does not reset autosave counters.",
+            "- This dry-run does not write memory / relationship / beliefs / event_card / hook state.",
+            "- A human must inspect and replace the candidate before any real apply-turn.",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_ai_playtest_checkpoint_summary(
+    *,
+    turn: int,
+    tick: dict[str, int | bool],
+    checkpoint_mode: str,
+    candidate_path: Optional[Path],
+    dry_run_path: Optional[Path],
+    dry_run_result: Optional[dict[str, object]],
+) -> str:
+    dry_status = "not_run" if dry_run_result is None else str(dry_run_result.get("status", "FAIL"))
+    lines = [
+        "# AI Playtest Checkpoint Summary",
+        "",
+        f"- checkpoint_turn: {turn}",
+        f"- scene_tick: {tick['display_turn']}/{tick['interval_turns']}",
+        f"- autosave_required: {str(tick['autosave_required']).lower()}",
+        f"- checkpoint_mode: {checkpoint_mode}",
+        f"- apply_turn_executed: false",
+        f"- dry_run_result: {dry_status}",
+    ]
+    if candidate_path is not None:
+        lines.append(f"- turn_update_candidate: {relative_to_root_text(candidate_path)}")
+    if dry_run_path is not None:
+        lines.append(f"- apply_turn_dry_run: {relative_to_root_text(dry_run_path)}")
+    lines.extend(
+        [
+            "",
+            "## Interpretation",
+            "",
+            "- The playtest stopped before the next GM Play Mode response.",
+            "- Checkpoint artifacts are runner metadata, not Play Mode text.",
+            "- No real apply-turn was executed.",
+            "- Resume quality is not evaluated by this checkpoint alone.",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_ai_playtest_apply_turn_checkpoint(
+    *,
+    run_dir: Path,
+    session_path: Path,
+    transcript_md: Path,
+    turn: int,
+    tick: dict[str, int | bool],
+    history: list[dict[str, str]],
+) -> dict[str, object]:
+    prompt_path = run_dir / "checkpoint_turn_update_prompt.md"
+    candidate_path = run_dir / "checkpoint_turn_update.md"
+    dry_run_path = run_dir / "checkpoint_apply_turn_dry_run.md"
+    summary_path = run_dir / "checkpoint_summary.md"
+
+    prompt_path.write_text(
+        build_ai_playtest_checkpoint_turn_update_prompt(
+            session_path=session_path,
+            transcript_md=transcript_md,
+            turn=turn,
+            tick=tick,
+            history=history,
+        ),
+        encoding="utf-8",
+    )
+    candidate_path.write_text(
+        build_ai_playtest_checkpoint_turn_update_candidate(
+            session_path=session_path,
+            transcript_md=transcript_md,
+            turn=turn,
+            tick=tick,
+        ),
+        encoding="utf-8",
+    )
+    dry_run_result = collect_apply_turn_dry_run_result(session_path, candidate_path)
+    dry_run_path.write_text(
+        render_apply_turn_dry_run_result(dry_run_result, candidate_path, session_path),
+        encoding="utf-8",
+    )
+    summary_path.write_text(
+        render_ai_playtest_checkpoint_summary(
+            turn=turn,
+            tick=tick,
+            checkpoint_mode="dry-run",
+            candidate_path=candidate_path,
+            dry_run_path=dry_run_path,
+            dry_run_result=dry_run_result,
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "checkpoint_mode": "dry-run",
+        "prompt_path": prompt_path,
+        "candidate_path": candidate_path,
+        "dry_run_path": dry_run_path,
+        "summary_path": summary_path,
+        "dry_run_result": dry_run_result,
+    }
+
+
+def append_ai_playtest_checkpoint_record(
+    md_path: Path,
+    jsonl_path: Path,
+    *,
+    turn: int,
+    artifacts: dict[str, object],
+) -> None:
+    dry_result = artifacts.get("dry_run_result")
+    dry_status = (
+        str(dry_result.get("status", "FAIL"))
+        if isinstance(dry_result, dict)
+        else "not_run"
+    )
+    record = {
+        "turn": turn,
+        "role": "apply_turn_checkpoint",
+        "timestamp": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "checkpoint_mode": artifacts.get("checkpoint_mode", "off"),
+        "apply_turn_executed": False,
+        "dry_run_result": dry_status,
+        "turn_update_candidate": relative_to_root_text(artifacts["candidate_path"]) if isinstance(artifacts.get("candidate_path"), Path) else "",
+        "apply_turn_dry_run": relative_to_root_text(artifacts["dry_run_path"]) if isinstance(artifacts.get("dry_run_path"), Path) else "",
+    }
+    with jsonl_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    lines = [
+        f"## Turn {turn} - APPLY-TURN CHECKPOINT",
+        "",
+        "Runner metadata only. This is not Play Mode text.",
+        "",
+        f"- checkpoint_mode: {artifacts.get('checkpoint_mode', 'off')}",
+        "- apply_turn_executed: false",
+        f"- dry_run_result: {dry_status}",
+    ]
+    for label, key in [
+        ("turn_update_candidate", "candidate_path"),
+        ("turn_update_prompt", "prompt_path"),
+        ("apply_turn_dry_run", "dry_run_path"),
+        ("checkpoint_summary", "summary_path"),
+    ]:
+        path = artifacts.get(key)
+        if isinstance(path, Path):
+            lines.append(f"- {label}: {relative_to_root_text(path)}")
+    with md_path.open("a", encoding="utf-8") as handle:
+        handle.write("\n".join(lines).rstrip() + "\n\n")
+
+
+def append_checkpoint_summary_to_report(run_dir: Path) -> None:
+    summary_path = run_dir / "checkpoint_summary.md"
+    if not summary_path.exists():
+        return
+    report_path = run_dir / "report.md"
+    summary_text = summary_path.read_text(encoding="utf-8").strip()
+    if report_path.exists():
+        existing = report_path.read_text(encoding="utf-8").rstrip()
+        if "## Save Checkpoint" in existing:
+            return
+        body = existing + "\n\n## Save Checkpoint\n\n" + summary_text + "\n"
+    else:
+        body = "# AI Playtest Report\n\n## Save Checkpoint\n\n" + summary_text + "\n"
+    report_path.write_text(body, encoding="utf-8")
 
 
 def write_ai_playtest_error(
@@ -4676,6 +5072,7 @@ def run_ai_playtest_segment(
     history: list[dict[str, str]],
     turn_offset: int = 0,
     scene_tick: bool = True,
+    apply_turn_checkpoint: bool = False,
 ) -> tuple[Path, Path, int, str]:
     """Run one playtest segment against an existing session copy.
 
@@ -4701,6 +5098,7 @@ def run_ai_playtest_segment(
                 f"- engine_requested: {requested_engine}",
                 f"- engine_resolved: {engine}",
                 f"- scene_tick_enabled: {str(scene_tick).lower()}",
+                f"- apply_turn_checkpoint: {str(apply_turn_checkpoint).lower()}",
                 f"- history_turns_before_segment: {turn_offset}",
                 f"- started_at: {started_at}",
                 "",
@@ -4764,11 +5162,31 @@ def run_ai_playtest_segment(
                     flush=True,
                 )
             if tick["autosave_required"]:
+                checkpoint_artifacts: Optional[dict[str, object]] = None
+                if apply_turn_checkpoint:
+                    checkpoint_artifacts = write_ai_playtest_apply_turn_checkpoint(
+                        run_dir=run_dir,
+                        session_path=session_path,
+                        transcript_md=transcript_md,
+                        turn=global_turn,
+                        tick=tick,
+                        history=history,
+                    )
+                    append_ai_playtest_checkpoint_record(
+                        transcript_md,
+                        transcript_jsonl,
+                        turn=global_turn,
+                        artifacts=checkpoint_artifacts,
+                    )
                 write_ai_playtest_save_checkpoint(
                     run_dir / "save_checkpoint.md",
                     turn=global_turn,
                     tick=tick,
                     session_path=session_path,
+                    checkpoint_mode="dry-run" if checkpoint_artifacts else "off",
+                    turn_update_candidate=checkpoint_artifacts.get("candidate_path") if checkpoint_artifacts else None,
+                    apply_turn_dry_run=checkpoint_artifacts.get("dry_run_path") if checkpoint_artifacts else None,
+                    checkpoint_summary=checkpoint_artifacts.get("summary_path") if checkpoint_artifacts else None,
                 )
                 completed_turns = local_turn
                 if not quiet:
@@ -4778,6 +5196,12 @@ def run_ai_playtest_segment(
                         flush=True,
                     )
                     print(f"checkpoint: {(run_dir / 'save_checkpoint.md').relative_to(ROOT)}")
+                    if checkpoint_artifacts:
+                        print(
+                            "apply-turn checkpoint dry-run: "
+                            f"{relative_to_root_text(checkpoint_artifacts['dry_run_path'])}",
+                            flush=True,
+                        )
                 break
 
         if not quiet:
@@ -4818,6 +5242,7 @@ def run_ai_playtest_session(
     quiet: bool,
     judge: bool,
     scene_tick: bool = True,
+    apply_turn_checkpoint: bool = False,
 ) -> Path:
     """Run an AI playtest from start to finish. Returns the run_dir path.
 
@@ -4855,6 +5280,7 @@ def run_ai_playtest_session(
         quiet=quiet,
         history=history,
         scene_tick=scene_tick,
+        apply_turn_checkpoint=apply_turn_checkpoint,
     )
 
     if not quiet:
@@ -4877,12 +5303,13 @@ def run_ai_playtest_session(
             verbose=verbose,
             quiet=quiet,
         )
+    append_checkpoint_summary_to_report(run_dir)
 
     return run_dir
 
 
 def command_ai_playtest(args: list[str]) -> None:
-    cleaned, persona, turns, requested_engine, verbose, quiet, scene_tick, judge = parse_ai_playtest_options(args)
+    cleaned, persona, turns, requested_engine, verbose, quiet, scene_tick, apply_turn_checkpoint, judge = parse_ai_playtest_options(args)
     if len(cleaned) != 1:
         die("ai-playtest requires <session_name>")
     session_name = cleaned[0]
@@ -4905,6 +5332,7 @@ def command_ai_playtest(args: list[str]) -> None:
         quiet=quiet,
         judge=judge,
         scene_tick=scene_tick,
+        apply_turn_checkpoint=apply_turn_checkpoint,
     )
 
 
