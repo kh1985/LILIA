@@ -96,7 +96,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 | REL-LOGIC-001 | AFFINITY / bond 非採用方針の明文化 | todo | P0 |  |  | LILIA初期βではAFFINITY / bondを採用しない理由が明記されている |
 | REL-LOGIC-002 | hiddenベクトル本格運用の保留 | todo | P0 |  |  | hiddenベクトルは初期βでは数値運用せず、将来の深化管理候補として保持すると明記されている |
 | REL-LOGIC-003 | Relationship Change Audit正本作成 | done | P0 |  |  | docs/RELATIONSHIP_CHANGE_AUDIT.md に、関係変化の根拠・速度・保存先分離の監査ルールがある |
-| REL-LOGIC-004 | AI PlaytestへRelationship Change Audit追加 | todo | P1 |  |  | AI Playtestで早すぎる/遅すぎる/根拠なしの関係変化を検出できる |
+| REL-LOGIC-004 | AI PlaytestへRelationship Change Audit追加 | review | P1 |  |  | AI Playtestで早すぎる/遅すぎる/根拠なしの関係変化を検出できる |
 | REL-LOGIC-005 | relationship templateへhidden保留方針追加 | todo | P0 |  |  | templates/session/lilia/main/relationship.md に、初期βではhiddenを通常進行メーターにしない方針がある |
 | AI-001 | AI Playtest Plan作成 | todo | P0 |  |  | docs/testing/AI_PLAYTEST_PLAN.md にループ、persona、評価項目がある |
 | AI-002 | AI Player Persona定義 | todo | P0 |  |  | normal / passive / boundary / attacker / wanderer / traveler の6種が定義済み |
@@ -156,6 +156,7 @@ StatusとPriorityを変更する時は、商用方針ではなくこのWBSの該
 - ARC-010: AI Playtest checkpointがclosure候補を `checkpoint_turn_update.md` の `## next_hook` と安全側の `## hook_updates` candidateへ接続し、`apply-turn --dry-run` で確認できる。Arc Closure Drift対策後のnormal 10ターン再実行はPASS。`tests/resume_smoke/results/2026-05-10_closure_to_hook_checkpoint.md` と `tests/resume_smoke/results/2026-05-10_closure_drift_fix.md` に証跡あり。passive再実行とsegmented long-run確認が残るため `review`。
 - ARC-011: normal / wanderer / passiveのlong-run checkpoint smokeを記録し、normalはclosure drift対策後の再実行でPASS。`tests/resume_smoke/results/2026-05-10_longrun_normal_wanderer.md` と `tests/resume_smoke/results/2026-05-10_closure_drift_fix.md` に証跡あり。30〜40turn継続はautosave checkpointで分断されるため、segmented long-runは未完了として `review`。
 - REL-LOGIC-003: `docs/RELATIONSHIP_CHANGE_AUDIT.md` に、AFFINITY / bond非採用、hidden保留、関係変化の根拠・速度・保存先分離、監査質問、良い/悪い保存例、AI Playtest接続方針が明文化済み。Done Criteriaを満たしたため `done`。
+- REL-LOGIC-004: AI Playtest Judgeに `relationship_change_audit` を追加し、根拠なし信頼上昇、早すぎる親密化、境界線/拒否/保留無視、同行自動成立、好感度/AFFINITY/bond/攻略ルート化、保存責務混線を評価できる。`tests/test_ai_playtest_judge.py` でprompt / parse / report表示を確認済み。実runでの監査report蓄積は未完了のため `review`。
 
 ## 8 Week Schedule
 
