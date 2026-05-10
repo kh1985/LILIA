@@ -136,6 +136,7 @@ TURN_UPDATE_TARGETS = {
     "beliefs": "lilia/main/beliefs.md",
     "event_card": "current/event_card.md",
     "next_hook": "current/event_card.md",
+    "hook_updates": "story/story_deck.md",
     "story_deck": "story/story_deck.md",
     "relationship_spine": "story/relationship_spine.md",
     "story_spine": "current/story_spine.md",
@@ -1824,6 +1825,323 @@ def render_turn_update_block(timestamp: str, body: str) -> str:
 
 def render_next_hook_block(timestamp: str, body: str, heading: str) -> str:
     return f"## {heading} - {timestamp}\n\n{body.strip()}\n"
+
+
+HOOK_STATUS_VALUES = {
+    "active",
+    "background",
+    "pending",
+    "advanced",
+    "resolved",
+    "worsened",
+    "blocked",
+    "archived",
+}
+
+HOOK_TYPES = {
+    "main": "Main Hook",
+    "relationship": "Relationship Hook",
+    "life": "Life-Exploration Hook",
+}
+
+HOOK_SPINE_FIELDS = {
+    "status",
+    "current_function",
+    "current_question",
+    "visible_handle",
+    "pressure",
+    "relationship_stake",
+    "boundary_or_trust_issue",
+    "available_scope",
+    "travel_or_life_option",
+    "heroine_attendance",
+    "exit_condition",
+    "next_candidate",
+}
+
+HOOK_UPDATE_KEY_ALIASES = {
+    "function": "current_function",
+    "story_function": "current_function",
+    "scene_function": "current_function",
+    "type": "hook_type",
+    "target": "update_target",
+    "candidate": "candidate_id",
+    "source": "source_hook_id",
+}
+
+RELATIONSHIP_HOOK_FORBIDDEN_RE = re.compile(r"好感度|攻略|ルート|bond|AFFINITY|romance route", re.IGNORECASE)
+
+
+def normalize_hook_update_key(key: str) -> str:
+    normalized = re.sub(r"[\s-]+", "_", key.strip().lower())
+    return HOOK_UPDATE_KEY_ALIASES.get(normalized, normalized)
+
+
+def parse_hook_updates(body: str) -> list[dict[str, str]]:
+    updates: list[dict[str, str]] = []
+    current: dict[str, str] = {}
+
+    def flush() -> None:
+        nonlocal current
+        if any(value.strip() for value in current.values()):
+            updates.append(current)
+        current = {}
+
+    for raw_line in body.splitlines():
+        if re.match(r"^###\s+.+?\s*$", raw_line):
+            flush()
+            continue
+        match = re.match(r"^\s*-\s*([^:：]+)[:：]\s*(.*?)\s*$", raw_line)
+        if not match:
+            continue
+        key = normalize_hook_update_key(match.group(1))
+        value = match.group(2).strip()
+        if key in {"hook_id", "candidate_id"} and key in current:
+            flush()
+        current[key] = value
+    flush()
+    return updates
+
+
+def hook_update_targets(update: dict[str, str]) -> set[str]:
+    raw = update.get("update_target", "")
+    if raw:
+        parts = {
+            part.strip().lower()
+            for part in re.split(r"[,/、\s]+", raw)
+            if part.strip()
+        }
+    elif update.get("candidate_id") and not update.get("hook_id"):
+        parts = {"candidate"}
+    else:
+        parts = {"story_deck"}
+    if not parts:
+        parts = {"story_deck"}
+    if "both" in parts:
+        parts.update({"story_deck", "event_card"})
+    if update.get("candidate_id") or update.get("visible_entry") or update.get("function_candidate"):
+        parts.add("candidate")
+    if update.get("update_active_hook", "").lower() in {"true", "yes", "1"}:
+        parts.add("event_card")
+    allowed = {"story_deck", "event_card", "candidate", "both"}
+    invalid = parts - allowed
+    if invalid:
+        die("hook_updates has unsupported update_target: " + ", ".join(sorted(invalid)))
+    parts.discard("both")
+    return parts
+
+
+def validate_hook_update(update: dict[str, str]) -> None:
+    if not update.get("hook_id") and not update.get("candidate_id"):
+        die("hook_updates item requires hook_id or candidate_id")
+    hook_type = update.get("hook_type")
+    if hook_type and hook_type not in HOOK_TYPES:
+        die("hook_updates hook_type must be main / relationship / life")
+    status = update.get("status")
+    if status and status not in HOOK_STATUS_VALUES:
+        die("hook_updates status is unsupported: " + status)
+    if hook_update_targets(update) & {"story_deck", "event_card"} and not update.get("hook_id"):
+        die("hook_updates story_deck/event_card update requires hook_id")
+    if "event_card" in hook_update_targets(update):
+        if update.get("status") != "active":
+            die("hook_updates event_card update requires status: active")
+        if not update.get("hook_type"):
+            die("hook_updates event_card update requires hook_type")
+        if not update.get("foreground_reason"):
+            die("hook_updates event_card update requires foreground_reason")
+    hook_identity = " ".join([update.get("hook_type", ""), update.get("hook_id", ""), update.get("source_hook_id", "")])
+    if "relationship" in hook_identity and any(
+        RELATIONSHIP_HOOK_FORBIDDEN_RE.search(value)
+        for value in update.values()
+    ):
+        die("hook_updates Relationship Hook must not become affinity/route tracking")
+
+
+def find_hook_subsection_span(lines: list[str], heading: str) -> tuple[int, int] | None:
+    start: int | None = None
+    for index, line in enumerate(lines):
+        if line.strip() == f"### {heading}":
+            start = index
+            break
+    if start is None:
+        return None
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if re.match(r"^##+\s+", lines[index]):
+            end = index
+            break
+    return start, end
+
+
+def extract_bullet_field(lines: list[str], start: int, end: int, field: str) -> str:
+    pattern = re.compile(rf"^\s*-\s*{re.escape(field)}\s*[:：]\s*(.*?)\s*$")
+    for index in range(start + 1, end):
+        match = pattern.match(lines[index])
+        if match:
+            return match.group(1).strip()
+    return ""
+
+
+def set_bullet_field(lines: list[str], start: int, end: int, field: str, value: str) -> tuple[int, int]:
+    pattern = re.compile(rf"^(\s*-\s*{re.escape(field)}\s*[:：]\s*).*$")
+    for index in range(start + 1, end):
+        if pattern.match(lines[index]):
+            lines[index] = pattern.sub(rf"\g<1>{value}", lines[index])
+            return start, end
+    insert_at = end
+    lines.insert(insert_at, f"- {field}: {value}")
+    return start, end + 1
+
+
+def find_story_hook(lines: list[str], update: dict[str, str]) -> tuple[str, int, int]:
+    requested_type = update.get("hook_type", "")
+    hook_id = update.get("hook_id", "")
+    headings = [HOOK_TYPES[requested_type]] if requested_type in HOOK_TYPES else list(HOOK_TYPES.values())
+    for heading in headings:
+        span = find_hook_subsection_span(lines, heading)
+        if span is None:
+            continue
+        start, end = span
+        if hook_id and extract_bullet_field(lines, start, end, "hook_id") == hook_id:
+            return heading, start, end
+    die(f"hook_updates references unknown hook_id: {hook_id}")
+
+
+def set_only_active_story_hook(lines: list[str], active_heading: str) -> None:
+    for heading in HOOK_TYPES.values():
+        span = find_hook_subsection_span(lines, heading)
+        if span is None:
+            continue
+        start, end = span
+        value = "active" if heading == active_heading else "background"
+        set_bullet_field(lines, start, end, "status", value)
+
+
+def apply_story_deck_hook_update(content: str, update: dict[str, str]) -> str:
+    lines = content.rstrip().splitlines()
+    heading, start, end = find_story_hook(lines, update)
+    if update.get("status") == "active":
+        set_only_active_story_hook(lines, heading)
+        heading, start, end = find_story_hook(lines, update)
+    for field, value in update.items():
+        if field in HOOK_SPINE_FIELDS and value:
+            start, end = set_bullet_field(lines, start, end, field, value)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def find_markdown_section_span(lines: list[str], heading: str) -> tuple[int, int] | None:
+    start: int | None = None
+    for index, line in enumerate(lines):
+        if line.strip() == f"## {heading}":
+            start = index
+            break
+    if start is None:
+        return None
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if re.match(r"^##\s+", lines[index]):
+            end = index
+            break
+    return start, end
+
+
+def append_candidate_hook_to_story_deck(content: str, update: dict[str, str], timestamp: str) -> str:
+    candidate_id = update.get("candidate_id") or f"{update.get('hook_id', 'hook')}_candidate"
+    block = [
+        f"### Candidate Hook - {timestamp} - {candidate_id}",
+        "",
+        f"- candidate_id: {candidate_id}",
+        f"- source_hook_id: {update.get('source_hook_id') or update.get('hook_id', '')}",
+        f"- hook_type: {update.get('hook_type', '')}",
+        f"- function_candidate: {update.get('function_candidate') or update.get('current_function', '')}",
+        f"- visible_entry: {update.get('visible_entry') or update.get('next_candidate', '')}",
+        f"- promotion_condition: {update.get('promotion_condition') or 'resume入口に使う時だけactive stateへ昇格する。'}",
+        f"- grounding_guard: {update.get('grounding_guard') or 'Candidateのままではactive eventとして使わない。'}",
+    ]
+    lines = content.rstrip().splitlines()
+    span = find_markdown_section_span(lines, "Candidate Next Hooks")
+    if span is None:
+        lines.extend(["", "## Candidate Next Hooks", ""])
+        span = find_markdown_section_span(lines, "Candidate Next Hooks")
+    assert span is not None
+    _, end = span
+    insertion = ["", *block]
+    lines[end:end] = insertion
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def apply_event_card_active_hook_update(content: str, update: dict[str, str]) -> str:
+    lines = content.rstrip().splitlines()
+    span = find_markdown_section_span(lines, "Active Hook")
+    if span is None:
+        die("current/event_card.md missing Active Hook section")
+    start, end = span
+    existing_hook_id = extract_bullet_field(lines, start, end, "hook_id")
+    if existing_hook_id and existing_hook_id != update["hook_id"]:
+        die("hook_updates event_card update cannot switch Active Hook without explicit event_card promotion")
+    fields = {
+        "hook_id": update["hook_id"],
+        "hook_type": update["hook_type"],
+        "status": "active",
+        "foreground_reason": update["foreground_reason"],
+    }
+    for field, value in fields.items():
+        start, end = set_bullet_field(lines, start, end, field, value)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def event_card_active_hook_id(content: str) -> str:
+    lines = content.splitlines()
+    span = find_markdown_section_span(lines, "Active Hook")
+    if span is None:
+        return ""
+    start, end = span
+    return extract_bullet_field(lines, start, end, "hook_id")
+
+
+def apply_hook_updates(session_path: Path, body: str, timestamp: str, dry_run: bool) -> list[str]:
+    updates = parse_hook_updates(body)
+    if not updates:
+        die("hook_updates section has no supported update items")
+    for update in updates:
+        validate_hook_update(update)
+
+    story_path = session_path / "story/story_deck.md"
+    event_path = session_path / "current/event_card.md"
+    story_content = story_path.read_text(encoding="utf-8") if story_path.exists() else ""
+    event_content = event_path.read_text(encoding="utf-8") if event_path.exists() else ""
+    if not story_content.strip():
+        die("hook_updates requires story/story_deck.md")
+    active_hook_id = event_card_active_hook_id(event_content)
+
+    updated: list[str] = []
+    story_changed = False
+    event_changed = False
+    for update in updates:
+        targets = hook_update_targets(update)
+        if update.get("status") == "active" and active_hook_id and update.get("hook_id") != active_hook_id:
+            die("hook_updates cannot switch Active Hook without explicit next_hook promotion or full active event update")
+        if targets & {"story_deck", "event_card"}:
+            story_content = apply_story_deck_hook_update(story_content, update)
+            story_changed = True
+        if "candidate" in targets:
+            story_content = append_candidate_hook_to_story_deck(story_content, update, timestamp)
+            story_changed = True
+        if "event_card" in targets:
+            if not event_content.strip():
+                die("hook_updates event_card update requires current/event_card.md")
+            event_content = apply_event_card_active_hook_update(event_content, update)
+            event_changed = True
+
+    if story_changed:
+        if not dry_run:
+            write_session_file(session_path, "story/story_deck.md", story_content)
+        updated.append("story/story_deck.md")
+    if event_changed:
+        if not dry_run:
+            write_session_file(session_path, "current/event_card.md", event_content)
+        updated.append("current/event_card.md")
+    return updated
 
 
 def render_hotset_update(timestamp: str, body: str) -> str:
@@ -3750,6 +4068,11 @@ def command_apply_turn(args: list[str]) -> None:
             skipped.append(message)
 
     for key, body in sections.items():
+        if key == "hook_updates":
+            for rel_path in apply_hook_updates(session_path, body, timestamp, dry_run):
+                mark_updated(rel_path)
+            continue
+
         if key == "next_hook":
             event_card_path = "current/event_card.md"
             story_deck_path = "story/story_deck.md"

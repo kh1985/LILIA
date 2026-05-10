@@ -108,6 +108,12 @@ next_hookは選択肢UIではなく、次にユーザーが自然に返せる入
 `current/event_card.md` では、Visible Problem / First Concrete Action / Handles / Relationship Stake / If Ignored / Next Visible Change へ変換する。
 hotsetだけを次sceneに進め、scene / event_card を前sceneのまま残してはいけない。
 `apply-turn` は `next_hook` を `story/story_deck.md` に Candidate Next Hook として残し、scene / event_card / hotset が turn_update に無い場合は、未保存の具体手がかりを足さない最小 active state へ昇格する。
+Three Hook Spine の状態が実際のscene変化で進んだ時だけ、Save Modeの `turn_update.md` に `## hook_updates` を書いてよい。
+`hook_updates` は明示更新専用であり、Play Mode本文に `hook_id`、`status`、`current_function`、`candidate_id` などの管理語を出さない。
+`status` 更新は実際に起きた前進、保留、悪化、解決、背景化に基づける。
+Relationship Hook は好感度や攻略ルートではなく、信頼、警戒、境界線、約束、誤解の変化として扱う。
+Life Hook は主人公の単独行動、遠出、同行/非同行、帰宅、食事、再訪などを、関係やstoryへ戻す受け皿として扱う。
+Candidate Hook は `story/story_deck.md` の素材棚に残すだけではactive eventではない。resume入口に使う場合だけpromotionする。
 例外的な手編集は、人間が明示した時だけ行う。
 
 ## 3. 各ファイルの保存基準
