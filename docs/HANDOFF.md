@@ -36,6 +36,12 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 - `docs/tasks/KNOWLEDGE_BOUNDARY_IMPLEMENTATION_DESIGN.md` を追加し、GMが真相 / プレイヤー既知 / ヒロイン既知 / 共有済み / 観察可能 / 未開示を裁定する `Knowledge Boundary Gate` を設計しました。
 - `tools/session/knowledge_boundary.py` を追加し、`current/knowledge_state.md` の分類と漏洩検査を validator から使える最小基盤として実装しました。
 - AI Playtest Judge に `knowledge_boundary_player_orientation` を追加し、判断材料不足、GM-only/meta漏洩、ヒロインの知り得ない情報断定を、Story Causality不足と分けて評価する方針にしました。
+- group_a deterministic fallback が `手元の具体物` を Active Hook にして作業ログ化する事故を防ぐため、物品リストを可視問題へ圧縮し、genericな主人公理由を validator で落とす方針にしました。
+- `tools/session/opening_seed.py` を追加し、初回sceneの `hook_id` / `hook_type` / `status` / `Scene Function` / `Player Orientation` など、AIに空欄化させてはいけない制御値をコード側で先に固定する方針にしました。
+- `./lilia new` 後に codex engine で開始する場合、`codex exec` のone-shot first sceneではなく `codex-resume` 相当の対話プレイへ渡す方針にしました。
+- AI Playtest Judge に `story_causality_scene_drive` を追加し、確認手順だけが続いて不可逆変化 / Choice Tension / Next Curiosity が弱いrunを検出する方針にしました。
+- AI Playtest の `--turns` は最大ターン数であり、autosave checkpointを越える自動継続ではありません。checkpoint到達時は `complete` ではなく `checkpoint reached` と表示し、開発メニューでも事前noticeを出します。
+- `--continue-through-checkpoints` を追加し、checkpointごとにrun session側だけへ fresh `turn_update.md` を生成・dry-run確認・適用して30ターン級の連続観察をできるようにしました。元の `saves/` session は変更しません。
 
 今回の方針:
 

@@ -79,10 +79,19 @@ def test_ai_playtest_judge_default_and_no_judge() -> None:
 def test_ai_playtest_accepts_wanderer_persona() -> None:
     lilia = load_lilia()
 
-    cleaned, persona, turns, engine, verbose, quiet, scene_tick, apply_turn_checkpoint, judge = (
-        lilia.parse_ai_playtest_options(
-            ["s", "--persona", "wanderer", "--turns", "3", "--no-judge"]
-        )
+    (
+        cleaned,
+        persona,
+        turns,
+        engine,
+        verbose,
+        quiet,
+        scene_tick,
+        apply_turn_checkpoint,
+        continue_through_checkpoints,
+        judge,
+    ) = lilia.parse_ai_playtest_options(
+        ["s", "--persona", "wanderer", "--turns", "3", "--no-judge"]
     )
 
     assert cleaned == ["s"]
@@ -93,32 +102,83 @@ def test_ai_playtest_accepts_wanderer_persona() -> None:
     assert quiet is False
     assert scene_tick is True
     assert apply_turn_checkpoint is False
+    assert continue_through_checkpoints is False
     assert judge is False
 
 
 def test_ai_playtest_can_disable_scene_tick() -> None:
     lilia = load_lilia()
 
-    cleaned, persona, turns, engine, verbose, quiet, scene_tick, apply_turn_checkpoint, judge = (
-        lilia.parse_ai_playtest_options(["s", "--no-scene-tick"])
-    )
+    (
+        cleaned,
+        persona,
+        turns,
+        engine,
+        verbose,
+        quiet,
+        scene_tick,
+        apply_turn_checkpoint,
+        continue_through_checkpoints,
+        judge,
+    ) = lilia.parse_ai_playtest_options(["s", "--no-scene-tick"])
 
     assert scene_tick is False
     assert apply_turn_checkpoint is False
+    assert continue_through_checkpoints is False
     assert judge is True
 
 
 def test_ai_playtest_accepts_apply_turn_checkpoint_flag() -> None:
     lilia = load_lilia()
 
-    cleaned, persona, turns, engine, verbose, quiet, scene_tick, apply_turn_checkpoint, judge = (
-        lilia.parse_ai_playtest_options(["s", "--apply-turn-checkpoint"])
-    )
+    (
+        cleaned,
+        persona,
+        turns,
+        engine,
+        verbose,
+        quiet,
+        scene_tick,
+        apply_turn_checkpoint,
+        continue_through_checkpoints,
+        judge,
+    ) = lilia.parse_ai_playtest_options(["s", "--apply-turn-checkpoint"])
 
     assert cleaned == ["s"]
     assert scene_tick is True
     assert apply_turn_checkpoint is True
+    assert continue_through_checkpoints is False
     assert judge is True
+
+
+def test_ai_playtest_accepts_continue_through_checkpoints_flag() -> None:
+    lilia = load_lilia()
+
+    (
+        cleaned,
+        persona,
+        turns,
+        engine,
+        verbose,
+        quiet,
+        scene_tick,
+        apply_turn_checkpoint,
+        continue_through_checkpoints,
+        judge,
+    ) = lilia.parse_ai_playtest_options(["s", "--continue-through-checkpoints"])
+
+    assert cleaned == ["s"]
+    assert scene_tick is True
+    assert apply_turn_checkpoint is False
+    assert continue_through_checkpoints is True
+    assert judge is True
+
+
+def test_ai_playtest_continue_through_checkpoints_requires_scene_tick() -> None:
+    lilia = load_lilia()
+
+    with pytest.raises(SystemExit):
+        lilia.parse_ai_playtest_options(["s", "--continue-through-checkpoints", "--no-scene-tick"])
 
 
 def test_ai_playtest_segment_ticks_run_session(
@@ -140,6 +200,7 @@ def test_ai_playtest_segment_ticks_run_session(
                     "turns_since_save": 0,
                     "autosave_required": False,
                 },
+                "initialization": {"first_scene_status": "ready"},
             },
             ensure_ascii=False,
         )
@@ -267,6 +328,108 @@ def test_ai_playtest_segment_stops_at_autosave_checkpoint(
     assert data["autosave"]["autosave_required"] is True
 
 
+def test_ai_playtest_checkpoint_notice_warns_when_turns_cross_save_gate(
+    tmp_path: Path,
+) -> None:
+    lilia = load_lilia()
+
+    session = tmp_path / "session"
+    session.mkdir()
+    (session / "session.json").write_text(
+        json.dumps(
+            {
+                "session_name": "session",
+                "autosave": {
+                    "enabled": True,
+                    "interval_turns": 10,
+                    "turns_since_save": 0,
+                    "autosave_required": False,
+                },
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    notice = lilia.ai_playtest_checkpoint_notice(session, 30)
+
+    assert "maximum for this segment" in notice
+    assert "10/30" in notice
+    assert "Save Mode is not skipped" in notice
+    assert lilia.ai_playtest_checkpoint_notice(session, 10) == ""
+    assert lilia.ai_playtest_checkpoint_notice(session, 30, scene_tick=False) == ""
+
+
+def test_ai_playtest_session_reports_checkpoint_reached_instead_of_complete(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lilia = load_lilia()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "PLAYTESTS_DIR", tmp_path / "playtests")
+    monkeypatch.setattr(
+        lilia,
+        "ai_playtest_run_dir",
+        lambda persona, session_name: tmp_path / "playtests" / "runs" / "checkpoint_run",
+    )
+
+    src_session = tmp_path / "saves" / "source_session"
+    src_session.mkdir(parents=True)
+    (src_session / "session.json").write_text(
+        json.dumps(
+            {
+                "session_name": "source_session",
+                "autosave": {
+                    "enabled": True,
+                    "interval_turns": 1,
+                    "turns_since_save": 0,
+                    "autosave_required": False,
+                },
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        lilia,
+        "build_ai_playtest_gm_prompt",
+        lambda session_path, history, player_boundary: "GM_PROMPT",
+    )
+    monkeypatch.setattr(
+        lilia,
+        "build_ai_playtest_player_prompt",
+        lambda persona, history, last_gm_text: "PLAYER_PROMPT",
+    )
+    monkeypatch.setattr(
+        lilia,
+        "run_engine_cli",
+        lambda engine, prompt, timeout, root: "gm checkpoint",
+    )
+
+    run_dir = lilia.run_ai_playtest_session(
+        src_session=src_session,
+        persona="normal",
+        turns=3,
+        requested_engine="codex",
+        engine="codex",
+        verbose=False,
+        quiet=False,
+        judge=False,
+    )
+
+    out = capsys.readouterr().out
+    assert run_dir == tmp_path / "playtests" / "runs" / "checkpoint_run"
+    assert "ai-playtest note:" in out
+    assert "autosave checkpoint is expected after 1/3 turns" in out
+    assert "ai-playtest checkpoint reached: 1/3 turns" in out
+    assert "reason: autosave_required=true; Save Mode is required before continuing." in out
+    assert "ai-playtest complete: 1/3 turns" not in out
+
+
 def test_ai_playtest_apply_turn_checkpoint_writes_dry_run_artifacts(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -285,6 +448,7 @@ def test_ai_playtest_apply_turn_checkpoint_writes_dry_run_artifacts(
                 "turns_since_save": 0,
                 "autosave_required": False,
             },
+            "initialization": {"first_scene_status": "ready"},
         },
         ensure_ascii=False,
     ) + "\n"
@@ -652,6 +816,7 @@ def test_ai_playtest_session_checkpoint_does_not_mutate_source_and_reports(
                 "turns_since_save": 0,
                 "autosave_required": False,
             },
+            "initialization": {"first_scene_status": "ready"},
         },
         ensure_ascii=False,
     ) + "\n"
@@ -694,6 +859,93 @@ def test_ai_playtest_session_checkpoint_does_not_mutate_source_and_reports(
     assert "## Save Checkpoint" in report
     assert "checkpoint_mode: dry-run" in report
     assert "apply_turn_executed: false" in report
+
+
+def test_ai_playtest_continue_through_checkpoints_auto_applies_to_run_session_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    lilia = load_lilia()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "PLAYTESTS_DIR", tmp_path / "playtests")
+    monkeypatch.setattr(
+        lilia,
+        "ai_playtest_run_dir",
+        lambda persona, session_name: tmp_path / "playtests" / "runs" / "auto_continue_run",
+    )
+
+    src_session = tmp_path / "saves" / "source_session"
+    src_session.mkdir(parents=True)
+    source_session_json = json.dumps(
+        {
+            "session_name": "source_session",
+            "current_phase": "first_scene_ready",
+            "autosave": {
+                "enabled": True,
+                "interval_turns": 1,
+                "turns_since_save": 0,
+                "autosave_required": False,
+            },
+            "initialization": {"first_scene_status": "ready"},
+        },
+        ensure_ascii=False,
+    ) + "\n"
+    (src_session / "session.json").write_text(source_session_json, encoding="utf-8")
+
+    calls = {"gm": 0, "player": 0, "save": 0}
+
+    def fake_engine(engine: str, prompt: str, timeout: float, root: Path) -> str:
+        if "AI Playtest Auto Save Mode" in prompt:
+            calls["save"] += 1
+            save_no = calls["save"]
+            return (
+                "## hotset\n\n"
+                f"- checkpoint {save_no} の直前GM応答を受け、次の一手へ移れる。\n\n"
+                "## memory\n\n"
+                f"- GM応答 {save_no} が発生した。\n\n"
+                "## event_card\n\n"
+                f"- 次の入口: checkpoint {save_no} 後のプレイヤー入力を受けて進める。\n"
+            )
+        if "AI Playtest GM Mode" in prompt:
+            calls["gm"] += 1
+            return f"gm {calls['gm']}"
+        calls["player"] += 1
+        return f"player {calls['player']}"
+
+    monkeypatch.setattr(lilia, "run_engine_cli", fake_engine)
+
+    run_dir = lilia.run_ai_playtest_session(
+        src_session=src_session,
+        persona="normal",
+        turns=3,
+        requested_engine="codex",
+        engine="codex",
+        verbose=False,
+        quiet=True,
+        judge=False,
+        continue_through_checkpoints=True,
+    )
+
+    assert calls == {"gm": 3, "player": 3, "save": 3}
+    assert (src_session / "session.json").read_text(encoding="utf-8") == source_session_json
+    assert not (run_dir / "save_checkpoint.md").exists()
+    assert (run_dir / "checkpoints" / "turn_001" / "auto_apply_turn_result.md").exists()
+    assert (run_dir / "checkpoints" / "turn_002" / "auto_apply_turn_result.md").exists()
+    assert (run_dir / "checkpoints" / "turn_003" / "auto_apply_turn_result.md").exists()
+
+    transcript = (run_dir / "transcript.md").read_text(encoding="utf-8")
+    assert "## Turn 1 - AUTO APPLY-TURN CHECKPOINT" in transcript
+    assert "## Turn 3 - PLAYER" in transcript
+    assert "- apply_turn_executed: true" in transcript
+
+    run_data = json.loads((run_dir / "session" / "session.json").read_text(encoding="utf-8"))
+    assert run_data["current_phase"] == "active"
+    assert run_data["autosave"]["turns_since_save"] == 0
+    assert run_data["autosave"]["autosave_required"] is False
+    assert len(run_data["applied_turn_updates"]) == 3
+    assert "checkpoint 3" in (run_dir / "session" / "current" / "hotset.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_growth_run_dir_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

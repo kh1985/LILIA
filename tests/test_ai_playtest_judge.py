@@ -32,6 +32,10 @@ VALID_PAYLOAD: dict = {
             "score": 4,
             "notes": "境界線と拒否が尊重されている",
         },
+        "story_causality_scene_drive": {
+            "score": 4,
+            "notes": "選択で警戒と次の問いが動く",
+        },
         "knowledge_boundary_player_orientation": {
             "score": 4,
             "notes": "見えている手がかりだけで選べる",
@@ -106,6 +110,12 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "遠出、旅行、同居" in prompt
     assert "好感度、AFFINITY、bond、攻略ルート" in prompt
     assert "memory / relationship / beliefs / decision_index" in prompt
+    assert "story_causality_scene_drive" in prompt
+    assert "Story Causality / Scene Drive 観点" in prompt
+    assert "確認、照合、手順、復唱だけが続き" in prompt
+    assert "Choice Tension" in prompt
+    assert "Irreversible Delta" in prompt
+    assert "Next Curiosity" in prompt
     assert "knowledge_boundary_player_orientation" in prompt
     assert "Knowledge Boundary / Player Orientation 観点" in prompt
     assert "判断材料なしに選択や判断を迫られていないか" in prompt
@@ -270,6 +280,18 @@ def test_parse_judge_response_accepts_legacy_missing_knowledge_boundary() -> Non
     assert any("legacy schema" in item for item in parsed["warnings"])
 
 
+def test_parse_judge_response_accepts_legacy_missing_story_causality() -> None:
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    del payload["scores"]["story_causality_scene_drive"]
+
+    parsed = judge.parse_judge_response(json.dumps(payload))
+
+    assert parsed["result"] == "WARN"
+    assert parsed["scores"]["story_causality_scene_drive"]["score"] == 3
+    assert "旧schema応答" in parsed["scores"]["story_causality_scene_drive"]["notes"]
+    assert any("legacy schema" in item for item in parsed["warnings"])
+
+
 def test_parse_judge_response_rejects_out_of_range_score() -> None:
     payload = json.loads(json.dumps(VALID_PAYLOAD))
     payload["scores"]["tempo_guard"]["score"] = 7
@@ -412,6 +434,7 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "| Reply affordance | 5/5 |" in report
     assert "| Relationship change grounding | 4/5 |" in report
     assert "| Relationship change audit | 4/5 | 境界線と拒否が尊重されている |" in report
+    assert "| Story causality / Scene drive | 4/5 | 選択で警戒と次の問いが動く |" in report
     assert "| Knowledge boundary / Player orientation | 4/5 | 見えている手がかりだけで選べる |" in report
     assert "| Inner / hidden leakage | 5/5 |" in report
     assert "| Over-leading | 4/5 |" in report

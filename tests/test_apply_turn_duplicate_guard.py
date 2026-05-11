@@ -370,6 +370,40 @@ def test_turn_update_fingerprint_is_path_independent(tmp_path: Path) -> None:
     ) == lilia.turn_update_fingerprint(lilia.parse_turn_update(second))
 
 
+def test_parse_turn_update_keeps_nested_hotset_headings(tmp_path: Path) -> None:
+    lilia = load_lilia_module()
+    update_path = tmp_path / "turn_update.md"
+    update_path.write_text(
+        "\n".join(
+            [
+                "## hotset",
+                "",
+                "## 会話の温度",
+                "",
+                "- 前回の本の話が残っている。",
+                "",
+                "## 次に会った時の第一反応",
+                "",
+                "- 完全な初対面には戻らない。",
+                "",
+                "## memory",
+                "",
+                "- 主人公は読後の感覚を返した。",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    sections = lilia.parse_turn_update(update_path)
+
+    assert set(sections) == {"hotset", "memory"}
+    assert "## 会話の温度" in sections["hotset"]
+    assert "## 次に会った時の第一反応" in sections["hotset"]
+    assert "完全な初対面には戻らない" in sections["hotset"]
+    assert "読後の感覚" in sections["memory"]
+
+
 def test_apply_turn_merges_knowledge_state_yaml_updates(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

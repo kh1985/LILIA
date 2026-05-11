@@ -459,6 +459,24 @@ def test_validator_rejects_empty_player_orientation(tmp_path: Path) -> None:
     assert any("player orientation: protagonist reason is empty" in error for error in errors)
 
 
+def test_validator_rejects_generic_player_orientation(tmp_path: Path) -> None:
+    docs = _valid_documents()
+    template_root = _template_root_with_orientation_sections(tmp_path)
+    _append_orientation_sections(
+        docs,
+        scene_body="\n".join(
+            [
+                "- protagonist_reason: 主人公はその場の用件に関わる人物として、この場の用件に関わる。",
+                "- current_player_knowledge: 終電後の駅で起こされたこと。",
+                "- opening_must_show: 目の前の缶コーヒー。",
+            ]
+        ),
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS, template_root=template_root)
+    assert not valid
+    assert any("protagonist reason is too generic" in error for error in errors)
+
+
 def test_validator_rejects_empty_reveal_control(tmp_path: Path) -> None:
     docs = _valid_documents()
     template_root = _template_root_with_orientation_sections(tmp_path)
@@ -693,6 +711,26 @@ def test_validator_rejects_blank_scene_function_field() -> None:
     valid, errors = validate_session_documents(docs, ANSWERS)
     assert not valid
     assert any("Scene Function: exit_condition is empty" in error for error in errors)
+
+
+def test_validator_rejects_active_hook_prop_inventory() -> None:
+    docs = _valid_documents()
+    prop_inventory = "メモ帳、ペン、預かり票の控え、濡れた宅配伝票、ミント缶、傷のついたスマホケース"
+    docs["current/event_card.md"] = _playable_event_card(
+        {
+            "Active Hook": "\n".join(
+                [
+                    "- hook_id: main_initial_request",
+                    "- hook_type: main",
+                    "- status: active",
+                    f"- foreground_reason: 初回sceneでプレイヤーが今触れられる入口を、{prop_inventory}に絞るため。",
+                ]
+            )
+        }
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any("prop inventory" in error for error in errors)
 
 
 def test_validator_pass_for_session_002b_event_card() -> None:

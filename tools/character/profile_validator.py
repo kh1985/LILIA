@@ -181,7 +181,7 @@ def validate_profile_output(profile_md: str, answers: dict, character_yaml: dict
     _check_required_subfields(sections, errors)
     _check_placeholder_remnants(profile_md, sections, errors)
     _check_ellipsis_field_lines(sections, errors)
-    _check_repeated_phrases(profile_md, errors)
+    _check_repeated_phrases(profile_md, errors, character_yaml=character_yaml)
     _check_q1_verbatim(profile_md, answers, errors)
     _check_deepening_tags(sections, errors)
     _check_do_not_predefine(sections, errors)
@@ -270,13 +270,46 @@ def _check_ellipsis_field_lines(sections: dict[str, _Section], errors: list[str]
                 errors.append(f"section `{section.heading}` has ellipsis-ending field line: `{_shorten(stripped, 80)}`")
 
 
-def _check_repeated_phrases(text: str, errors: list[str]) -> None:
+def _check_repeated_phrases(text: str, errors: list[str], *, character_yaml: dict | None = None) -> None:
     counts = Counter(_iter_repetition_phrases(text))
-    repeated = [(phrase, count) for phrase, count in counts.items() if count >= 3]
+    grounded = _grounded_repetition_phrases(character_yaml or {})
+    repeated = [
+        (phrase, count)
+        for phrase, count in counts.items()
+        if count >= 3 and not _is_grounded_repetition_phrase(phrase, grounded)
+    ]
     repeated.sort(key=lambda item: (-item[1], item[0]))
     if repeated:
         phrase, count = repeated[0]
         errors.append(f"repeated phrase appears {count} times: `{_shorten(phrase, 70)}`")
+
+
+def _grounded_repetition_phrases(character_yaml: dict) -> set[str]:
+    phrases: set[str] = set()
+
+    def collect(value: object) -> None:
+        if isinstance(value, dict):
+            for child in value.values():
+                collect(child)
+            return
+        if isinstance(value, list):
+            for child in value:
+                collect(child)
+            return
+        if not isinstance(value, str):
+            return
+        for phrase in _iter_repetition_phrases(value):
+            phrases.add(_normalize_for_verbatim(phrase))
+
+    for key in ("appearance", "body", "outfit"):
+        if key in character_yaml:
+            collect(character_yaml[key])
+    return phrases
+
+
+def _is_grounded_repetition_phrase(phrase: str, grounded: set[str]) -> bool:
+    normalized = _normalize_for_verbatim(phrase)
+    return bool(normalized and normalized in grounded)
 
 
 def _check_q1_verbatim(profile_md: str, answers: dict, errors: list[str]) -> None:

@@ -692,6 +692,10 @@ def _check_scene_player_orientation(documents: dict[str, str], errors: list[str]
         f"current/scene.md: {section_name}",
         errors,
     )
+    for field_name, label_patterns in required[:2]:
+        value = _extract_labeled_value_by_patterns(section, label_patterns)
+        if value and _generic_orientation_value(value):
+            errors.append(f"current/scene.md: {section_name}: {field_name} is too generic")
 
 
 def _check_event_card_reveal_control(sections: dict[str, str], errors: list[str]) -> None:
@@ -911,6 +915,9 @@ def _check_event_card_hook_scaffold(sections: dict[str, str], errors: list[str])
     status = _extract_subline_value(active_hook, "status")
     if status and status != "active":
         errors.append("current/event_card.md: Active Hook status must be active")
+    foreground_reason = _extract_subline_value(active_hook, "foreground_reason")
+    if foreground_reason and _looks_like_prop_inventory(foreground_reason):
+        errors.append("current/event_card.md: Active Hook foreground_reason looks like a prop inventory, not a playable problem")
 
     _check_required_field_values(
         scene_function,
@@ -918,6 +925,34 @@ def _check_event_card_hook_scaffold(sections: dict[str, str], errors: list[str])
         "current/event_card.md: Scene Function",
         errors,
     )
+
+
+def _generic_orientation_value(value: str) -> bool:
+    return bool(
+        re.search(
+            r"その場の用件に関わる人物|この場の用件に関わる人物|この場の用件に関わる。?$",
+            value.strip(),
+        )
+    )
+
+
+def _looks_like_prop_inventory(value: str) -> bool:
+    text = value.strip()
+    separator_count = text.count("、") + text.count(",") + text.count("・")
+    prop_mentions = len(
+        re.findall(
+            r"メモ帳|ペン|伝票|控え|ミント缶|スマホケース|鍵|封筒|USB|グラス|名刺入れ|紙片",
+            text,
+        )
+    )
+    if separator_count >= 4 and prop_mentions >= 4:
+        return True
+    if separator_count >= 3 and prop_mentions >= 3 and not re.search(
+        r"確認|照合|返|渡|選|決|困|食い違|読め|見つから|扱|受け渡し|出所",
+        text,
+    ):
+        return True
+    return False
 
 
 def _check_required_field_values(

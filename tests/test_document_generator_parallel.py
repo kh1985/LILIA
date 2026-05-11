@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 import sys
@@ -117,3 +118,188 @@ def test_group_a_uses_deterministic_fallback_after_invalid_generation(
     assert result["meta"]["validation"] == "deterministic_fallback"
     assert result["documents"]["current/event_card.md"].count("hook_id: main_initial_contact") == 1
     assert "未設定" not in "\n".join(result["documents"].values())
+
+
+def test_group_a_fallback_turns_prop_inventory_into_playable_problem(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    template_root = ROOT / "templates" / "session"
+
+    def template_for(path: str) -> str:
+        template_path = template_root / path
+        return template_path.read_text(encoding="utf-8")
+
+    def invalid_group_a_output(*args: Any, **kwargs: Any) -> str:
+        return "\n".join(
+            f"===FILE: {path}===\n{template_for(path)}"
+            for path in document_generator.GROUP_A_PATHS
+        )
+
+    story_spine = (
+        "## Main Question\n"
+        "瀬戸真琴は、失くした控えをめぐる混乱の中で、自分の線を守ったまま誰かを信用できるか\n\n"
+        "## Reveal Ladder\n"
+        "1. [pending] 閉店前の雨の日、預かり票の控えが見つからず、濡れた宅配伝票と客の記憶が食い違っていることが表面化する。\n"
+    )
+    prop_inventory = "メモ帳、ペン、預かり票の控え、濡れた宅配伝票、ミント缶、傷のついたスマホケース"
+    monkeypatch.setattr(document_generator, "engine_candidates", lambda engine: ["stub"])
+    monkeypatch.setattr(document_generator, "run_engine", invalid_group_a_output)
+
+    result = document_generator._generate_group(
+        group_name="group_a",
+        rel_paths=document_generator.GROUP_A_PATHS,
+        prompt="group a prompt",
+        answers={"1": "おまかせ", "8": "おまかせ"},
+        story_spine_md=story_spine,
+        engine="codex",
+        context={
+            "answers": {"1": "おまかせ", "8": "おまかせ"},
+            "character_yaml": {"name": "瀬戸 真琴", "occupation": "修理店の受付"},
+            "profile_md": (
+                "# Profile\n"
+                "name: 瀬戸 真琴\n"
+                "occupation: 修理店の受付\n\n"
+                "## Initial Scene Anchors\n"
+                "- 場所と状況: 雨の閉店前の修理店\n"
+                f"- 手元の具体物: {prop_inventory}\n"
+                "- 最初の距離: 初対面で、カウンター越しに向き合う\n"
+                "- 会話の入口: 来店者の用件、見つからない控え、雨で読みにくくなった伝票、閉店時間までに確認できる範囲。\n"
+            ),
+            "story_spine_md": story_spine,
+            "relationship_spine_md": "## 育てたいテーマ\n記録を守ることと人を信用することは同じではない。\n",
+            "session_name": "test",
+        },
+    )
+
+    event_card = result["documents"]["current/event_card.md"]
+    scene = result["documents"]["current/scene.md"]
+    assert result["meta"]["validation"] == "deterministic_fallback"
+    assert "foreground_reason: 初回sceneでプレイヤーが今触れられる入口を、濡れた伝票と控えの照合に絞るため。" in event_card
+    assert "主人公は濡れた伝票と控えを持ち込み、受付で確認を求める来店者。" in scene
+    assert "その場の用件に関わる人物" not in scene + event_card
+    assert f"foreground_reason: 初回sceneでプレイヤーが今触れられる入口を、{prop_inventory}" not in event_card
+
+
+def test_group_a_repairs_blank_control_fields_from_opening_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = {
+        "answers": {"1": "おまかせ", "8": "おまかせ"},
+        "character_yaml": {"name": "三枝 玲奈", "occupation": "小さな店の店主"},
+        "profile_md": (
+            "# Profile\n"
+            "name: 三枝 玲奈\n"
+            "occupation: 小さな店の店主\n\n"
+            "## Initial Scene Anchors\n"
+            "- 場所と状況: 閉店前の小さな店\n"
+            "- 手元の具体物: 伝票と銀の鍵\n"
+            "- 最初の距離: 初対面で、カウンター越しに向き合う\n"
+            "- 会話の入口: 玲奈が伝票から目を上げる\n"
+        ),
+        "story_spine_md": "## Main Question\n主人公は相手の境界を待てるか\n",
+        "relationship_spine_md": "## 育てたいテーマ\n近づくことと明かすことは同じではない。\n",
+        "session_name": "test",
+    }
+
+    class FakeOpeningSeed:
+        def as_dict(self) -> dict[str, Any]:
+            return {
+                "active_hook": {
+                    "hook_id": "main_initial_contact",
+                    "hook_type": "main",
+                    "status": "active",
+                    "foreground_reason": "seed固定の入口に絞るため。",
+                },
+                "scene_function": {
+                    "function": "起点",
+                    "current_question": "seedの問いを追う。",
+                    "entry_state": "seedの初期距離。",
+                    "exit_condition": "seedの出口条件。",
+                    "change_delta": "seedの変化差分。",
+                    "next_hook_candidate": "next_small_confirmation",
+                },
+                "player_orientation": {
+                    "protagonist_reason": "主人公はseed由来の来店者。",
+                    "current_player_knowledge": "seed由来の手がかりを知っている。",
+                    "opening_must_show": "seed由来の場所、用件、距離。",
+                    "still_hidden": "seed由来の真相。",
+                },
+            }
+
+    def blank_control_fields(*args: Any, **kwargs: Any) -> str:
+        docs = document_generator._fallback_group_a_documents(context)
+        event_card = docs["current/event_card.md"]
+        event_card = event_card.replace("- hook_id: main_initial_contact", "- hook_id:")
+        event_card = event_card.replace("- hook_type: main", "- hook_type: relationship")
+        event_card = event_card.replace("- status: active", "- status: background", 1)
+        event_card = event_card.replace(
+            "- foreground_reason: 初回sceneでプレイヤーが今触れられる入口を、伝票と銀の鍵に絞るため。",
+            "- foreground_reason:",
+        )
+        event_card = event_card.replace("- function: 起点", "- function: 試練")
+        for field in ["current_question", "entry_state", "exit_condition", "change_delta", "next_hook_candidate"]:
+            event_card = re.sub(rf"^- {field}: .+$", f"- {field}:", event_card, flags=re.MULTILINE)
+        docs["current/event_card.md"] = event_card
+
+        scene = docs["current/scene.md"]
+        for label in [
+            "主人公がここにいる理由",
+            "主人公がscene開始時点で知っていること",
+            "冒頭本文で必ず見せる前提",
+            "まだ隠すこと",
+        ]:
+            scene = re.sub(rf"^- {label}: .+$", f"- {label}:", scene, flags=re.MULTILINE)
+        docs["current/scene.md"] = scene
+        return "\n".join(f"===FILE: {path}===\n{docs[path]}" for path in document_generator.GROUP_A_PATHS)
+
+    monkeypatch.setattr(document_generator, "build_opening_seed", lambda **kwargs: FakeOpeningSeed())
+    monkeypatch.setattr(document_generator, "engine_candidates", lambda engine: ["stub"])
+    monkeypatch.setattr(document_generator, "run_engine", blank_control_fields)
+
+    result = document_generator._generate_group(
+        group_name="group_a",
+        rel_paths=document_generator.GROUP_A_PATHS,
+        prompt="group a prompt",
+        answers=context["answers"],
+        story_spine_md=context["story_spine_md"],
+        engine="codex",
+        context=context,
+    )
+
+    event_card = result["documents"]["current/event_card.md"]
+    scene = result["documents"]["current/scene.md"]
+    assert result["meta"]["validation"] == "pass"
+    assert result["meta"]["validation_retry_count"] == 0
+    assert "- hook_id: main_initial_contact" in event_card
+    assert "- hook_type: main" in event_card
+    assert "- status: active" in event_card
+    assert "- foreground_reason: seed固定の入口に絞るため。" in event_card
+    assert "- function: 起点" in event_card
+    assert "- current_question: seedの問いを追う。" in event_card
+    assert "- 主人公がここにいる理由: 主人公はseed由来の来店者。" in scene
+    assert "- 主人公がscene開始時点で知っていること: seed由来の手がかりを知っている。" in scene
+
+
+def test_group_b_normalizes_omakase_fragments_in_protagonist_and_knowledge_state() -> None:
+    context = {
+        "answers": {3: "おまかせ", 5: "おまかせ", 7: "おまかせ", 8: "おまかせ", 9: "かせ"},
+        "character_yaml": {"name": "東雲 紗和", "occupation": "区立図書館の司書"},
+        "profile_md": "# Profile\nname: 東雲 紗和\noccupation: 区立図書館の司書\n",
+        "story_spine_md": "",
+        "relationship_spine_md": "",
+    }
+    protagonist = document_generator._normalize_protagonist_document(
+        "# Protagonist\n\n## スタイル\n\n- 服装: おまかせ\n",
+        context,
+    )
+    knowledge_state = document_generator._render_knowledge_state_document(
+        "",
+        protagonist,
+        context,
+    )
+
+    assert "- 服装: 未確定" in protagonist
+    assert 'key: protagonist_call_name\n    value: "未確定"' in knowledge_state
+    assert 'key: session_constraints\n    value: "特になし"' in knowledge_state
+    assert "おまかせ" not in protagonist
+    assert "かせ" not in knowledge_state
