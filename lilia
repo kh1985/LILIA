@@ -166,26 +166,45 @@ KNOWLEDGE_HIDDEN_NOTE = (
 
 def usage() -> None:
     print(
-        """LILIA minimal launcher
+        """LILIA launcher
 
 Usage:
   ./lilia new [session_name] [--interactive | --prompt-only | --run] [--engine codex|claude|auto]
-  ./lilia apply-newgame <session_name> <answers.md> [--engine codex|claude|auto]
-  ./lilia apply-turn [--dry-run] [--force] <session_name> <turn_update.md>
-  ./lilia scene-tick <session_name>
   ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
-  ./lilia validate-session <session_name>
   ./lilia codex-new [session_name]
   ./lilia codex-resume [session_name]
-  ./lilia archive-codex-logs
-  ./lilia format-input <player_input>
+
+Save / update:
+  ./lilia apply-newgame <session_name> <answers.md> [--engine codex|claude|auto]
+  ./lilia scene-tick <session_name>
+  ./lilia apply-turn [--dry-run] [--force] <session_name> <turn_update.md>
+
+Inspect:
+  ./lilia validate-session <session_name>
   ./lilia list-sessions
-  ./lilia prompt-only new [session_name]
-  ./lilia prompt-only resume [session_name]
+
+Development:
+  ./lilia menu
+  ./lilia help dev
+
+More:
+  ./lilia help all
+
+This launcher creates and inspects local session scaffolds.
+AI one-shot execution runs only when --run is explicit.
+For Codex interactive play, use codex-new or codex-resume.
+"""
+    )
+
+
+def usage_dev() -> None:
+    print(
+        """LILIA development commands
+
+Usage:
+  ./lilia menu                     対話式の日本語開発メニューを起動する
   ./lilia ai-playtest <session_name> --persona normal|passive|boundary|wanderer --turns 10 [--engine codex|claude|auto] [--judge | --no-judge] [--no-scene-tick] [--apply-turn-checkpoint] [--verbose | --quiet]
   ./lilia growth-smoke <session_name> [--persona normal] [--segments 3] [--turns-per-segment 10] [--engine codex|claude|auto] [--judge | --no-judge] [--judge-engine codex|claude|auto] [--verbose | --quiet]
-  ./lilia long-growth <session_name> ...   growth-smoke の alias
-  ./lilia menu                     対話式の日本語開発メニューを起動する (alias: dev-menu)
   ./lilia dev-test <session_name> [--persona normal] [--turns 10] [--engine auto] [--no-judge]
   ./lilia dev-smoke <session_name> [--turns 3] [--engine auto] [--no-judge]
   ./lilia dev-growth <session_name> [--segments 3] [--turns-per-segment 10] [--engine auto] [--judge | --no-judge]
@@ -193,14 +212,70 @@ Usage:
   ./lilia dev-clean-runs [--days 7|3|0] [--yes]
   ./lilia dev-status
 
-This launcher creates and inspects local session scaffolds only.
-AI one-shot execution runs only when --run is explicit.
-For Codex interactive play, use codex-new or codex-resume.
-AI Harness, autoplay, exports, and production CI are not included.
-Tip: redirect prompt-only output to a file if you want a quieter terminal.
-archive-codex-logs   ~/.codex/sessions/ 配下から、cwd が LILIA リポと一致する codex rollout JSONL を logs/codex_rollouts/ へコピーする。idempotent（既存ファイルはスキップ）。
+Notes:
+  AI playtest is a lightweight smoke path, not massive bench automation.
+  growth-smoke observes relationship growth across segments.
+  dev-* commands are wrappers around playtest/growth flows with defaults.
 """
     )
+
+
+def usage_all() -> None:
+    print(
+        """LILIA all commands
+
+Core:
+  ./lilia new [session_name] [--interactive | --prompt-only | --run] [--engine codex|claude|auto]
+  ./lilia resume [session_name] [--prompt-only | --run] [--engine codex|claude|auto]
+  ./lilia codex-new [session_name]
+  ./lilia codex-resume [session_name]
+  ./lilia apply-newgame <session_name> <answers.md> [--engine codex|claude|auto]
+  ./lilia scene-tick <session_name>
+  ./lilia apply-turn [--dry-run] [--force] <session_name> <turn_update.md>
+  ./lilia validate-session <session_name>
+  ./lilia list-sessions
+
+Development / smoke:
+  ./lilia menu
+  ./lilia ai-playtest <session_name> --persona normal|passive|boundary|wanderer --turns 10 [--engine codex|claude|auto] [--judge | --no-judge] [--no-scene-tick] [--apply-turn-checkpoint] [--verbose | --quiet]
+  ./lilia growth-smoke <session_name> [--persona normal] [--segments 3] [--turns-per-segment 10] [--engine codex|claude|auto] [--judge | --no-judge] [--judge-engine codex|claude|auto] [--verbose | --quiet]
+  ./lilia dev-test <session_name> [--persona normal] [--turns 10] [--engine auto] [--no-judge]
+  ./lilia dev-smoke <session_name> [--turns 3] [--engine auto] [--no-judge]
+  ./lilia dev-growth <session_name> [--segments 3] [--turns-per-segment 10] [--engine auto] [--judge | --no-judge]
+  ./lilia dev-last
+  ./lilia dev-clean-runs [--days 7|3|0] [--yes]
+  ./lilia dev-status
+
+Compatibility / utilities:
+  ./lilia prompt-only new [session_name]
+  ./lilia prompt-only resume [session_name]
+  ./lilia long-growth <session_name> ...   growth-smoke の alias
+  ./lilia dev-menu                         menu の alias
+  ./lilia archive-codex-logs
+  ./lilia format-input <player_input>
+
+Notes:
+  prompt-only is equivalent to new/resume --prompt-only.
+  archive-codex-logs copies matching ~/.codex/sessions rollouts into logs/codex_rollouts/ idempotently.
+"""
+    )
+
+
+def command_help(args: list[str]) -> None:
+    if not args:
+        usage()
+        return
+    if len(args) != 1:
+        die("help accepts at most one topic: dev or all")
+    topic = args[0]
+    if topic in {"dev", "development", "test", "smoke"}:
+        usage_dev()
+    elif topic in {"all", "full"}:
+        usage_all()
+    elif topic in {"main", "core", "usage"}:
+        usage()
+    else:
+        die("unknown help topic. Use './lilia help dev' or './lilia help all'")
 
 
 def die(message: str, code: int = 1) -> None:
@@ -7268,12 +7343,14 @@ def command_format_input(args: list[str]) -> None:
 
 
 def main(argv: list[str]) -> None:
-    if not argv or argv[0] in {"-h", "--help", "help"}:
+    if not argv or argv[0] in {"-h", "--help"}:
         usage()
         return
 
     command, args = argv[0], argv[1:]
-    if command == "new":
+    if command == "help":
+        command_help(args)
+    elif command == "new":
         command_new(args)
     elif command == "resume":
         command_resume(args)
