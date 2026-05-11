@@ -15,6 +15,17 @@
 
 これを GM が参照することで、scene 生成時に「この情報を使っていいか」を判断できる。
 
+特に Knowledge Boundary Gate では、次の観点で読む:
+
+- Shared Facts: 主人公とヒロインの双方が知っている共有事実。`fictional_status: shared` または `known_to` に両者が入る項目を優先して扱う。
+- Observable Now: この場で見れば分かる情報。`fictional_status: observable` とし、本文の地の文や視線、物、姿勢などで見せてよい。
+- Reveal Conditions: GMだけが持つ真相や未開示情報について、いつ・誰から・どの装置で開示してよいか。既存の `notes` に短く残し、詳細な段階定義は `story_spine.md` の Reveal Ladder に置く。
+- Do Not Reveal Yet: まだ本文、台詞、主人公の知識として出してはいけない情報。`fictional_status: gm_only` または `meta-system` とし、`known_to: [GM]` を基本にする。
+- Newly Learned This Turn: このターンで新しく判明した情報。Save Mode では `turn_update.md` の `## knowledge_state` に昇格・新規・known_to追加として書き、apply-turn後にこのファイルへ反映する。
+
+各項目は、`source`（どこから来たか）、`notes`（証拠・開示条件・注意）、`weight`（関係や記憶への重さ）で、根拠と確度を補う。
+推論や誤解は `source: inferred` として扱い、確定事実のように本文へ固定しない。
+
 ## ステータス（fictional_status）の4種類
 
 各項目はこの4つのどれかを持つ。

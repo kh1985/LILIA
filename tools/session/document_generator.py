@@ -400,6 +400,33 @@ def _generate_group(
                 attempt=attempt_index + 1,
                 error=previous_error,
             )
+            if group_name == "group_a" and attempt_index >= 1 and _should_use_group_a_fallback(previous_error):
+                fallback_result = _try_group_a_deterministic_fallback(
+                    context=context,
+                    answers=answers,
+                    story_spine_md=story_spine_md,
+                    rel_paths=rel_paths,
+                    logger=logger,
+                    group_name=group_name,
+                    engine_used=engine_used,
+                    reason=previous_error,
+                )
+                if fallback_result is not None:
+                    return fallback_result
+
+    if group_name == "group_a":
+        fallback_result = _try_group_a_deterministic_fallback(
+            context=context,
+            answers=answers,
+            story_spine_md=story_spine_md,
+            rel_paths=rel_paths,
+            logger=logger,
+            group_name=group_name,
+            engine_used=engine_used,
+            reason=previous_error or "unknown validation error",
+        )
+        if fallback_result is not None:
+            return fallback_result
 
     raise DocumentGenerationError(
         f"{group_name}: generation failed after 3 attempts: {previous_error or 'unknown validation error'}",
@@ -408,6 +435,711 @@ def _generate_group(
         timeout_seconds=_timeout_label(),
         session_name=str(context.get("session_name") or ""),
     )
+
+
+def _should_use_group_a_fallback(error: str) -> bool:
+    return any(
+        marker in error
+        for marker in [
+            "still identical to session template",
+            "Active Hook",
+            "Scene Function",
+            "pending Reveal Ladder leaked",
+        ]
+    )
+
+
+def _try_group_a_deterministic_fallback(
+    *,
+    context: dict[str, Any],
+    answers: dict,
+    story_spine_md: str,
+    rel_paths: list[str],
+    logger: Any,
+    group_name: str,
+    engine_used: str,
+    reason: str,
+) -> dict[str, Any] | None:
+    fallback_documents = _fallback_group_a_documents(context)
+    valid, errors = validate_session_documents(
+        fallback_documents,
+        answers,
+        story_spine_md=story_spine_md,
+        expected_paths=rel_paths,
+    )
+    if not valid:
+        _write_log(
+            logger,
+            "[downstream_docs] group deterministic fallback failed",
+            group=group_name,
+            error="; ".join(errors[:8]),
+        )
+        return None
+    _write_log(
+        logger,
+        "[downstream_docs] group deterministic fallback pass",
+        group=group_name,
+        reason=reason,
+    )
+    return {
+        "documents": fallback_documents,
+        "meta": {
+            "engine_used": engine_used or "deterministic_fallback",
+            "validation_retry_count": MAX_ATTEMPTS,
+            "validation": "deterministic_fallback",
+        },
+    }
+
+
+def _fallback_group_a_documents(context: dict[str, Any]) -> dict[str, str]:
+    seed = _group_a_seed(context)
+    return {
+        "current/scene.md": _fallback_scene_md(seed),
+        "current/event_card.md": _fallback_event_card_md(seed),
+        "current/hotset.md": _fallback_hotset_md(seed),
+        "current/relationship_overview.md": _fallback_relationship_overview_md(seed),
+        "story/story_deck.md": _fallback_story_deck_md(seed),
+    }
+
+
+def _group_a_seed(context: dict[str, Any]) -> dict[str, str]:
+    character = context.get("character_yaml") if isinstance(context.get("character_yaml"), dict) else {}
+    profile = str(context.get("profile_md") or "")
+    story = str(context.get("story_spine_md") or "")
+    relationship = str(context.get("relationship_spine_md") or "")
+    profile_sections = _markdown_sections(profile)
+    story_sections = _markdown_sections(story)
+    relationship_sections = _markdown_sections(relationship)
+
+    name = _clean_seed_value(
+        str(character.get("name") or context.get("lilia_name") or _profile_field(profile, "name") or "ヒロイン")
+    )
+    occupation = _clean_seed_value(
+        str(character.get("occupation") or _profile_field(profile, "occupation") or "生活上の用事を持つ女性")
+    )
+    current_situation = _compact_seed_text(
+        _profile_field(profile, "current_situation")
+        or _profile_bullet_value(profile_sections.get("initial scene anchors", ""), "場所と状況")
+        or profile_sections.get("context", "")
+        or "日常の中に、予定外の小さな用件が入り込んでいる。",
+        "日常の中に、予定外の小さな用件が入り込んでいる。",
+    )
+    main_question = _compact_seed_text(
+        story_sections.get("main question", ""),
+        f"{name}は、主人公を同じ場に置ける相手として見られるか。",
+    )
+    relationship_theme = _compact_seed_text(
+        relationship_sections.get("育てたいテーマ", ""),
+        "近づきすぎず、離れすぎず、相手の境界を見ながら同じ問題へ向く。",
+    )
+    visible_handle = _compact_seed_text(
+        _profile_bullet_value(profile_sections.get("initial scene anchors", ""), "手元の具体物")
+        or _first_drift_guard(story_sections.get("drift guard", ""))
+        or "目の前にある小さな用件",
+        "目の前にある小さな用件",
+    )
+    place = _compact_seed_text(
+        _profile_bullet_value(profile_sections.get("initial scene anchors", ""), "場所と状況")
+        or current_situation,
+        "人目のある日常の場所",
+    )
+    first_distance = _compact_seed_text(
+        _profile_bullet_value(profile_sections.get("initial scene anchors", ""), "最初の距離")
+        or "初対面。互いに相手の出方をまだ測っている。",
+        "初対面。互いに相手の出方をまだ測っている。",
+    )
+    opening_entry = _compact_seed_text(
+        _profile_bullet_value(profile_sections.get("initial scene anchors", ""), "会話の入口")
+        or f"{name}が、主人公の持ち込んだ用件を確かめる。",
+        f"{name}が、主人公の持ち込んだ用件を確かめる。",
+    )
+
+    protagonist_role = _protagonist_role_from_answers(context.get("answers", {}))
+    return {
+        "name": name,
+        "occupation": occupation,
+        "current_situation": current_situation,
+        "main_question": main_question,
+        "relationship_theme": relationship_theme,
+        "visible_handle": visible_handle,
+        "place": place,
+        "first_distance": first_distance,
+        "opening_entry": opening_entry,
+        "protagonist_role": protagonist_role,
+        "main_hook_id": "main_initial_contact",
+        "relationship_hook_id": "relationship_first_boundary",
+        "life_hook_id": "life_daily_return",
+        "candidate_id": "next_small_confirmation",
+    }
+
+
+def _fallback_scene_md(seed: dict[str, str]) -> str:
+    return f"""# Scene
+
+## 今いる場所
+
+- {seed['place']}
+
+## 現在時刻または場面時間
+
+- 初回sceneの開始直後。日常の流れが少しだけ乱れた時間。
+
+## LILIAとユーザーの距離
+
+- {seed['first_distance']}
+
+## 今この場で見えているもの
+
+- {seed['visible_handle']}。{seed['name']}の表情、手元、視線の止まり方。
+
+## 今の場面
+
+- {seed['current_situation']}
+
+## 直前のやりとり
+
+- 作中会話はまだ始まっていない。主人公は{seed['protagonist_role']}として、この場の用件に関わる。
+
+## 初回sceneの入口
+
+- {seed['opening_entry']}
+
+## Player Orientation
+
+- 主人公がここにいる理由: 主人公は{seed['protagonist_role']}として、この場の用件に関わる。
+- 主人公がscene開始時点で知っていること: {seed['visible_handle']}を扱う必要があり、{seed['name']}とはまだ信用も警戒も固まっていない。
+- 冒頭本文で必ず見せる前提: 場所、用件、主人公が関わる理由、{seed['name']}との初期距離。
+- まだ隠すこと: 用件の本当の出所、背後の意図、{seed['name']}がまだ言語化しない警戒。
+- 注: 真相は隠してよいが、主人公が今動くための判断材料は隠さない。
+
+## 次に起きそうなこと
+
+- {seed['name']}は、用件そのものより先に、主人公がどう扱うかを短く見る。
+
+## 次にユーザーへ渡す行動余地
+
+- 用件を差し出す、経緯を話す、相手の様子を見る、先に確認を求める。
+
+## Opening Plan
+
+selected_patterns: [O1, O13]
+selection_reason: 初回は待ち合わせの形で足場を作り、用件への触れ方で関係の入口を開く。
+must_include:
+  - O1: {seed['name']}が先に場にいて、主人公の到着を受ける。
+  - O13: 主人公が関わる理由を、持ち込んだ用件で見せる。
+4_jobs:
+  hook: {seed['visible_handle']}が最初の掴みになる。
+  orientation: 主人公は{seed['protagonist_role']}として、この場の用件に関わる。
+  agency: プレイヤーは用件を出すか、経緯を話すか、観察するかを選べる。
+  unresolved: {seed['main_question']}
+clarity_anchors:
+  protagonist_role: 主人公は{seed['protagonist_role']}として扱われる。
+  protagonist_purpose: 目の前の用件を、相手にどう渡すかを決めるために来ている。
+  location_function: この場所は、人目がありつつ短い確認ができる日常の場である。
+  heroine_relation: {seed['name']}とは初対面で、信用も警戒もまだ固まっていない。
+opening_caveats:
+  - 真相説明ではなく、見えている用件と相手の反応から始める。
+"""
+
+
+def _fallback_event_card_md(seed: dict[str, str]) -> str:
+    return f"""# Event Card
+
+今動いているストーリーイベントを、LILIAの内面と関係の変化に結びつけて記録します。
+初回sceneでは、重い事件ではなく関係を少し動かす小さな出来事として扱います。
+抽象的な違和感ではなく、今ユーザーが触れられる可視イベントを1つだけ置きます。
+詳細な物語素材や未回収札は `story/story_deck.md` に分けます。
+
+## Active Hook
+
+- hook_id: {seed['main_hook_id']}
+- hook_type: main
+- status: active
+- foreground_reason: 初回sceneでプレイヤーが今触れられる入口を、{seed['visible_handle']}に絞るため。
+- 注: Active Hookは今触れる1本だけ。3hookを3択UIとして並べない。
+
+## Scene Function
+
+- function: 起点
+- current_question: {seed['main_question']}
+- entry_state: {seed['first_distance']}
+- exit_condition: 用件の扱い方か、次に確かめる対象が一つ決まる。
+- change_delta: {seed['name']}が主人公を、待てる相手か急かす相手かで仮判断する。
+- next_hook_candidate: {seed['candidate_id']}
+- 注: Story Function名は内部タグ。Play Mode本文へそのまま出さない。
+
+## 表の出来事
+
+- 主人公が{seed['protagonist_role']}として、{seed['name']}の前に小さな用件を持ち込む。
+
+## Visible Problem
+
+- 誰が困っているか: {seed['name']}。困っているとは言い切らず、用件の扱われ方を見ている。
+- 何が止まりそうか: 用件だけを処理すると、二人の間に残る違和感と距離が動かない。
+- 何に触れると入口になるか: {seed['visible_handle']}、持ち込まれた経緯、相手の反応。
+
+## Player-Facing Entrance
+
+- プレイヤーが最初に見える入口: {seed['visible_handle']}をどう扱うか。
+- 主人公が関われる理由: 主人公は{seed['protagonist_role']}として、この用件を持ち込んでいる。
+- 最初の一手で触れる対象: {seed['visible_handle']}
+- 入口として見せる違和感 / 困りごと: 普通の用件だけでは終わらなさそうだが、真相はまだ見えない。
+
+## Knowledge Boundary / Reveal Control
+
+- allowed hidden truth:
+  - まだGMだけが保持してよい真相: 用件の本当の出所、背後の意図、深い背景。
+  - ヒロイン本人も知らない / 言語化できないこと: {seed['name']}がなぜ強く警戒しているかの深い理由。
+- judgment material that must not be hidden:
+  - 主人公が今判断するために本文で見せること: 主人公がここにいる理由、目の前の用件、相手の警戒。
+  - ヒロインの台詞や態度から観察できること: 軽い言葉の奥に、相手の扱い方を見ている気配がある。
+  - 物理的に見える手がかり: {seed['visible_handle']}と、{seed['name']}の手元や視線。
+- reveal conditions:
+  - 開示してよい条件: 主人公が経緯を話す、用件を見せる、本人確認や次の確認を求める。
+  - 開示してよい主体: 地の文、{seed['name']}の短い確認、または共有された物証。
+  - 開示されたら更新する knowledge_state key: shared_scene_entry、protagonist_current_purpose、heroine_suspicion
+- do-not-reveal-yet:
+  - まだ本文に書かないこと: 背後の意図の断定。
+  - まだヒロインに言わせないこと: GMだけが知る真相や、本人がまだ言語化していない理由。
+  - まだ主人公が知った扱いにしないこと: 用件の本当の出所と最終的な意味。
+- 注: 真相を伏せても、判断材料と行動入口は伏せない。
+
+## First Concrete Action
+
+- 誰に / 何に: {seed['visible_handle']}
+- どう触るか: 見せる、差し出す、経緯を話す、まだ渡さず確認する。
+- 初回sceneで重すぎない一手: {seed['name']}が手元を見て、軽い言葉で扱い方を探る。
+
+## Handles 2-4
+
+- handle 1: 用件を見える場所に出す。
+- handle 2: ここに来た経緯を短く話す。
+- handle 3 optional: 相手の名前や目的を先に確認する。
+- handle 4 optional: 周囲や相手の反応を観察する。
+- 注: handlesは選択肢ではなく行動余地。
+
+## Relationship Stake
+
+- 早く答えを奪うか、相手がまだ言わない部分を境界として残せるか。
+
+## Crisis / Ability Check
+
+- crisis pressure: 日常の場所に、予定外の用件が入り込んでいる。
+- possible responses:
+  - 逃げる: 用件だけ残して距離を取る。
+  - 守る: 相手の境界線を急かさず、扱い方を慎重にする。
+  - 交渉する: どこまで情報を交換するか短く決める。
+  - 隠す: 周囲に見せない形で用件を扱う。
+  - 耐える: 分からない部分を残したまま会話を続ける。
+  - 助けを呼ぶ: 初回では原則使わず、危険が見えた時だけ検討する。
+  - 能力を使う: 初期sceneでは扱わない。
+  - あえて戦わない: 受け渡しと観察だけで終える。
+- ability constraint:
+  - can: 初回では通常の観察と会話だけを使う。
+  - cannot: 能力や特殊解決で関係や真相を即時処理しない。
+  - condition: 能力導入が正式に起きた時だけ再評価する。
+  - cost: 初回では設定しない。
+  - trace: 初回では残さない。
+  - risk: 会話の焦点が管理説明へ寄ること。
+- relationship risk: 境界線を詰めると、{seed['name']}の返事が短くなる。
+- post-crisis residue: 主人公が用件をどう扱ったかが、次の距離感に残る。
+
+## If Ignored
+
+- {seed['name']}は用件だけを受け取り、次の接触では冗談を少し硬くする。
+
+## Next Visible Change
+
+- {seed['name']}が情報を一つだけ増やすか、逆に距離を保つ理由を作る。
+- 声 / 沈黙 / 呼び方 / 距離に出る変化: 声が低くなる。
+
+## 進行状態
+
+- status: 継続
+- 触れられたhandle: 初回開始前
+- relationship stakeの変化: これから判定する
+- if ignoredの発火: まだ発火していない
+- 次に更新するvisible change: 用件の扱い方への反応
+- story_deckへ落とす未回収札: 用件の出所と次の確認先
+
+## Story Residue
+
+- memoryに残るもの: 主人公が用件をどう扱ったか。
+- relationshipに残るもの: 境界線を待てる相手かどうか。
+- beliefsに残るもの: 主人公が巻き込まれた側か、仕掛け側かの仮説。
+- voiceに残るもの: 近づくが触れない距離、短い確認の言い方。
+- story_deckへ戻す未回収札: 次の確認。
+- NPC / Contact note optional: 必要が出るまで背景に置く。
+
+## Truth Hiding Boundary
+
+- 隠してよい真相: 用件の本当の出所、背後の意図、{seed['name']}がまだ言語化しない警戒。
+- 見せる入口: {seed['visible_handle']}が普通の用件だけでは終わらなさそうな違和感。
+
+## Intimacy / Boundary Check
+
+- 親密sceneの場合だけ確認: 初回は親密sceneとして扱わない。
+- intimacy stage: 初対面
+- consent stage: 確認前
+- boundary state: 待つ
+- 成人/合意/相互性/境界線/止まれる余地: 成人同士。都度確認する。
+- aftercareまたは翌朝の第一声: 初回では対象外。
+- 雑な乱入になっていないか: 外圧は関係の選択を揺らす範囲に留める。
+
+## 揺れるLILIA
+
+- {seed['name']}は明るさを保ちながら、用件の扱われ方と主人公の間を見ている。
+
+## その出来事がLILIAに刺さる理由
+
+- {seed['relationship_theme']}
+
+## ユーザーへの問い
+
+- 選択肢ではなく、行動余地として書く: 用件をどう扱い、どこまで経緯を話すか。
+- 必要なら自然な候補: 差し出す / 経緯を話す / 先に確認する / 周囲を見る。
+- 自由入力の余白: 便利屋らしい態度、警戒、軽口、沈黙を自由に出せる。
+
+## 関係に残る変化
+
+- {seed['name']}が主人公を、用件を任せられる相手かどうかで見始める。
+- 親密scene後に保存するもの: 初回では発生させない。
+"""
+
+
+def _fallback_hotset_md(seed: dict[str, str]) -> str:
+    return f"""# Hotset
+
+再開時に最初に読む、短い現在状態のまとめです。
+チェックリストや正解手順ではなく、次の1ターンに効く温度だけを短く上書きします。
+
+## 会話の温度
+
+- {seed['place']}で、{seed['name']}が主人公の持ち込んだ用件を見ている。
+
+## 呼び方 / 距離のアンカー
+
+- 初回は「あなた」など、まだ距離を残した呼び方を使う。
+- 注: ここはechoであり、正本は `lilia/main/voice.md` と `lilia/main/relationship.md`。
+
+## 次に会った時の第一反応
+
+- {seed['name']}はまず手元と用件を見て、短い言葉で扱い方を確かめる。
+
+## 未消化の感情
+
+- 任せたい気配と、任せることで弱点になる警戒が同居している。
+
+## 言い残し / まだ言っていないこと
+
+- 用件の本当の出所、背後の意図、自分がどこまで察しているか。
+
+## 親密scene後の余韻
+
+- 次回1ターンに効くaftercare: 初回では扱わない。
+- 第一反応: 近づきすぎず、用件の扱いを先に見る。
+- 呼び方 / 距離の変化: まだ変化前。
+- まだ触れないこと: 真相と深い身元。
+
+## 最新scene後のecho
+
+memory.md の echo から、次の1ターンに効くものだけを短く抜く。
+hotset は正本ではない。memory.md の echo を更新したら hotset の echo も再生成する。
+
+- 次の1ターンに響くこと: 主人公が用件をどう扱うか。
+- 第一反応の方向: 明るさを残しつつ、返事は短く確かめる。
+- まだ触れない方がいいこと: 真相の断定。
+
+## 現在のイベント要約
+
+- 主人公が{seed['protagonist_role']}として、{seed['visible_handle']}を{seed['name']}の前に持ち込む。
+
+## 次の小さな出来事
+
+- 用件を出す、経緯を話す、先に本人確認する、周囲を見る。
+
+## 未確定の余白
+
+- 誰がこの用件を二人の間に置いたのかは、まだ保留にする。
+
+## 次にユーザーへ向き合う時の空気
+
+- 明るさと観察、近さと境界線が同時にある。
+"""
+
+
+def _fallback_relationship_overview_md(seed: dict[str, str]) -> str:
+    return f"""# Relationship Overview
+
+現在の関係全体を短く把握するための補助要約です。
+詳細ログではなく、再開時に関係の現在形を掴むために使います。
+正本ではなく、`relationship`、`memory`、`beliefs` の軽量入口として扱います。
+
+## 現在の関係全体の要約
+
+- 初対面。主人公は{seed['protagonist_role']}として、{seed['name']}の前に用件を持ち込む。
+
+## 距離感
+
+- 会話は始まるが、信用も警戒もまだ決まっていない。
+
+## 呼び方 / 声のアンカー
+
+- 初回は「あなた」など距離を残した呼び方。声は軽くても、核心は簡単に渡さない。
+
+## 親密さの初期扱い
+
+- 未確認 / 関心段階 / 明示的親密なし
+
+## intimacy / consent / boundary
+
+- intimacy stage: 初対面
+- consent stage: 確認前
+- boundary state: 待つ
+- 現在形の一言: 近い反応は観察であり、私的な許可ではない。
+
+## 信頼
+
+- まだ成立していない。用件の扱い方で仮判断する。
+
+## 警戒
+
+- 高め。相手が何を知っていて、どこまで踏み込むかを見る。
+
+## 興味
+
+- 主人公が急かす相手か、待てる相手かに興味がある。
+
+## 甘え
+
+- まだ発生していない。頼るとしても短い依頼の形に留める。
+
+## 衝突
+
+- {seed['name']}は近づくが、自分の情報は簡単に渡さない。
+
+## 誤解や思い込み
+
+- 主人公が巻き込まれた側か、仕掛け側かは保留している。
+
+## 保留
+
+- 用件の本当の出所、背後の意図、深い身元。
+
+## 境界線
+
+- 接触なし。秘密や危険な依頼は都度確認する。
+
+## resume時に無かったことにしないもの
+
+- 用件はただの日常処理ではなく、関係の入口として扱う。
+
+## 次に変化しそうな点
+
+- 主人公が用件をどう扱うかで、信頼か警戒のどちらかへ少し動く。
+
+## 最新チェックポイント
+
+直近の重要scene後に、今のLILIAの空気を散文で1-3行保存する。
+データ層（intimacy stage、距離感）では拾えない質感を残すための層。
+Save Mode でのみ更新する。Play Mode では更新しない。
+
+- イベント名: 初回scene前
+- LILIAの空気: 明るさと警戒が同じ場所にある。
+- 核（このsceneで何がLILIAに残ったか）: 主人公の扱い方をこれから見る。
+
+注: データではなく散文で書く。「intimacy stage 4」ではなく「声を隠さないと決めた」と書く。
+全部の重要sceneで更新する必要はない。質感が変わった時だけ更新する。
+古いチェックポイントは上書きしてよい。長期保存は archive/beats/ に任せる。
+"""
+
+
+def _fallback_story_deck_md(seed: dict[str, str]) -> str:
+    return f"""# Story Deck
+
+関係を揺らし、LILIAの内面や距離感を変化させるstory素材と未回収札の整理です。
+例文集ではなく、次イベント判断に必要なものだけを置きます。
+story_deckは素材棚です。Active Hookそのものは `current/event_card.md` 上部に置きます。
+Main / Relationship / Life-Explorationの3hookを、Play Mode本文の3択UIとして出しません。
+
+## Three Hook Spine
+
+### Main Hook
+- hook_id: {seed['main_hook_id']}
+- status: active
+- current_function: 起点
+- current_question: {seed['main_question']}
+- visible_handle: {seed['visible_handle']}
+- pressure: 日常の用件に、相手の反応を測る圧が混ざる。
+- exit_condition: 用件の扱い方か次に確かめる対象が一つ決まる。
+- next_candidate: {seed['candidate_id']}
+
+### Relationship Hook
+- hook_id: {seed['relationship_hook_id']}
+- status: background
+- current_function: 目標
+- current_question: {seed['name']}は、主人公を境界を待てる相手として見られるか。
+- relationship_stake: 秘密を奪うのではなく、言わない部分を残したまま同じ問題へ向けるか。
+- boundary_or_trust_issue: 近さ、待つこと、情報を交換条件にしないこと。
+- exit_condition: {seed['name']}の声や距離に、小さな信頼か警戒が出る。
+- next_candidate: 境界線を尊重した後の短い依頼。
+
+### Life-Exploration Hook
+- hook_id: {seed['life_hook_id']}
+- status: background
+- current_function: 始動
+- current_question: {seed['name']}の日常の場所は、どこまで主人公を受け入れるか。
+- available_scope: {seed['place']}
+- travel_or_life_option: 再訪、帰り道、短い移動、日常の用事。
+- heroine_attendance: {seed['name']}本人が選んだ時だけ同行する。
+- exit_condition: 表の生活側に戻れる入口が一つ見える。
+- next_candidate: 日常の場所での再確認。
+
+注:
+- status候補: background, active, pending, advanced, resolved, worsened, blocked, archived
+- story_deck上のhookは原則 background, pending, advanced, resolved, worsened, blocked, archived として扱う。
+- `active` は現在のActive Hookとの対応を示す参照に限る。今触れる可視イベント本体は `current/event_card.md` に置く。
+- current_function は内部診断タグであり、Play Mode本文へそのまま出さない。
+
+## 現在使えるstory素材
+
+- {seed['visible_handle']}。中身や真相ではなく、扱い方が関係を動かす。
+- {seed['place']}。日常の場に、小さな違和感が混ざる。
+- {seed['name']}の明るさと警戒の差。
+
+## 初回sceneで使う小さな出来事
+
+- 素材名 / 未回収札: {seed['visible_handle']}
+- 現在sceneで触る内容は `current/event_card.md` に置く
+
+## 関係を揺らす圧
+
+- 用件だけを処理すると、相手を待てるかどうかの判断が残る。
+
+## 未回収札
+
+- 用件の本当の出所。
+- {seed['name']}がまだ言わない警戒。
+- 次にどこで確認するか。
+
+## 背景化したevent_card
+
+- 現在sceneから外れた出来事: 初回前なので背景化した出来事はない。
+- 後で戻す条件: 用件の出所や境界線が残った時。
+- 関係に残った圧: 主人公が待てる相手かどうか。
+
+## Background Hooks
+
+- hook_id: {seed['relationship_hook_id']}
+- hook_type: relationship
+- status: background
+- reason_backgrounded: Active Hookは目の前の用件に絞るため。
+- return_condition: {seed['name']}が言わないことを待たれる、または急かされる。
+- last_known_state: 初回前。
+
+注:
+- Background Hooks は、今は前景化していないhookの素材棚です。
+- Active Hook以外の2本を消さず、関係・生活・事件の戻り口として短く保持します。
+- ここにあるhookはPlay Mode本文でそのまま提示せず、current/event_card.md のActive Hookに昇格した時だけ今触れる入口になります。
+
+## Candidate Next Hooks
+
+- candidate_id: {seed['candidate_id']}
+- source_hook_id: {seed['main_hook_id']}
+- hook_type: main
+- function_candidate: 次の確認
+- visible_entry: 用件の経緯、次に確かめる対象、場を変えるかどうか。
+- promotion_condition: 初回sceneで用件の扱い方が決まる。
+- grounding_guard: 大きな真相説明に寄せず、{seed['name']}の反応と境界線で動かす。
+
+注:
+- Candidate Next Hook は次scene候補であり、まだactive eventではありません。
+- resume入口に使う場合は、current/scene.md、current/event_card.md、current/hotset.md へpromotionします。
+- story/story_deck.mdに候補として残しただけでは、resume 1ターン目の入口として扱いません。
+- current/event_card.md の上部は、今ユーザーが触れるActive Hookだけを持ちます。
+
+## World Pressure / 1-3 Scene Return
+
+- 戻る可能性のある圧: 用件の出所。
+- 何scene後に小さく戻るか: 1-3 scene後。
+- 戻る形: 連絡、再訪、別の小さな依頼、日常側の違和感。
+- LILIAとの関係に何を問い直すか: 情報を渡す範囲と、相手を巻き込む覚悟。
+- 親密sceneを雑に壊さないための注意: 外圧は関係の選択を揺らすために使う。
+
+## Crisis / Ability Echo
+
+- unresolved trace: 用件の出所が残る。
+- delayed cost: 次の確認で、相手をどこまで巻き込むかが問われる。
+- returning pressure: 日常の場に別経路の連絡が戻る可能性。
+- relationship risk still active: 境界線を急かすと警戒が増える。
+- LILIAがまだ言えていないこと: 自分がどこまで察しているか。
+- 1-3 scene後に戻る形: 短い連絡、再訪、目に見える違和感。
+
+## NPC / Contact Notes
+
+- name or label: 背景の連絡元
+- tier: 1
+- current role: 用件を二人の間に置いた可能性のある存在
+- promotion trigger: 連絡や物証が次に出た時
+- storage destination: story_deck
+- known: 用件が現在sceneにある
+- suspected: 背後に意図がある
+- unknown: 誰が何のために置いたか
+- LILIAの記憶/関係/beliefsへの影響: 主人公を巻き込むかどうかの判断に響く
+
+## まだ使わない未回収札
+
+- 深い真相や過去は、初回では説明しない。
+
+## 次に使うなら
+
+- 用件の経緯確認、場所を変える提案、{seed['name']}からの短い依頼。
+"""
+
+
+def _protagonist_role_from_answers(answers: object) -> str:
+    if not isinstance(answers, dict):
+        return "その場の用件に関わる人物"
+    q8 = _answer_text(answers, 8)
+    if not q8 or q8 in {"おまかせ", "お任せ"}:
+        return "その場の用件に関わる人物"
+    job_match = re.search(r"(?:仕事|職業|立場)\s*[:：]\s*([^。\n]+)", q8)
+    if job_match:
+        return _clean_seed_value(job_match.group(1))
+    return _compact_seed_text(q8, "その場の用件に関わる人物", limit=24)
+
+
+def _profile_bullet_value(section: str, label: str) -> str:
+    match = re.search(rf"^\s*[-*]\s*{re.escape(label)}\s*[:：]\s*(.+)$", section, flags=re.MULTILINE)
+    return match.group(1).strip() if match else ""
+
+
+def _first_drift_guard(section: str) -> str:
+    for raw_line in section.splitlines():
+        line = re.sub(r"^\s*[-*]\s*", "", raw_line).strip()
+        if not line:
+            continue
+        return line.split(" - ", 1)[0].strip()
+    return ""
+
+
+def _compact_seed_text(text: str, default: str, *, limit: int = 96) -> str:
+    value = _clean_seed_value(text)
+    if not value:
+        value = default
+    value = re.sub(r"^\s*(?:[-*]|\d+[.)])\s*", "", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    value = re.sub(r"\[pending\]\s*", "", value)
+    if len(value) > limit:
+        value = value[:limit].rstrip("、。,. ") + "。"
+    return value or default
+
+
+def _clean_seed_value(text: str) -> str:
+    value = str(text or "").replace("\n", " / ").strip()
+    value = re.sub(r"おまかせ|お任せ|TODO|PLACEHOLDER|placeholder", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"\s+", " ", value).strip(" /")
+    return value
 
 
 def _write_log(logger: Any, event: str, **fields: object) -> None:
@@ -778,13 +1510,19 @@ def _build_group_a_prompt(context: dict[str, Any]) -> str:
 7. current/event_card.md は原則1, 3, 4, 5を意識し、Visible Problem / Relationship Stake / Next Visible Change に感情の圧と未完了を残す。
    `## Active Hook` と `## Scene Function` は内部補助であり、既存の Visible Problem / First Concrete Action / Handles / Relationship Stake / If Ignored / Next Visible Change を置き換えない。
    Story Function名やhook statusをPlay Mode本文のように説明せず、event_card内の診断メモとして短く置く。
-8. current/scene.md は原則2, 3, 5を意識し、感情名ではなく身体反応、環境、予想との差、未解決の要素で初回sceneを始める。
-9. current/hotset.md は原則5を意識し、再開時に戻す未完了の余白を短く残す。
-10. current/scene.md の末尾に必ず `## Opening Plan` セクションを出す。
+8. current/event_card.md の `## Player-Facing Entrance` と `## Knowledge Boundary / Reveal Control` は必ず埋める。
+   真相は隠してよいが、プレイヤーが今判断するための材料は隠さない。
+   allowed hidden truth / do-not-reveal-yet にはGMだけの真相を置き、judgment material には本文で見せる足場を置く。
+   reveal conditions には「何が起きたら、誰が、どの knowledge_state key を更新するか」を短く書く。
+9. current/scene.md は原則2, 3, 5を意識し、感情名ではなく身体反応、環境、予想との差、未解決の要素で初回sceneを始める。
+   `## Player Orientation` は必ず埋める。主人公がここにいる理由、開始時点で知っていること、冒頭本文で必ず見せる前提、まだ隠すことを分ける。
+   プレイヤーが知らない前提で判断を迫らない。
+10. current/hotset.md は原則5を意識し、再開時に戻す未完了の余白を短く残す。
+11. current/scene.md の末尾に必ず `## Opening Plan` セクションを出す。
     Q&A の Q3（描写の縛り）、Q5（内面に持っているもの）、Q6（出会い + 関係性の起点）、Q9（避けたい展開）、
     character YAML、profile.md、story_spine の Background Truth / Drift Guard を解釈し、
     下の Opening Pattern Stock から A群 1 + D群 1（必須） + B群またはC群から最大1（任意）を選ぶ。
-11. Opening Pattern の選択ルール:
+12. Opening Pattern の選択ルール:
     - 必ず A群（O1-O4）から1つ、D群（O13-O15）から1つ。
     - B群（O5-O8）またはC群（O9-O12）から任意で1つ追加可。
     - 3つ以上の混在は禁止。
@@ -792,7 +1530,7 @@ def _build_group_a_prompt(context: dict[str, Any]) -> str:
     - Q9に「停滞を避けたい」がある場合、O9 / O10 / O14 を優先候補にする。
     - Q5に過去の傷・秘密が強い場合、O5 / O11 を候補にする。
     - Q6が偶然の出会いの場合、O13 / O14 を候補にする。
-12. `## Opening Plan` は以下の固定フォーマットで出す。空欄、未設定、TODO、placeholder を残さない。
+13. `## Opening Plan` は以下の固定フォーマットで出す。空欄、未設定、TODO、placeholder を残さない。
 
 ```text
 ## Opening Plan
@@ -816,24 +1554,24 @@ opening_caveats:
   - パターン固有の典型的失敗をどう回避するかの1行
 ```
 
-13. `clarity_anchors` は冒頭本文を書く LLM が自然な描写へ織り込むための足場である。
+14. `clarity_anchors` は冒頭本文を書く LLM が自然な描写へ織り込むための足場である。
     説明調にせず、役割・目的・場所機能・関係性を1行の描写に含められる具体度で書く。
     悪い例: 「鴉ノ宿のガラス戸を細く叩いていた」
     良い例: 「オカルトショップ『鴉ノ宿』のガラス戸を、雨が細く叩いていた」
-14. `must_include` は選んだパターンの「形」から必須要素を1-2個抜く。
+15. `must_include` は選んだパターンの「形」から必須要素を1-2個抜く。
     O3: 視覚情報は最後、音/匂い/温度を先に置く。2感覚までで止める。
     O14: 発見の瞬間から始める。助けた後から始めない。助ける/通過/様子を見る余地を残す。
     O15: 日常のルーチンが先、違和感は1-2点で止める。
-15. `## 次に起きそうなこと` は Opening Plan の `agency` と矛盾させない。プレイヤーの選択を奪わない。
-16. `## 直前のやりとり` は Opening Plan の `4_jobs.hook` と整合させる。
-17. story/story_deck.md の `## Three Hook Spine` は素材棚である。
+16. `## 次に起きそうなこと` は Opening Plan の `agency` と矛盾させない。プレイヤーの選択を奪わない。
+17. `## 直前のやりとり` は Opening Plan の `4_jobs.hook` と整合させる。
+18. story/story_deck.md の `## Three Hook Spine` は素材棚である。
     Main / Relationship / Life-Explorationを3択UIとして並べず、現在のActive Hook本体は current/event_card.md へ置く。
     Background Hooks / Candidate Next Hooks はmaterial shelfであり、今すぐPlay Modeで前景化しない候補として短く保持する。
     Active Hook以外の2本hookを消さず、activeでないhookはBackground Hooksへ残す。
     next_hook候補はCandidate Next Hooksへ残す。ただしCandidate Hookをresume入口に使う場合はcandidate promotionが必要で、
     current/scene.md / current/event_card.md / current/hotset.md のactive stateが同じ入口を指すようにそろえる。
     Background / Candidate Hookのhook_id、status、candidate_idなどの管理語はPlay Mode本文に出さない。
-18. story/story_deck.md の `## Three Hook Spine` では、初期3hookを必ず埋める。
+19. story/story_deck.md の `## Three Hook Spine` では、初期3hookを必ず埋める。
     空欄、未設定、TODO、placeholderを残さない。profile / character.yaml / story_spine / relationship_spine / Q&Aから短く生成する。
     必ず `## Three Hook Spine` の直下に、以下の `###` 小見出しとfield名をこの順番で出す。
     ```md
@@ -879,15 +1617,15 @@ opening_caveats:
     今は前景化していないhookを素材棚として残す。
     `## Candidate Next Hooks` には、少なくとも candidate_id / source_hook_id / hook_type / function_candidate / visible_entry / promotion_condition / grounding_guard を使える形で、
     scene closure後の次候補を素材棚として残す。ここに残しただけではactive eventにしない。
-19. current/event_card.md の `## Active Hook` には、初期sceneで今触れるhookを1本だけ入れる。
+20. current/event_card.md の `## Active Hook` には、初期sceneで今触れるhookを1本だけ入れる。
     通常はMain Hookをactiveにする。Q&Aやprofile上、関係起点が強い場合だけRelationship Hookにしてよい。
     Life Hookをactiveにするのは、初回sceneが移動、再訪、生活導線から始まる場合だけ。
     `hook_id` は story/story_deck.md 側の対応hookと一致させ、`hook_type` は main / relationship / life のどれかにする。
-20. current/event_card.md の `## Scene Function` には、初回sceneの内部診断を入れる。
+21. current/event_card.md の `## Scene Function` には、初回sceneの内部診断を入れる。
     functionは 起点 / 目標 / 始動 / 試練 を基本にする。初回から奈落 / 選択 / 着地 / 余韻へ飛ばしすぎない。
     current_question / entry_state / exit_condition / change_delta / next_hook_candidate を必ず埋める。
     Exit ConditionとChange Deltaは、sceneの入口と出口で何が変われば閉じてよいかを示す。
-21. Three Hook / Story Function / hook_id / status / Scene Function名は内部stateである。
+22. Three Hook / Story Function / hook_id / status / Scene Function名は内部stateである。
     Play Mode本文として説明しない。番号付き3択、ボタン、同時質問、管理語の露出として書かない。
 
 ## ファイル間の抽象レベル分離（重要）

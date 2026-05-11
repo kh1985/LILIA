@@ -43,6 +43,7 @@ from tools.session.state_consistency import (
     promote_next_hook_to_active_state,
     validate_state_consistency,
 )
+from tools.session.knowledge_boundary import assess_knowledge_boundary
 
 
 ROOT = Path(__file__).resolve().parent
@@ -1255,6 +1256,20 @@ def parse_bracket_list(value: str) -> list[str]:
     return [item.strip().strip("'\"") for item in clean.split(",") if item.strip()]
 
 
+def knowledge_field_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return yaml_list([str(item) for item in value])
+    return str(value).strip()
+
+
+def knowledge_field_list(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return parse_bracket_list(str(value or ""))
+
+
 def normalize_knowledge_field(label: str) -> str:
     key = label.strip().lower().replace(" ", "_").replace("-", "_")
     mapping = {
@@ -1277,6 +1292,10 @@ def normalize_knowledge_field(label: str) -> str:
 
 
 def parse_knowledge_update(body: str) -> list[dict[str, object]]:
+    yaml_updates = parse_knowledge_update_yaml(body)
+    if yaml_updates:
+        return yaml_updates
+
     updates: list[dict[str, object]] = []
     current_mode = ""
     current: Optional[dict[str, object]] = None
@@ -1316,8 +1335,45 @@ def parse_knowledge_update(body: str) -> list[dict[str, object]]:
     return updates
 
 
+def parse_knowledge_update_yaml(body: str) -> list[dict[str, object]]:
+    block = extract_turn_update_yaml_block(body)
+    if not block:
+        return []
+    try:
+        import yaml
+
+        parsed = yaml.safe_load(block)
+    except Exception as exc:
+        die(f"knowledge_state YAML update is not parseable: {exc}")
+    raw_items = parsed.get("items") if isinstance(parsed, dict) else None
+    if not isinstance(raw_items, list):
+        die("knowledge_state YAML update must contain items list")
+    updates: list[dict[str, object]] = []
+    for raw_item in raw_items:
+        if not isinstance(raw_item, dict):
+            continue
+        key = str(raw_item.get("key") or "").strip()
+        if not key:
+            continue
+        fields = {
+            str(field): value
+            for field, value in raw_item.items()
+            if str(field) != "key" and value not in (None, "")
+        }
+        updates.append({"mode": "upsert", "key": key, "fields": fields})
+    return updates
+
+
+def extract_turn_update_yaml_block(body: str) -> str:
+    for match in re.finditer(r"```(?:yaml)?\s*\n(.*?)\n```", body, re.DOTALL | re.IGNORECASE):
+        block = match.group(1)
+        if re.search(r"^\s*items\s*:", block, re.MULTILINE):
+            return block
+    return ""
+
+
 def find_knowledge_item_span(lines: list[str], key: str) -> tuple[int, int] | None:
-    key_re = re.compile(rf"^(\s*)-\s+key:\s*{re.escape(key)}\s*$")
+    key_re = re.compile(rf"^(\s*)-\s+key:\s*[\"']?{re.escape(key)}[\"']?\s*$")
     for index, line in enumerate(lines):
         match = key_re.match(line)
         if not match:
@@ -1342,7 +1398,7 @@ def set_knowledge_item_field(lines: list[str], start: int, end: int, field: str,
     if field in {"value", "notes"}:
         formatted = yaml_scalar(value)
     elif field == "known_to":
-        formatted = yaml_list(parse_bracket_list(value))
+        formatted = yaml_list(knowledge_field_list(value))
     for index in range(start + 1, end):
         if field_re.match(lines[index]):
             indent = field_re.match(lines[index]).group(1)  # type: ignore[union-attr]
@@ -1386,36 +1442,35 @@ def merge_knowledge_state_content(content: str, update_body: str) -> str:
         fields = update.get("fields")
         field_map = fields if isinstance(fields, dict) else {}
         span = find_knowledge_item_span(lines, key)
-        if update.get("mode") == "promotion" and span is not None:
+        if update.get("mode") in {"promotion", "upsert"} and span is not None:
             start, end = span
-            new_status = str(update.get("new_status") or field_map.get("fictional_status") or "").strip()
+            new_status = knowledge_field_text(
+                update.get("new_status") or field_map.get("fictional_status")
+            )
             if new_status:
                 start, end = set_knowledge_item_field(lines, start, end, "fictional_status", new_status)
-            acquired_at = str(field_map.get("acquired_at") or "").strip()
-            if acquired_at:
-                start, end = set_knowledge_item_field(lines, start, end, "acquired_at", acquired_at)
-            weight = str(field_map.get("weight") or "").strip()
-            if weight:
-                start, end = set_knowledge_item_field(lines, start, end, "weight", weight)
-            notes = str(field_map.get("notes") or "").strip()
-            if notes:
-                start, end = set_knowledge_item_field(lines, start, end, "notes", notes)
-            known_to = str(field_map.get("known_to") or "").strip()
-            if known_to:
-                start, end = merge_knowledge_known_to(lines, start, end, parse_bracket_list(known_to))
+            for field in ["value", "source", "acquired_at", "weight", "notes"]:
+                value = knowledge_field_text(field_map.get(field))
+                if value:
+                    start, end = set_knowledge_item_field(lines, start, end, field, value)
+            known_to = field_map.get("known_to")
+            if knowledge_field_list(known_to):
+                start, end = merge_knowledge_known_to(lines, start, end, knowledge_field_list(known_to))
             continue
 
-        if update.get("mode") == "promotion" and span is None:
-            status = str(update.get("new_status") or field_map.get("fictional_status") or "shared")
+        if update.get("mode") in {"promotion", "upsert"} and span is None:
+            status = knowledge_field_text(
+                update.get("new_status") or field_map.get("fictional_status") or "shared"
+            )
             item = knowledge_item_yaml(
                 key=key,
-                value=str(field_map.get("value") or "未確定"),
+                value=knowledge_field_text(field_map.get("value")) or "未確定",
                 fictional_status=status,
-                source=str(field_map.get("source") or "inferred"),
-                known_to=parse_bracket_list(str(field_map.get("known_to") or "GM")),
-                acquired_at=str(field_map.get("acquired_at") or "未確定"),
-                weight=str(field_map.get("weight") or "medium"),
-                notes=str(field_map.get("notes") or "turn_update.md から追加"),
+                source=knowledge_field_text(field_map.get("source")) or "inferred",
+                known_to=knowledge_field_list(field_map.get("known_to")) or ["GM"],
+                acquired_at=knowledge_field_text(field_map.get("acquired_at")) or "未確定",
+                weight=knowledge_field_text(field_map.get("weight")) or "medium",
+                notes=knowledge_field_text(field_map.get("notes")) or "turn_update.md から追加",
             )
             insert_at = knowledge_insert_index(lines)
             lines[insert_at:insert_at] = item + [""]
@@ -1425,27 +1480,33 @@ def merge_knowledge_state_content(content: str, update_body: str) -> str:
             if span is not None:
                 start, end = span
                 for field in ["value", "fictional_status", "source", "acquired_at", "weight", "notes"]:
-                    value = str(field_map.get(field) or "").strip()
+                    value = knowledge_field_text(field_map.get(field))
                     if value:
                         start, end = set_knowledge_item_field(lines, start, end, field, value)
-                known_to = str(field_map.get("known_to") or "").strip()
-                if known_to:
-                    start, end = merge_knowledge_known_to(lines, start, end, parse_bracket_list(known_to))
+                known_to = field_map.get("known_to")
+                if knowledge_field_list(known_to):
+                    start, end = merge_knowledge_known_to(lines, start, end, knowledge_field_list(known_to))
                 continue
             item = knowledge_item_yaml(
                 key=key,
-                value=str(field_map.get("value") or "未確定"),
-                fictional_status=str(field_map.get("fictional_status") or "shared"),
-                source=str(field_map.get("source") or "inferred"),
-                known_to=parse_bracket_list(str(field_map.get("known_to") or "GM")),
-                acquired_at=str(field_map.get("acquired_at") or "未確定"),
-                weight=str(field_map.get("weight") or "medium"),
-                notes=str(field_map.get("notes") or ""),
+                value=knowledge_field_text(field_map.get("value")) or "未確定",
+                fictional_status=knowledge_field_text(field_map.get("fictional_status")) or "shared",
+                source=knowledge_field_text(field_map.get("source")) or "inferred",
+                known_to=knowledge_field_list(field_map.get("known_to")) or ["GM"],
+                acquired_at=knowledge_field_text(field_map.get("acquired_at")) or "未確定",
+                weight=knowledge_field_text(field_map.get("weight")) or "medium",
+                notes=knowledge_field_text(field_map.get("notes")),
             )
             insert_at = knowledge_insert_index(lines)
             lines[insert_at:insert_at] = item + [""]
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+def validate_knowledge_state_merge(content: str) -> None:
+    report = assess_knowledge_boundary(content)
+    if report.errors:
+        die("knowledge_state merge violates boundary: " + "; ".join(report.errors))
 
 
 def answer(answers: dict[int | str, str], number: int | str) -> str:
@@ -4477,6 +4538,7 @@ def command_apply_turn(args: list[str]) -> None:
                 mark_skipped(f"{rel_path} missing; skipped knowledge_state merge for legacy session")
                 continue
             merged = merge_knowledge_state_content(target.read_text(encoding="utf-8"), body)
+            validate_knowledge_state_merge(merged)
             if not dry_run:
                 write_session_file(session_path, rel_path, merged)
         elif key == "hotset":

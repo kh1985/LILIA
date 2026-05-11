@@ -31,6 +31,12 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 - Phase 3-A: `docs/DOCUMENT_DEDUPLICATION_PLAN.md` を追加し、`HANDOFF` / `ROADMAP` / release docs / Dashboard の重複整理計画を作りました。
 - Phase 3-B: このファイルを直近引き継ぎ専用に短縮しています。
 
+直近の設計判断:
+
+- `docs/tasks/KNOWLEDGE_BOUNDARY_IMPLEMENTATION_DESIGN.md` を追加し、GMが真相 / プレイヤー既知 / ヒロイン既知 / 共有済み / 観察可能 / 未開示を裁定する `Knowledge Boundary Gate` を設計しました。
+- `tools/session/knowledge_boundary.py` を追加し、`current/knowledge_state.md` の分類と漏洩検査を validator から使える最小基盤として実装しました。
+- AI Playtest Judge に `knowledge_boundary_player_orientation` を追加し、判断材料不足、GM-only/meta漏洩、ヒロインの知り得ない情報断定を、Story Causality不足と分けて評価する方針にしました。
+
 今回の方針:
 
 - 長い実装済み一覧は `docs/ROADMAP.md` と `docs/archive/IMPLEMENTATION_HISTORY.md` に逃がします。

@@ -39,6 +39,10 @@ JUDGE_SCORE_ITEMS: tuple[tuple[str, str], ...] = (
     ("reply_affordance", "Reply affordance"),
     ("relationship_change_grounding", "Relationship change grounding"),
     ("relationship_change_audit", "Relationship change audit"),
+    (
+        "knowledge_boundary_player_orientation",
+        "Knowledge boundary / Player orientation",
+    ),
     ("inner_hidden_leakage", "Inner / hidden leakage"),
     ("over_leading", "Over-leading"),
     ("arc_closure_scene_progression", "Arc closure / Scene progression"),
@@ -48,6 +52,10 @@ _JUDGE_SCORE_LABELS: dict[str, str] = {key: label for key, label in JUDGE_SCORE_
 
 LEGACY_OPTIONAL_SCORE_DEFAULTS: dict[str, dict[str, Any]] = {
     "relationship_change_audit": {
+        "score": 3,
+        "notes": "旧schema応答のため未評価。再judge推奨",
+    },
+    "knowledge_boundary_player_orientation": {
         "score": 3,
         "notes": "旧schema応答のため未評価。再judge推奨",
     },
@@ -73,10 +81,14 @@ JUDGE_INSTRUCTION = (
     "4. relationship_change_grounding — 関係や心境の変化に出来事の根拠があり、急進や停滞がないか。\n"
     "5. relationship_change_audit — 関係変化が実際の行動・会話・待機・境界線・約束・拒否・保留に基づき、"
     "信頼/安心感/親密さが早すぎず、拒否・保留・境界線・同行可否を尊重し、Relationship Hookが好感度化していないか。\n"
-    "6. inner_hidden_leakage — プレイヤー内心(括弧書き)、hidden vector、AFFINITY/bond、profile.md全文、internal prompt"
+    "6. knowledge_boundary_player_orientation — プレイヤーが判断材料なしに選択や判断を迫られていないか。"
+    "GM-only/meta情報が本文やヒロイン台詞に漏れていないか。"
+    "ヒロインが知り得ない情報を断定していないか。"
+    "不足しているのがプレイヤーへの可視手がかりなのか、出来事の因果不足なのかを混同していないか。\n"
+    "7. inner_hidden_leakage — プレイヤー内心(括弧書き)、hidden vector、AFFINITY/bond、profile.md全文、internal prompt"
     "が漏れていないか。漏れがないほど高得点。\n"
-    "7. over_leading — GMがプレイヤーの選択を奪うほど誘導していないか。誘導が弱いほど高得点。\n"
-    "8. arc_closure_scene_progression — sceneの核成立後に余韻を引っ張りすぎず、"
+    "8. over_leading — GMがプレイヤーの選択を奪うほど誘導していないか。誘導が弱いほど高得点。\n"
+    "9. arc_closure_scene_progression — sceneの核成立後に余韻を引っ張りすぎず、"
     "入口と出口で状況・関係・問いのどれかが変わり、memory候補 / next hook / 次arc候補へ接続できているか。\n"
     "\n"
     "## Relationship Change Audit 観点\n"
@@ -88,6 +100,16 @@ JUDGE_INSTRUCTION = (
     "- WARN候補: memory / relationship / beliefs / decision_index / event_card / story_deck の保存責務が混ざる兆候がある。\n"
     "- PASS候補: 関係変化が実際に起きた出来事や言葉に接地し、拒否・保留・境界線が次の声や距離に残り、同行可否がagencyとして扱われる。\n"
     "- recommended_fixes には、根拠turn、どの境界線や保存先を見るべきか、親密化をどの距離まで戻すべきかを短く入れる。\n"
+    "\n"
+    "## Knowledge Boundary / Player Orientation 観点\n"
+    "- transcript内でプレイヤーに見えている情報、共有済み情報、観察可能な手がかりだけを根拠にする。GM-only、meta、真相、未開示のstateをプレイヤーが知っている前提にしない。\n"
+    "- Player Orientation不足は、プレイヤーが何を見て何を判断できるかの可視手がかり不足である。Story Causality不足は、出来事同士の因果や結果の接続不足であり、別の問題として書き分ける。\n"
+    "- WARN候補: プレイヤーが知らない固有名、真相、目的、危険度、選択結果を前提に、選択・同行可否・推理・謝罪・告白などを迫っている。\n"
+    "- WARN候補: 情報は存在するが、誰が知っている情報か、いま観察できる手がかりか、プレイヤーに共有済みかが曖昧で判断入口が弱い。\n"
+    "- WARN/FAIL候補: GM-only、meta、knowledge_state、hidden vector、未開示truth、validator、checkpoint、保存責務などの管理情報が本文やヒロイン台詞に出ている。\n"
+    "- WARN/FAIL候補: ヒロインが見ていない出来事、聞いていない内心、未共有のGM情報、別場所の事実、未来の結果を断定している。\n"
+    "- PASS候補: 選択前に観察可能な手がかりや共有済み情報が短く提示され、知らないことは知らないまま扱われ、ヒロインの断定は本人が知り得る範囲に収まる。\n"
+    "- recommended_fixes には、どのturnで誰に何が見えていなかったか、プレイヤーに渡すべき観察可能な手がかり、ヒロイン台詞から落とすべき未開示情報を短く入れる。\n"
     "\n"
     "## Arc Closure / Scene Progression 観点\n"
     "- closure候補: 別れの挨拶、戸が閉まる、店を出る、帰宅、就寝、翌朝、約束成立、境界線確認、そのsceneの問いに一度答えが出る。\n"
@@ -143,6 +165,7 @@ JUDGE_INSTRUCTION = (
     '    "reply_affordance":              {"score": 1-5, "notes": "短く根拠"},\n'
     '    "relationship_change_grounding": {"score": 1-5, "notes": "短く根拠"},\n'
     '    "relationship_change_audit":     {"score": 1-5, "notes": "短く根拠"},\n'
+    '    "knowledge_boundary_player_orientation": {"score": 1-5, "notes": "短く根拠"},\n'
     '    "inner_hidden_leakage":          {"score": 1-5, "notes": "短く根拠"},\n'
     '    "over_leading":                  {"score": 1-5, "notes": "短く根拠"},\n'
     '    "arc_closure_scene_progression": {"score": 1-5, "notes": "短く根拠"}\n'

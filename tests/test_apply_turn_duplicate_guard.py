@@ -68,6 +68,47 @@ def write_turn_update(path: Path) -> Path:
     return path
 
 
+def write_knowledge_session(root: Path, name: str) -> Path:
+    session = write_session(root, name)
+    (session / "current").mkdir(parents=True, exist_ok=True)
+    (session / "current/knowledge_state.md").write_text(
+        """# Knowledge State
+
+## knowledge_state
+
+```yaml
+items:
+  - key: hidden_route
+    value: "写真は偶然ではなく二人を接触させる導線"
+    fictional_status: gm_only
+    source: story_spine
+    known_to: [GM]
+    acquired_at: pre_play
+    weight: high
+    notes: "Reveal Ladderで段階開示する"
+  - key: heroine_suspicion
+    value: "主人公が写真の事情を知っているかもしれない"
+    fictional_status: meta
+    source: inferred
+    known_to: [heroine]
+    acquired_at: scene_1
+    weight: medium
+    notes: "澪側の疑い。事実ではない"
+```
+""",
+        encoding="utf-8",
+    )
+    return session
+
+
+def write_knowledge_update(path: Path, yaml_block: str) -> Path:
+    path.write_text(
+        "## knowledge_state\n\n```yaml\n" + yaml_block.strip() + "\n```\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def read_session_json(session: Path) -> dict:
     return json.loads((session / "session.json").read_text(encoding="utf-8"))
 
@@ -327,6 +368,118 @@ def test_turn_update_fingerprint_is_path_independent(tmp_path: Path) -> None:
     assert lilia.turn_update_fingerprint(
         lilia.parse_turn_update(first)
     ) == lilia.turn_update_fingerprint(lilia.parse_turn_update(second))
+
+
+def test_apply_turn_merges_knowledge_state_yaml_updates(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path / "saves")
+    session = write_knowledge_session(tmp_path, "knowledge_merge_case")
+    update_path = write_knowledge_update(
+        tmp_path / "turn_update.md",
+        """
+items:
+  - key: hidden_route
+    fictional_status: shared
+    source: scene_disclosure
+    known_to: [protagonist, heroine]
+    acquired_at: scene_2
+    weight: high
+    notes: "澪が写真の導線を二人の前で言葉にした"
+  - key: heroine_suspicion
+    fictional_status: shared
+    known_to: [protagonist]
+    acquired_at: scene_2
+    weight: low
+    notes: "疑いは本人の説明で共有され、弱まった"
+  - key: visible_envelope
+    value: "白い封筒がカウンターに置かれている"
+    fictional_status: observable
+    source: observation
+    known_to: [protagonist, heroine]
+    acquired_at: scene_2
+    weight: medium
+    notes: "その場で見えている手がかり"
+""",
+    )
+
+    lilia.command_apply_turn(["knowledge_merge_case", str(update_path)])
+    output = capsys.readouterr().out
+
+    knowledge = (session / "current/knowledge_state.md").read_text(encoding="utf-8")
+    assert "current/knowledge_state.md" in output
+    assert "key: hidden_route" in knowledge
+    assert "fictional_status: shared" in knowledge
+    assert "source: scene_disclosure" in knowledge
+    assert "known_to: [GM, protagonist, heroine]" in knowledge
+    assert "acquired_at: scene_2" in knowledge
+    assert 'notes: "澪が写真の導線を二人の前で言葉にした"' in knowledge
+    assert "known_to: [heroine, protagonist]" in knowledge
+    assert "key: visible_envelope" in knowledge
+    assert "fictional_status: observable" in knowledge
+
+
+def test_apply_turn_rejects_knowledge_state_gm_only_leak(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path / "saves")
+    session = write_knowledge_session(tmp_path, "knowledge_leak_case")
+    update_path = write_knowledge_update(
+        tmp_path / "turn_update.md",
+        """
+items:
+  - key: hidden_route
+    fictional_status: gm_only
+    known_to: [protagonist]
+    notes: "まだ出してはいけない真相を主人公に漏らす"
+""",
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        lilia.command_apply_turn(["knowledge_leak_case", str(update_path)])
+    captured = capsys.readouterr()
+
+    assert exc.value.code == 1
+    assert "knowledge_state merge violates boundary" in captured.err
+    assert "hidden_route: gm_only must be known_to [GM]" in captured.err
+    knowledge = (session / "current/knowledge_state.md").read_text(encoding="utf-8")
+    assert "known_to: [GM]" in knowledge
+
+
+def test_apply_turn_rejects_malformed_knowledge_state_yaml_update(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lilia = load_lilia_module()
+    monkeypatch.setattr(lilia, "ROOT", tmp_path)
+    monkeypatch.setattr(lilia, "SAVES_DIR", tmp_path / "saves")
+    session = write_knowledge_session(tmp_path, "knowledge_malformed_case")
+    update_path = write_knowledge_update(
+        tmp_path / "turn_update.md",
+        """
+items:
+  - key: [
+""",
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        lilia.command_apply_turn(["knowledge_malformed_case", str(update_path)])
+    captured = capsys.readouterr()
+
+    assert exc.value.code == 1
+    assert "knowledge_state YAML update is not parseable" in captured.err
+    knowledge = (session / "current/knowledge_state.md").read_text(encoding="utf-8")
+    assert "key: hidden_route" in knowledge
+    assert "known_to: [GM]" in knowledge
 
 
 def test_apply_turn_updates_story_deck_hook_status(

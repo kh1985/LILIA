@@ -8,6 +8,8 @@ import re
 import sys
 from typing import Any
 
+from tools.session.knowledge_boundary import assess_knowledge_boundary
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -142,6 +144,7 @@ def validate_session_documents(
         errors,
         original_knowledge_state_md=original_knowledge_state_md,
     )
+    _check_scene_player_orientation(documents, errors)
     _check_story_deck_three_hook_spine(documents, errors)
     _check_event_card_playability(documents, errors)
     _check_opening_plan_consistency(documents)
@@ -328,6 +331,10 @@ def _check_text_collapse(documents: dict[str, str], expected: list[str], errors:
 
 
 def _looks_like_field_concat(line: str) -> bool:
+    if "声 / 沈黙 / 呼び方 / 距離に出る変化" in line:
+        return False
+    if ".md /" in line:
+        return False
     if line.count(" / ") < 2:
         return False
     if not re.match(r"^\s*(?:[-*]|\d+[.)]|[A-Za-z0-9_ /]+:|[^:：]{1,30}:)", line):
@@ -500,6 +507,10 @@ def _check_knowledge_state(
         errors.append("current/knowledge_state.md: YAML has no items list")
         return
 
+    boundary_report = assess_knowledge_boundary(content)
+    for error in boundary_report.errors:
+        errors.append(f"current/knowledge_state.md: {error}")
+
     by_key: dict[str, Any] = {}
     for item in items:
         if isinstance(item, dict) and item.get("key"):
@@ -546,6 +557,7 @@ def _check_event_card_playability(documents: dict[str, str], errors: list[str]) 
 
     sections = _markdown_sections(content)
     _check_event_card_hook_scaffold(sections, errors)
+    _check_event_card_reveal_control(sections, errors)
 
     unfilled_marker_sections = [
         "表の出来事",
@@ -628,6 +640,115 @@ def _check_event_card_playability(documents: dict[str, str], errors: list[str]) 
         errors.append("current/event_card.md: Story Residue の memory/relationship/beliefs/voice すべてが空である")
     elif not residue_values and not _has_event_card_freeform_content(story_residue):
         errors.append("current/event_card.md: Story Residue の memory/relationship/beliefs/voice すべてが空である")
+
+
+def _check_scene_player_orientation(documents: dict[str, str], errors: list[str]) -> None:
+    content = documents.get("current/scene.md", "")
+    if not content.strip():
+        return
+    sections = _markdown_sections(content)
+    section_name, section = _find_section(
+        sections,
+        [
+            r"\bplayer\s+orientation\b",
+            r"プレイヤー.*(?:オリエンテーション|現在地|案内|理解)",
+        ],
+    )
+    if not section:
+        return
+
+    required = [
+        (
+            "protagonist reason",
+            [
+                r"\bprotagonist[_\s-]*(?:reason|purpose)\b",
+                r"主人公.*(?:理由|目的)",
+                r"なぜ.*(?:いる|関わる|動く)",
+            ],
+        ),
+        (
+            "current player knowledge",
+            [
+                r"\bcurrent[_\s-]*player[_\s-]*knowledge\b",
+                r"\bplayer[_\s-]*knowledge\b",
+                r"プレイヤー.*(?:知って|既知|知識|わかって)",
+                r"現在.*プレイヤー.*(?:知って|既知|知識|わかって)",
+                r"主人公.*(?:知って|既知|知識|わかって)",
+            ],
+        ),
+        (
+            "opening must-show",
+            [
+                r"\bopening[_\s-]*must[_\s-]*show\b",
+                r"\bmust[_\s-]*(?:show|include)\b",
+                r"冒頭.*(?:見せる|必ず)",
+                r"初回.*(?:見せる|必ず)",
+            ],
+        ),
+    ]
+    _check_required_labeled_values(
+        section,
+        required,
+        f"current/scene.md: {section_name}",
+        errors,
+    )
+
+
+def _check_event_card_reveal_control(sections: dict[str, str], errors: list[str]) -> None:
+    matched = [
+        (name, body)
+        for name, body in sections.items()
+        if re.search(r"\bknowledge\s+boundary\b|\breveal\s+control\b|知識境界|開示制御", name, re.IGNORECASE)
+    ]
+    if not matched:
+        return
+    player_facing_entrance = sections.get("player-facing entrance", "")
+    location_parts = [f"## {name}" for name, _body in matched]
+    if player_facing_entrance:
+        location_parts.insert(0, "## player-facing entrance")
+    location = "current/event_card.md: " + " / ".join(location_parts)
+    section_parts = [player_facing_entrance] if player_facing_entrance else []
+    section_parts.extend(body for _name, body in matched)
+    section = "\n".join(section_parts)
+    required = [
+        (
+            "player-facing entrance",
+            [
+                r"\bplayer[_\s-]*facing[_\s-]*(?:entrance|entry)\b",
+                r"\bvisible[_\s-]*(?:entrance|entry)\b",
+                r"プレイヤー.*入口",
+                r"表.*入口",
+                r"見せる入口",
+            ],
+        ),
+        (
+            "do-not-hide judgment material",
+            [
+                r"\bdo[_\s-]*not[_\s-]*hide[_\s-]*judg(?:e)?ment[_\s-]*material\b",
+                r"\bjudg(?:e)?ment[_\s-]*material\b",
+                r"隠してはいけない.*判断材料",
+                r"判断材料",
+            ],
+        ),
+        (
+            "reveal conditions",
+            [
+                r"\breveal[_\s-]*conditions?\b",
+                r"開示条件",
+                r"開示.*条件",
+            ],
+        ),
+        (
+            "do-not-reveal-yet",
+            [
+                r"\bdo[_\s-]*not[_\s-]*reveal[_\s-]*yet\b",
+                r"まだ.*開示しない",
+                r"未開示",
+                r"隠してよい真相",
+            ],
+        ),
+    ]
+    _check_required_labeled_values(section, required, location, errors)
 
 
 def _check_story_deck_three_hook_spine(documents: dict[str, str], errors: list[str]) -> None:
@@ -809,6 +930,60 @@ def _check_required_field_values(
         value = _extract_subline_value(section, re.escape(field))
         if value is None or _placeholder_value(value):
             errors.append(f"{location}: {field} is empty")
+
+
+def _find_section(sections: dict[str, str], heading_patterns: list[str]) -> tuple[str, str]:
+    for name, body in sections.items():
+        if any(re.search(pattern, name, flags=re.IGNORECASE) for pattern in heading_patterns):
+            return f"## {name}", body
+    return "", ""
+
+
+def _check_required_labeled_values(
+    section: str,
+    required: list[tuple[str, list[str]]],
+    location: str,
+    errors: list[str],
+) -> None:
+    for field_name, label_patterns in required:
+        value = _extract_labeled_value_by_patterns(section, label_patterns)
+        if value is None or _placeholder_value(value):
+            errors.append(f"{location}: {field_name} is empty")
+
+
+def _extract_labeled_value_by_patterns(section: str, label_patterns: list[str]) -> str | None:
+    lines = section.splitlines()
+    for index, raw_line in enumerate(lines):
+        match = re.match(r"^[ \t]*(?:[-*][ \t]*)?([^:：\n]{1,100})[ \t]*[:：][ \t]*(.*)$", raw_line)
+        if not match:
+            continue
+        label = match.group(1).strip()
+        if not any(re.search(pattern, label, flags=re.IGNORECASE) for pattern in label_patterns):
+            continue
+        value = match.group(2).strip()
+        if value:
+            return value
+        nested_value = _nested_value_after_label(lines, index)
+        if nested_value:
+            return nested_value
+    return None
+
+
+def _nested_value_after_label(lines: list[str], label_index: int) -> str | None:
+    label_line = lines[label_index]
+    label_indent = len(label_line) - len(label_line.lstrip(" \t"))
+    collected: list[str] = []
+    for raw_line in lines[label_index + 1 :]:
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        indent = len(raw_line) - len(raw_line.lstrip(" \t"))
+        if indent <= label_indent:
+            break
+        normalized = stripped.lstrip("-* \t").strip()
+        if normalized and not _placeholder_value(normalized):
+            collected.append(normalized)
+    return " ".join(collected).strip() or None
 
 
 def _markdown_subsection(markdown: str, heading: str) -> str:

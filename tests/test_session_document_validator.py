@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
+import shutil
 import sys
 
 import pytest
@@ -43,6 +45,101 @@ def _doc(rel_path: str, body_by_heading: dict[str, str] | None = None) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def _template_root_with_orientation_sections(tmp_path: Path) -> Path:
+    template_root = tmp_path / "session_templates"
+    shutil.copytree(ROOT / "templates" / "session", template_root)
+    scene_template = template_root / "current" / "scene.md"
+    if "## Player Orientation" not in scene_template.read_text(encoding="utf-8"):
+        scene_template.write_text(
+            scene_template.read_text(encoding="utf-8")
+            + """
+
+## Player Orientation
+
+- protagonist_reason:
+- current_player_knowledge:
+- opening_must_show:
+""",
+            encoding="utf-8",
+        )
+    event_template = template_root / "current" / "event_card.md"
+    if "## Knowledge Boundary / Reveal Control" not in event_template.read_text(encoding="utf-8"):
+        event_template.write_text(
+            event_template.read_text(encoding="utf-8")
+            + """
+
+## Knowledge Boundary / Reveal Control
+
+- player_facing_entrance:
+- do_not_hide_judgment_material:
+- reveal_conditions:
+- do_not_reveal_yet:
+""",
+            encoding="utf-8",
+        )
+    return template_root
+
+
+def _replace_section(markdown: str, heading: str, body: str) -> str:
+    pattern = re.compile(rf"^##\s+{re.escape(heading)}\s*$", re.MULTILINE)
+    match = pattern.search(markdown)
+    if not match:
+        return markdown.rstrip() + f"\n\n## {heading}\n\n{body}\n"
+    next_heading = re.search(r"^##\s+.+?\s*$", markdown[match.end() :], re.MULTILINE)
+    end = match.end() + next_heading.start() if next_heading else len(markdown)
+    return markdown[: match.end()] + "\n\n" + body.rstrip() + "\n\n" + markdown[end:].lstrip("\n")
+
+
+def _remove_section(markdown: str, heading: str) -> str:
+    pattern = re.compile(rf"^##\s+{re.escape(heading)}\s*$", re.MULTILINE)
+    match = pattern.search(markdown)
+    if not match:
+        return markdown
+    start = markdown.rfind("\n", 0, match.start())
+    start = start + 1 if start >= 0 else match.start()
+    next_heading = re.search(r"^##\s+.+?\s*$", markdown[match.end() :], re.MULTILINE)
+    end = match.end() + next_heading.start() if next_heading else len(markdown)
+    return markdown[:start].rstrip() + "\n\n" + markdown[end:].lstrip("\n")
+
+
+def _append_orientation_sections(
+    docs: dict[str, str],
+    *,
+    scene_body: str | None = None,
+    reveal_body: str | None = None,
+) -> None:
+    scene_section = (
+        scene_body
+        if scene_body is not None
+        else "\n".join(
+            [
+                "- protagonist_reason: 配達帰りに忘れ物を見つけたから。",
+                "- current_player_knowledge: 終電後の駅でさくらが缶コーヒーを差し出したことだけ。",
+                "- opening_must_show: 眠っていた主人公が起こされ、行動できる入口。",
+            ]
+        )
+    )
+    docs["current/scene.md"] = _replace_section(docs["current/scene.md"], "Player Orientation", scene_section)
+
+    reveal_section = (
+        reveal_body
+        if reveal_body is not None
+        else "\n".join(
+            [
+                "- player_facing_entrance: 忘れ物を返すために声をかけられる。",
+                "- do_not_hide_judgment_material: イヤホンを直接返すか店員に預けるかの判断材料。",
+                "- reveal_conditions: さくらが自分から事情に触れた時だけ一段進める。",
+                "- do_not_reveal_yet: 距離を測る本当の理由。",
+            ]
+        )
+    )
+    docs["current/event_card.md"] = _replace_section(
+        docs["current/event_card.md"],
+        "Knowledge Boundary / Reveal Control",
+        reveal_section,
+    )
+
+
 def _knowledge_doc(yaml_block: str) -> str:
     body = {heading: "- 運用メモ。" for heading in _headings("current/knowledge_state.md")}
     body["知識項目テンプレート"] = "実データは下の `## knowledge_state` に置く。"
@@ -52,7 +149,9 @@ def _knowledge_doc(yaml_block: str) -> str:
 
 def _valid_documents() -> dict[str, str]:
     docs = {path: _doc(path) for path in DOWNSTREAM_SESSION_DOCUMENT_FILES}
+    _append_orientation_sections(docs, reveal_body="")
     docs["current/event_card.md"] = _playable_event_card()
+    _append_orientation_sections(docs)
     docs["story/story_deck.md"] = _playable_story_deck()
     docs["current/protagonist.md"] = _doc(
         "current/protagonist.md",
@@ -331,6 +430,75 @@ def test_validator_rejects_invalid_knowledge_yaml() -> None:
     valid, errors = validate_session_documents(docs, ANSWERS)
     assert not valid
     assert any("YAML" in error for error in errors)
+
+
+def test_validator_rejects_missing_player_orientation_when_template_requires_it(tmp_path: Path) -> None:
+    docs = _valid_documents()
+    template_root = _template_root_with_orientation_sections(tmp_path)
+    docs["current/scene.md"] = _remove_section(docs["current/scene.md"], "Player Orientation")
+    valid, errors = validate_session_documents(docs, ANSWERS, template_root=template_root)
+    assert not valid
+    assert any("current/scene.md: missing section(s): Player Orientation" in error for error in errors)
+
+
+def test_validator_rejects_empty_player_orientation(tmp_path: Path) -> None:
+    docs = _valid_documents()
+    template_root = _template_root_with_orientation_sections(tmp_path)
+    _append_orientation_sections(
+        docs,
+        scene_body="\n".join(
+            [
+                "- protagonist_reason:",
+                "- current_player_knowledge: 終電後の駅で起こされたこと。",
+                "- opening_must_show: 目の前の缶コーヒー。",
+            ]
+        ),
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS, template_root=template_root)
+    assert not valid
+    assert any("player orientation: protagonist reason is empty" in error for error in errors)
+
+
+def test_validator_rejects_empty_reveal_control(tmp_path: Path) -> None:
+    docs = _valid_documents()
+    template_root = _template_root_with_orientation_sections(tmp_path)
+    _append_orientation_sections(
+        docs,
+        reveal_body="\n".join(
+            [
+                "- player_facing_entrance: 忘れ物を返すために声をかけられる。",
+                "- do_not_hide_judgment_material:",
+                "- reveal_conditions: さくらが自分から事情に触れた時だけ一段進める。",
+                "- do_not_reveal_yet: 距離を測る本当の理由。",
+            ]
+        ),
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS, template_root=template_root)
+    assert not valid
+    assert any("do-not-hide judgment material is empty" in error for error in errors)
+
+
+def test_validator_passes_with_player_orientation_and_reveal_control(tmp_path: Path) -> None:
+    docs = _valid_documents()
+    template_root = _template_root_with_orientation_sections(tmp_path)
+    _append_orientation_sections(docs)
+    valid, errors = validate_session_documents(docs, ANSWERS, template_root=template_root)
+    assert valid, errors
+
+
+def test_validator_rejects_gm_only_knowledge_leak() -> None:
+    docs = _valid_documents()
+    docs["current/knowledge_state.md"] = docs["current/knowledge_state.md"].replace(
+        "known_to: [GM]\n    acquired_at: pre_play\n    weight: high",
+        "known_to: [GM, protagonist]\n    acquired_at: pre_play\n    weight: high",
+        1,
+    )
+    valid, errors = validate_session_documents(docs, ANSWERS)
+    assert not valid
+    assert any(
+        "current/knowledge_state.md: heroine_background_truth: gm_only must be known_to [GM]" in error
+        for error in errors
+    )
 
 
 def test_validator_rejects_event_card_with_unfilled_visible_problem() -> None:

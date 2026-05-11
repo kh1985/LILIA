@@ -32,6 +32,10 @@ VALID_PAYLOAD: dict = {
             "score": 4,
             "notes": "境界線と拒否が尊重されている",
         },
+        "knowledge_boundary_player_orientation": {
+            "score": 4,
+            "notes": "見えている手がかりだけで選べる",
+        },
         "inner_hidden_leakage": {"score": 5, "notes": "漏れなし"},
         "over_leading": {"score": 4, "notes": "誘導は最小"},
         "arc_closure_scene_progression": {
@@ -102,6 +106,17 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     assert "遠出、旅行、同居" in prompt
     assert "好感度、AFFINITY、bond、攻略ルート" in prompt
     assert "memory / relationship / beliefs / decision_index" in prompt
+    assert "knowledge_boundary_player_orientation" in prompt
+    assert "Knowledge Boundary / Player Orientation 観点" in prompt
+    assert "判断材料なしに選択や判断を迫られていないか" in prompt
+    assert "GM-only/meta情報が本文やヒロイン台詞に漏れていないか" in prompt
+    assert "ヒロインが知り得ない情報を断定していないか" in prompt
+    assert "Player Orientation不足は" in prompt
+    assert "Story Causality不足は" in prompt
+    assert "誰が知っている情報か" in prompt
+    assert "未開示truth" in prompt
+    assert "見ていない出来事、聞いていない内心" in prompt
+    assert "観察可能な手がかりや共有済み情報" in prompt
     assert "inner_hidden_leakage" in prompt
     assert "over_leading" in prompt
     assert "arc_closure_scene_progression" in prompt
@@ -237,6 +252,21 @@ def test_parse_judge_response_accepts_legacy_missing_relationship_audit() -> Non
     assert parsed["result"] == "WARN"
     assert parsed["scores"]["relationship_change_audit"]["score"] == 3
     assert "旧schema応答" in parsed["scores"]["relationship_change_audit"]["notes"]
+    assert any("legacy schema" in item for item in parsed["warnings"])
+
+
+def test_parse_judge_response_accepts_legacy_missing_knowledge_boundary() -> None:
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    del payload["scores"]["knowledge_boundary_player_orientation"]
+
+    parsed = judge.parse_judge_response(json.dumps(payload))
+
+    assert parsed["result"] == "WARN"
+    assert parsed["scores"]["knowledge_boundary_player_orientation"]["score"] == 3
+    assert (
+        "旧schema応答"
+        in parsed["scores"]["knowledge_boundary_player_orientation"]["notes"]
+    )
     assert any("legacy schema" in item for item in parsed["warnings"])
 
 
@@ -382,6 +412,7 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "| Reply affordance | 5/5 |" in report
     assert "| Relationship change grounding | 4/5 |" in report
     assert "| Relationship change audit | 4/5 | 境界線と拒否が尊重されている |" in report
+    assert "| Knowledge boundary / Player orientation | 4/5 | 見えている手がかりだけで選べる |" in report
     assert "| Inner / hidden leakage | 5/5 |" in report
     assert "| Over-leading | 4/5 |" in report
     assert "| Arc closure / Scene progression | 4/5 | closure後の次入口あり |" in report

@@ -66,6 +66,7 @@ Save Modeで保存前に、まず以下を見る。
 - `what LILIA now believes`: LILIA側の仮説、誤解、見直しは変わったか。
 - `what was left unsaid`: まだ言えていないこと、保留されたことは何か。
 - `what promise / refusal / boundary changed`: 約束、拒否、保留、境界線は変わったか。
+- `what knowledge boundary changed`: 主人公が知ったこと、LILIAが知ったこと、共有化した事実、疑い・belief・reveal状態、まだ隠すべきdo-not-reveal項目は変わったか。
 - `what should return next scene`: 次回の第一声、距離、沈黙、event入口に戻すものは何か。
 - `what opens after closure`: sceneの核成立、別れ、帰宅、就寝、翌朝、約束成立、境界線確認などの後に、memory / next hook / 次arc候補へ回すものはあるか。
 

@@ -33,6 +33,32 @@
 - 何が止まりそうか:
 - 何に触れると入口になるか:
 
+## Player-Facing Entrance
+
+- プレイヤーが最初に見える入口:
+- 主人公が関われる理由:
+- 最初の一手で触れる対象:
+- 入口として見せる違和感 / 困りごと:
+
+## Knowledge Boundary / Reveal Control
+
+- allowed hidden truth:
+  - まだGMだけが保持してよい真相:
+  - ヒロイン本人も知らない / 言語化できないこと:
+- judgment material that must not be hidden:
+  - 主人公が今判断するために本文で見せること:
+  - ヒロインの台詞や態度から観察できること:
+  - 物理的に見える手がかり:
+- reveal conditions:
+  - 開示してよい条件:
+  - 開示してよい主体:
+  - 開示されたら更新する knowledge_state key:
+- do-not-reveal-yet:
+  - まだ本文に書かないこと:
+  - まだヒロインに言わせないこと:
+  - まだ主人公が知った扱いにしないこと:
+- 注: 真相を伏せても、判断材料と行動入口は伏せない。
+
 ## First Concrete Action
 
 - 誰に / 何に:
