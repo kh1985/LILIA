@@ -123,6 +123,14 @@ GMは `knowledge_state.md` を読み、以下を裁定する。
 - プレイヤーが判断する足場は足りているか。
 - 真相を隠したまま、何を見せれば進めるか。
 
+Play Mode生成直前は `ReplyContextBundle` を入口にする。
+
+- `Heroine Reply Context`: ヒロインが知覚・記憶・推測・誤解できる情報だけを本文の主材料にする。
+- `Pressure Context`: GM内部圧を、観測可能な状況、沈黙、所作、台詞、返せる入口へ変換する。
+- `GM Control Context`: event_card、scene function、relationship stake、hidden truth、story_spine、next hookをGM専用に分離する。
+
+`tools/session/reply_context.py` は `tools/session/knowledge_boundary.py` を再利用し、保存更新やmigrationは行わない。
+
 ### Play Mode本文
 
 本文は以下を守る。
@@ -146,6 +154,7 @@ GMは `knowledge_state.md` を読み、以下を裁定する。
 ### Resume
 
 resume時は、最新の `knowledge_state.md` を使って、同じ知識境界から再開する。
+raw session filesを同列に読む前に `ReplyContextBundle` を読み、Heroine Reply ContextをGM Control Contextより前に置く。
 
 ## 6. Immediate Implementation
 

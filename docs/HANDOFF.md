@@ -42,6 +42,8 @@ LILIAを所有物、攻略対象、ユーザーに都合よく最適化される
 - AI Playtest Judge に `story_causality_scene_drive` を追加し、確認手順だけが続いて不可逆変化 / Choice Tension / Next Curiosity が弱いrunを検出する方針にしました。
 - AI Playtest の `--turns` は最大ターン数であり、autosave checkpointを越える自動継続ではありません。checkpoint到達時は `complete` ではなく `checkpoint reached` と表示し、開発メニューでも事前noticeを出します。
 - `--continue-through-checkpoints` を追加し、checkpointごとにrun session側だけへ fresh `turn_update.md` を生成・dry-run確認・適用して30ターン級の連続観察をできるようにしました。元の `saves/` session は変更しません。
+- `tools/session/reply_context.py` を追加し、resume / Play Mode生成直前に Heroine Reply Context、Pressure Context、GM Control Context を分離する方針にしました。圧とevent_cardは残すが、ヒロイン本文の根拠はヒロインが知覚・記憶・推測できる情報へ限定します。
+- `current/event_card.md` template に Pressure / Agency、Observable Pressure、Heroine Initiative Candidate、Pressure Conversion Rule を追加し、Relationship Stake / Scene Functionをヒロイン主観へ混ぜない方針にしました。
 
 今回の方針:
 

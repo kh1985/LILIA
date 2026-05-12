@@ -995,6 +995,45 @@ def _fallback_event_card_md(seed: dict[str, str]) -> str:
 
 - 早く答えを奪うか、相手がまだ言わない部分を境界として残せるか。
 
+## Pressure / Agency
+
+- pressure_source: protagonist_initiated
+- initiator: protagonist
+- passive_or_active: mixed
+- pressure_summary: 主人公が持ち込んだ用件が、{seed['name']}の警戒と距離感に小さな圧をかける。
+- 注: これはGM用。本文に pressure_source などの管理語を出さない。
+
+## Observable Pressure
+
+- 本文に出してよい観測可能な圧:
+  - {seed['visible_handle']}がその場にある。
+  - {seed['name']}の視線や沈黙が、用件の扱い方を測っている。
+- ヒロインがその場で見えるもの:
+  - 主人公が{seed['visible_handle']}を持ち込んでいること。
+- 主人公がその場で見えるもの:
+  - {seed['name']}がすぐには答えを出さないこと。
+- まだ観測できないもの:
+  - 用件の本当の出所や最終的な意味。
+
+## Heroine Initiative Candidate
+
+- ヒロインが自分から動くなら:
+  - {seed['name']}が、用件の扱い方を短く確認する。
+- 発火条件:
+  - 主人公が用件を見せる、または経緯を話す。
+- その動きの根拠になる state, relationship, memory, beliefs:
+  - state: 警戒しながらも、用件の扱い方は確認したい。
+- 禁止: scene function や relationship stake を直接理由にしない。
+
+## Pressure Conversion Rule
+
+- GM内部圧:
+  - 背景真相やrelationship stakeを急いで説明したくなる圧。
+- 観測可能な形へ変換:
+  - 視線、沈黙、手元、距離、短い確認に変換する。
+- 台詞・所作への変換:
+  - {seed['name']}らしい短い確認や、言い切らない反応にする。
+
 ## Crisis / Ability Check
 
 - crisis pressure: 日常の場所に、予定外の用件が入り込んでいる。
@@ -1912,11 +1951,12 @@ def _build_group_a_prompt(context: dict[str, Any]) -> str:
 5. story_spine の Background Truth と [pending] の Reveal Ladder は GM only として隠す。
    scene/event_card/hotset/relationship_overview/story_deck へ直接書かない。
 6. event_card の handles は選択肢UIではなく、このヒロイン固有の現在状況へ触れる入口にする。
-7. current/event_card.md は原則1, 3, 4, 5を意識し、Visible Problem / Relationship Stake / Next Visible Change に感情の圧と未完了を残す。
+7. current/event_card.md は原則1, 3, 4, 5を意識し、Visible Problem / Relationship Stake / Pressure / Observable Pressure / Next Visible Change に感情の圧と未完了を残す。
    `## Active Hook` と `## Scene Function` は内部補助であり、既存の Visible Problem / First Concrete Action / Handles / Relationship Stake / If Ignored / Next Visible Change を置き換えない。
    Story Function名やhook statusをPlay Mode本文のように説明せず、event_card内の診断メモとして短く置く。
-8. current/event_card.md の `## Player-Facing Entrance` と `## Knowledge Boundary / Reveal Control` は必ず埋める。
+8. current/event_card.md の `## Player-Facing Entrance`、`## Pressure / Agency`、`## Observable Pressure`、`## Knowledge Boundary / Reveal Control` は必ず埋める。
    真相は隠してよいが、プレイヤーが今判断するための材料は隠さない。
+   Pressure SourceやRelationship Stakeはヒロインの知識ではない。本文へ出す前に観測可能な状況、沈黙、所作、台詞、返せる入口へ変換する。
    allowed hidden truth / do-not-reveal-yet にはGMだけの真相を置き、judgment material には本文で見せる足場を置く。
    reveal conditions には「何が起きたら、誰が、どの knowledge_state key を更新するか」を短く書く。
 9. current/scene.md は原則2, 3, 5を意識し、感情名ではなく身体反応、環境、予想との差、未解決の要素で初回sceneを始める。

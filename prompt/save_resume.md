@@ -143,6 +143,10 @@ Candidate Hook は `story/story_deck.md` の素材棚に残すだけではactive
 - first concrete action
 - handles 2-4
 - relationship stake
+- pressure / agency
+- observable pressure
+- heroine initiative candidate
+- pressure conversion rule
 - if ignored
 - next visible change
 - LILIAに刺さる理由
@@ -154,6 +158,7 @@ Candidate Hook は `story/story_deck.md` の素材棚に残すだけではactive
 event_cardは、抽象的な違和感ではなく、今ユーザーが触れる可視イベントとして保存する。
 真相は隠してよいが、first concrete action は本文入口に出す。
 handlesは内部の行動余地として持ち、番号付き選択肢として提示しない。
+pressureはヒロインの知識として扱わず、観測可能な状況、沈黙、所作、台詞、返せる入口に変換して保存・再開する。
 event_cardが進んだ時は、継続、解決、背景化、保留のどれかを判断し、if ignored と next visible change を古いまま残さない。
 event_cardがGate未通過、または現在sceneから外れている場合は、立て直す前に `prompt/core.md` §4 の Event Creation Procedure を回す。
 この手順は内部処理であり、engine名、signal名、参考作品名を本文に出さない。
@@ -368,6 +373,18 @@ resume後の通常プレイ応答では、まずplayable scene textを返す。
 ユーザーが保存を求めていない限り、再開1ターン目の後に保存更新やgit確認を割り込ませない。
 resumeで名乗りや地の文に名前を出す場合は、`LILIA` ではなく `lilia_display_name` / `lilia_name` を使う。
 
+resume Play Modeでは、raw session filesを同列に読む前に、ReplyContextBundleを入口にする。
+
+順序:
+
+1. Heroine Reply Context
+2. Pressure Context
+3. GM Control Context
+4. raw session files reference
+
+raw filesは正本確認用であり、本文生成の主導権はHeroine Reply Contextに置く。
+GM Control Contextは、圧、間、沈黙、観測可能な物理状況、次に返せる入口を整えるためだけに使う。
+
 1. `docs/CORE_CONCEPT.md`
 2. `prompt/core.md`
 3. `prompt/save_resume.md`
@@ -494,7 +511,7 @@ new直後は、初回scene本文がまだ生成されていない場合でも、
 - `session.json` にphase、first scene status、resume smoke statusがある。
 - `current/hotset.md` に再開用の短い温度がある。
 - `current/scene.md` に場所、距離、見えているもの、行動余地がある。
-- `current/event_card.md` に visible problem、first concrete action、handles 2-4、relationship stake、if ignored、next visible change がある。
+- `current/event_card.md` に visible problem、first concrete action、handles 2-4、relationship stake、pressure / agency、observable pressure、if ignored、next visible change がある。
 - `current/relationship_overview.md` に距離感、信頼、警戒、興味、誤解や保留がある。
 - `current/decision_index.md` に約束、拒否、保留、解決済みの索引がある。
 - `current/story_spine.md` がある場合は、Main Question、Reveal Ladder、Background Truth、Pressure Direction、Drift Guard がある。

@@ -136,7 +136,7 @@ def test_command_prints_relative_path(
     lilia.command_archive_codex_logs([])
 
     captured = capsys.readouterr()
-    assert "2026/05/06/rollout-relative.jsonl" in captured.out
+    assert str(Path("2026/05/06/rollout-relative.jsonl")) in captured.out
     assert str(source) not in captured.out
 
 

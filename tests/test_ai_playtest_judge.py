@@ -25,6 +25,10 @@ VALID_PAYLOAD: dict = {
     "summary": "Voiceは終始安定。10ターンを通じて関係変化に根拠あり。",
     "scores": {
         "voice_continuity": {"score": 5, "notes": "呼び方も口調も維持"},
+        "character_subjectivity_first_reaction": {
+            "score": 4,
+            "notes": "第一反応がユーザー入力に向いている",
+        },
         "tempo_guard": {"score": 4, "notes": "1ターン1hookに近い"},
         "reply_affordance": {"score": 5, "notes": "毎ターン明確な入口"},
         "relationship_change_grounding": {"score": 4, "notes": "出来事の根拠あり"},
@@ -100,6 +104,11 @@ def test_build_judge_prompt_includes_rubric_and_transcript() -> None:
     # Rubric and section markers
     assert "AI Playtest Judge" in prompt
     assert "voice_continuity" in prompt
+    assert "character_subjectivity_first_reaction" in prompt
+    assert "Character Subjectivity / First Reaction 観点" in prompt
+    assert "最初の一拍がユーザーの直近入力へのヒロイン反応" in prompt
+    assert "event_cardやscene functionの進行役" in prompt
+    assert "圧が観測可能な状況・所作・沈黙・台詞へ変換" in prompt
     assert "tempo_guard" in prompt
     assert "reply_affordance" in prompt
     assert "relationship_change_grounding" in prompt
@@ -250,6 +259,18 @@ def test_parse_judge_response_accepts_legacy_missing_new_score_key() -> None:
     assert parsed["result"] == "WARN"
     assert parsed["scores"]["arc_closure_scene_progression"]["score"] == 3
     assert "旧schema応答" in parsed["scores"]["arc_closure_scene_progression"]["notes"]
+    assert any("legacy schema" in item for item in parsed["warnings"])
+
+
+def test_parse_judge_response_accepts_legacy_missing_character_subjectivity_first_reaction() -> None:
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    del payload["scores"]["character_subjectivity_first_reaction"]
+
+    parsed = judge.parse_judge_response(json.dumps(payload))
+
+    assert parsed["result"] == "WARN"
+    assert parsed["scores"]["character_subjectivity_first_reaction"]["score"] == 3
+    assert "旧schema応答" in parsed["scores"]["character_subjectivity_first_reaction"]["notes"]
     assert any("legacy schema" in item for item in parsed["warnings"])
 
 
@@ -430,6 +451,7 @@ def test_render_judge_report_md_contains_required_sections() -> None:
     assert "- Judged at: 2026-05-08T06:30:00+09:00" in report
     assert "## Scores" in report
     assert "| Voice continuity | 5/5 |" in report
+    assert "| Character subjectivity / First reaction | 4/5 | 第一反応がユーザー入力に向いている |" in report
     assert "| Tempo guard | 4/5 |" in report
     assert "| Reply affordance | 5/5 |" in report
     assert "| Relationship change grounding | 4/5 |" in report

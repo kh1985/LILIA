@@ -81,7 +81,7 @@ def test_run_engine_reads_stdout_from_dummy_command(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(
         engine_runner,
         "_build_engine_command",
-        lambda engine, root: ["/bin/echo", "hello"],
+        lambda engine, root: [sys.executable, "-c", "print('hello')"],
     )
 
     assert engine_runner.run_engine("dummy", "ignored", timeout=5, root=tmp_path) == "hello"
@@ -91,7 +91,7 @@ def test_run_engine_timeout_raises(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     monkeypatch.setattr(
         engine_runner,
         "_build_engine_command",
-        lambda engine, root: ["/bin/sleep", "30"],
+        lambda engine, root: [sys.executable, "-c", "import time; time.sleep(30)"],
     )
 
     with pytest.raises(engine_runner.EngineTimeoutError):

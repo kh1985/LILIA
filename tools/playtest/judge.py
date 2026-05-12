@@ -35,6 +35,7 @@ _CLOSURE_HOOK_TYPE_ALIASES: dict[str, str] = {
 
 JUDGE_SCORE_ITEMS: tuple[tuple[str, str], ...] = (
     ("voice_continuity", "Voice continuity"),
+    ("character_subjectivity_first_reaction", "Character subjectivity / First reaction"),
     ("tempo_guard", "Tempo guard"),
     ("reply_affordance", "Reply affordance"),
     ("relationship_change_grounding", "Relationship change grounding"),
@@ -52,6 +53,10 @@ JUDGE_SCORE_KEYS: tuple[str, ...] = tuple(key for key, _ in JUDGE_SCORE_ITEMS)
 _JUDGE_SCORE_LABELS: dict[str, str] = {key: label for key, label in JUDGE_SCORE_ITEMS}
 
 LEGACY_OPTIONAL_SCORE_DEFAULTS: dict[str, dict[str, Any]] = {
+    "character_subjectivity_first_reaction": {
+        "score": 3,
+        "notes": "旧schema応答のため未評価。再judge推奨",
+    },
     "relationship_change_audit": {
         "score": 3,
         "notes": "旧schema応答のため未評価。再judge推奨",
@@ -81,22 +86,32 @@ JUDGE_INSTRUCTION = (
     "\n"
     "## 評価項目 (順序を保つこと、それぞれ1〜5)\n"
     "1. voice_continuity — ヒロインの呼び方・口調・距離感が崩れていないか。\n"
-    "2. tempo_guard — 1ターンに前景化するhookが1本に絞られ、設定説明・問い・場面転換が詰め込まれていないか。\n"
-    "3. reply_affordance — プレイヤーが次に何へ返せばよいか分かる入口がGMの応答にあるか。\n"
-    "4. relationship_change_grounding — 関係や心境の変化に出来事の根拠があり、急進や停滞がないか。\n"
-    "5. relationship_change_audit — 関係変化が実際の行動・会話・待機・境界線・約束・拒否・保留に基づき、"
+    "2. character_subjectivity_first_reaction — 最初の一拍がユーザーの直近入力へのヒロイン反応になっているか。"
+    "ヒロインがevent_cardやscene functionの進行役になっていないか。"
+    "圧が観測可能な状況・所作・沈黙・台詞へ変換されているか。\n"
+    "3. tempo_guard — 1ターンに前景化するhookが1本に絞られ、設定説明・問い・場面転換が詰め込まれていないか。\n"
+    "4. reply_affordance — プレイヤーが次に何へ返せばよいか分かる入口がGMの応答にあるか。\n"
+    "5. relationship_change_grounding — 関係や心境の変化に出来事の根拠があり、急進や停滞がないか。\n"
+    "6. relationship_change_audit — 関係変化が実際の行動・会話・待機・境界線・約束・拒否・保留に基づき、"
     "信頼/安心感/親密さが早すぎず、拒否・保留・境界線・同行可否を尊重し、Relationship Hookが好感度化していないか。\n"
-    "6. story_causality_scene_drive — sceneが確認手順や作業ログだけで止まらず、"
+    "7. story_causality_scene_drive — sceneが確認手順や作業ログだけで止まらず、"
     "欲求/恐れ/誤解、選択の緊張、代償、不可逆変化、次の好奇心のどれかを生んでいるか。\n"
-    "7. knowledge_boundary_player_orientation — プレイヤーが判断材料なしに選択や判断を迫られていないか。"
+    "8. knowledge_boundary_player_orientation — プレイヤーが判断材料なしに選択や判断を迫られていないか。"
     "GM-only/meta情報が本文やヒロイン台詞に漏れていないか。"
     "ヒロインが知り得ない情報を断定していないか。"
     "不足しているのがプレイヤーへの可視手がかりなのか、出来事の因果不足なのかを混同していないか。\n"
-    "8. inner_hidden_leakage — プレイヤー内心(括弧書き)、hidden vector、AFFINITY/bond、profile.md全文、internal prompt"
+    "9. inner_hidden_leakage — プレイヤー内心(括弧書き)、hidden vector、AFFINITY/bond、profile.md全文、internal prompt"
     "が漏れていないか。漏れがないほど高得点。\n"
-    "9. over_leading — GMがプレイヤーの選択を奪うほど誘導していないか。誘導が弱いほど高得点。\n"
-    "10. arc_closure_scene_progression — sceneの核成立後に余韻を引っ張りすぎず、"
+    "10. over_leading — GMがプレイヤーの選択を奪うほど誘導していないか。誘導が弱いほど高得点。\n"
+    "11. arc_closure_scene_progression — sceneの核成立後に余韻を引っ張りすぎず、"
     "入口と出口で状況・関係・問いのどれかが変わり、memory候補 / next hook / 次arc候補へ接続できているか。\n"
+    "\n"
+    "## Character Subjectivity / First Reaction 観点\n"
+    "- 最初の一拍がユーザーの直近入力へのヒロイン反応になっているか。\n"
+    "- ヒロインがevent_cardやscene functionの進行役になっていないか。\n"
+    "- 圧が観測可能な状況・所作・沈黙・台詞へ変換されているか。\n"
+    "- GM-only情報、hidden truth、relationship stake、next hookが本文やヒロイン台詞に漏れていないか。\n"
+    "- ヒロイン自律行動が state / relationship / memory / beliefs に根拠を持つか。\n"
     "\n"
     "## Relationship Change Audit 観点\n"
     "- transcript内の行動、会話、待った時間、境界線、約束、拒否、保留だけを根拠にする。ユーザーの内心や未保存の推測でLILIAの認識を進めない。\n"
@@ -177,6 +192,7 @@ JUDGE_INSTRUCTION = (
     '  "summary": "1〜2文でtranscript全体の所感",\n'
     '  "scores": {\n'
     '    "voice_continuity":              {"score": 1-5, "notes": "短く根拠"},\n'
+    '    "character_subjectivity_first_reaction": {"score": 1-5, "notes": "短く根拠"},\n'
     '    "tempo_guard":                   {"score": 1-5, "notes": "短く根拠"},\n'
     '    "reply_affordance":              {"score": 1-5, "notes": "短く根拠"},\n'
     '    "relationship_change_grounding": {"score": 1-5, "notes": "短く根拠"},\n'

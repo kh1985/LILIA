@@ -50,14 +50,49 @@ event_cardでLILIAが自然に反応し、その結果が `memory`、`relationsh
 - `First Concrete Action`
 - `Handles 2-4`
 - `Relationship Stake`
+- `Pressure / Agency`
+- `Observable Pressure`
+- `Heroine Initiative Candidate`
+- `Pressure Conversion Rule`
 - `If Ignored`
 - `Next Visible Change`
 
 これらが空なら、初回sceneやresume 1ターン目を始める前に補う。
 Active Hook / Scene Function は既存6項目を置き換えない。
 Story Function名やhook statusは内部タグであり、Play Mode本文へそのまま出さない。
+Relationship Stake / Scene Function / Pressure Source はヒロインの知識ではない。本文では観測可能な状況、沈黙、視線、ためらい、通知、時間のずれ、返せる入口へ変換する。
 event_cardは `docs/specs/STORY_FUNCTION_FRAMEWORK.md` の Scene Function Check に照らして、`scene_start_state`、`scene_goal`、`obstacle`、`emotional_change`、`scene_end_state`、`next_hook` のいずれかに接続できること。
 event_cardは、設定説明ではなく問いと行動入口を作ること。
+
+## Pressure / Agency
+
+event_cardは圧を持ってよい。
+ただし圧はヒロインへの命令ではない。
+
+圧は、ユーザーとヒロインがその場で触れる状況として扱う。
+ヒロインはevent_cardを読んで動くのではなく、fiction内で見えるもの、覚えていること、感じていること、推測・誤解していることから反応する。
+
+pressure_source:
+
+- protagonist_initiated
+- heroine_initiated
+- gm_world_pressure
+- npc_pressure
+- environment_pressure
+- ambient_drift
+- ignored_event_return
+- none
+
+GM内部圧は、本文に出す前に以下へ変換する:
+
+- 観測可能な物理状況
+- 沈黙
+- 視線
+- ためらい
+- 通知
+- 時間のずれ
+- 返せる入口
+- ヒロインらしい台詞や所作
 
 ## 5. Gate Conditions
 

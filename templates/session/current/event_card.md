@@ -22,6 +22,7 @@
 - change_delta:
 - next_hook_candidate:
 - 注: Story Function名は内部タグ。Play Mode本文へそのまま出さない。
+- 注: ヒロインがScene Functionを知っている前提で台詞や所作を作らない。
 
 ## 表の出来事
 
@@ -76,6 +77,45 @@
 ## Relationship Stake
 
 - 未設定
+- 注: Relationship StakeはGM用。ヒロイン主観の理由として直接使わない。
+
+## Pressure / Agency
+
+- pressure_source: protagonist_initiated / heroine_initiated / gm_world_pressure / npc_pressure / environment_pressure / ambient_drift / ignored_event_return / none
+- initiator:
+- passive_or_active: passive / active / mixed
+- pressure_summary:
+- 注: これはGM用。本文に pressure_source などの管理語を出さない。
+
+## Observable Pressure
+
+- 本文に出してよい観測可能な圧:
+  -
+- ヒロインがその場で見えるもの:
+  -
+- 主人公がその場で見えるもの:
+  -
+- まだ観測できないもの:
+  -
+
+## Heroine Initiative Candidate
+
+- ヒロインが自分から動くなら:
+  -
+- 発火条件:
+  -
+- その動きの根拠になる state / relationship / memory / beliefs:
+  -
+- 禁止: scene function や relationship stake を直接理由にしない。
+
+## Pressure Conversion Rule
+
+- GM内部圧:
+  -
+- 観測可能な形へ変換:
+  -
+- 台詞・所作への変換:
+  -
 
 ## Crisis / Ability Check
 

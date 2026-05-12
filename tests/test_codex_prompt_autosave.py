@@ -82,7 +82,13 @@ def test_resume_prompt_bundles_include_first_turn_grounding(
     session = write_session(tmp_path, "grounding_case")
     prompt_path = tmp_path / "prompt.md"
 
-    assert_resume_grounding_prompt(lilia.build_resume_prompt_bundle(session))
+    resume_bundle = lilia.build_resume_prompt_bundle(session, latest_user_input="少し近づく。")
+    assert_resume_grounding_prompt(resume_bundle)
+    assert "Reply Context Bundle" in resume_bundle
+    assert resume_bundle.index("Heroine Reply Context") < resume_bundle.index("GM Control Context")
+    assert "GM-only" in resume_bundle
+    assert "first beat" in resume_bundle.lower() or "最初の一拍" in resume_bundle
+    assert "current/hotset.md" in resume_bundle or "current\\hotset.md" in resume_bundle
     assert_resume_grounding_prompt(lilia.build_codex_resume_prompt_bundle(session))
     assert_resume_grounding_prompt(lilia.codex_interactive_instruction(prompt_path, "resume", session))
 

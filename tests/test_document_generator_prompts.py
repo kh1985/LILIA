@@ -67,6 +67,9 @@ def test_group_a_prompt_has_player_orientation_and_reveal_control_rules() -> Non
     assert "主人公がここにいる理由" in prompt
     assert "開始時点で知っていること" in prompt
     assert "Knowledge Boundary / Reveal Control" in prompt
+    assert "Pressure / Agency" in prompt
+    assert "Observable Pressure" in prompt
+    assert "Pressure SourceやRelationship Stakeはヒロインの知識ではない" in prompt
     assert "judgment material" in prompt
     assert "do-not-reveal-yet" in prompt
     assert "真相は隠してよいが、プレイヤーが今判断するための材料は隠さない" in prompt

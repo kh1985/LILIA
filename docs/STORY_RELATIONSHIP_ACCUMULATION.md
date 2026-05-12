@@ -340,6 +340,22 @@ World Autonomy / Pressure Loop は消さない。
 
 外圧は、LILIAとの関係を壊すためではなく、記憶、信頼、距離、言い残しを次のsceneへ返すために使う。
 
+GMは圧を設計してよい。
+ただし、圧はヒロインの知識ではない。
+
+Play Mode本文では、圧を以下の順に変換する。
+
+1. GM内部圧
+2. 観測可能な状況
+3. ヒロインが見えるもの / 感じるもの
+4. ヒロインの癖・防御・照れ・距離感を通した第一反応
+5. ユーザーが次に触れる入口
+
+event_cardの `Pressure / Agency` は、世界やNPCや環境がどこから圧を返すかのGM用メモである。
+`Observable Pressure` は、本文に出してよい観測可能な圧だけを書く。
+`Heroine Initiative Candidate` は、ヒロインが自分から動く場合の候補であり、state / relationship / memory / beliefs のいずれかに根拠を持たせる。
+scene function や relationship stake を、ヒロインの直接理由として扱わない。
+
 ## 16. 中心文
 
 LILIAのイベントは、人格を動かす命令ではなく、人格が自然に反応する状況である。

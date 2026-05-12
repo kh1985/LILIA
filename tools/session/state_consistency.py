@@ -7,6 +7,8 @@ from pathlib import Path
 import re
 from typing import Mapping
 
+from tools.session.reply_context import VALID_PRESSURE_SOURCES
+
 
 REQUIRED_EVENT_CARD_FIELDS = [
     "Visible Problem",
@@ -218,6 +220,7 @@ def validate_state_consistency(session_root: Path) -> StateConsistencyResult:
                 ("current/event_card.md",),
             )
         )
+    issues.extend(event_card_pressure_issues(event_card))
 
     hook, hook_source = latest_next_hook(root)
     if hook:
@@ -270,6 +273,109 @@ def format_state_consistency_report(result: StateConsistencyResult) -> str:
         files = f" [{', '.join(issue.files)}]" if issue.files else ""
         lines.append(f"{issue.severity}: {issue.code}: {issue.message}{files}")
     return "\n".join(lines)
+
+
+def event_card_pressure_issues(event_card: str) -> list[StateConsistencyIssue]:
+    if not meaningful_text(event_card):
+        return []
+    sections = markdown_sections(event_card)
+    issues: list[StateConsistencyIssue] = []
+
+    pressure_agency = sections.get("pressure / agency", "")
+    if not meaningful_text(pressure_agency):
+        issues.append(
+            StateConsistencyIssue(
+                "WARN",
+                "missing_pressure_agency",
+                "current/event_card.md is missing Pressure / Agency",
+                ("current/event_card.md",),
+            )
+        )
+        return issues
+
+    pressure_source = extract_pressure_source_value(pressure_agency)
+    if not pressure_source:
+        issues.append(
+            StateConsistencyIssue(
+                "WARN",
+                "missing_pressure_source",
+                "Pressure / Agency has no pressure_source",
+                ("current/event_card.md",),
+            )
+        )
+    elif pressure_source not in VALID_PRESSURE_SOURCES:
+        issues.append(
+            StateConsistencyIssue(
+                "FAIL",
+                "invalid_pressure_source",
+                f"pressure_source must be one of {', '.join(sorted(VALID_PRESSURE_SOURCES))}: {pressure_source}",
+                ("current/event_card.md",),
+            )
+        )
+
+    observable_pressure = sections.get("observable pressure", "")
+    heroine_initiative = sections.get("heroine initiative candidate", "")
+    if pressure_source == "heroine_initiated" and not meaningful_text(heroine_initiative):
+        issues.append(
+            StateConsistencyIssue(
+                "WARN",
+                "heroine_initiative_candidate_empty",
+                "pressure_source is heroine_initiated, but Heroine Initiative Candidate is empty",
+                ("current/event_card.md",),
+            )
+        )
+    if pressure_source == "gm_world_pressure" and not meaningful_text(observable_pressure):
+        issues.append(
+            StateConsistencyIssue(
+                "WARN",
+                "gm_world_pressure_missing_observable_pressure",
+                "pressure_source is gm_world_pressure, but Observable Pressure is empty",
+                ("current/event_card.md",),
+            )
+        )
+
+    relationship_stake = sections.get("relationship stake", "")
+    scene_function = sections.get("scene function", "")
+    if section_copied_into(relationship_stake, observable_pressure):
+        issues.append(
+            StateConsistencyIssue(
+                "WARN",
+                "relationship_stake_in_observable_pressure",
+                "Observable Pressure appears to copy Relationship Stake directly",
+                ("current/event_card.md",),
+            )
+        )
+    if section_copied_into(scene_function, observable_pressure):
+        issues.append(
+            StateConsistencyIssue(
+                "WARN",
+                "scene_function_in_observable_pressure",
+                "Observable Pressure appears to copy Scene Function directly",
+                ("current/event_card.md",),
+            )
+        )
+    return issues
+
+
+def extract_pressure_source_value(pressure_agency: str) -> str:
+    match = re.search(r"pressure_source\s*[:：]\s*([A-Za-z0-9_-]+)", pressure_agency)
+    return match.group(1).strip() if match else ""
+
+
+def section_copied_into(source: str, target: str) -> bool:
+    target_text = normalize_overlap_text(target)
+    if not target_text:
+        return False
+    for line in meaningful_text(source).splitlines():
+        value = re.sub(r"^\s*(?:[-*]\s*)?[^:：]{1,80}[:：]\s*", "", line).strip()
+        normalized = normalize_overlap_text(value)
+        if len(normalized) >= 12 and normalized in target_text:
+            return True
+    return False
+
+
+def normalize_overlap_text(text: str) -> str:
+    return re.sub(r"\s+", "", meaningful_text(text))
 
 
 def summarize_next_hook(next_hook: str) -> str:
@@ -441,6 +547,34 @@ def render_promoted_event_card(
             "## Relationship Stake",
             "",
             "保存済みの約束、信頼、警戒、距離、境界線、記憶が次sceneの第一声で巻き戻らないかが賭けになる。",
+            "",
+            "## Pressure / Agency",
+            "",
+            "- pressure_source: none",
+            "- initiator: none",
+            "- passive_or_active: passive",
+            "- pressure_summary: promoted next hookでは新しい圧を前景化しない。",
+            "- 注: これはGM用。本文に pressure_source などの管理語を出さない。",
+            "",
+            "## Observable Pressure",
+            "",
+            "- 本文に出してよい観測可能な圧:",
+            "- ヒロインがその場で見えるもの:",
+            "- 主人公がその場で見えるもの:",
+            "- まだ観測できないもの:",
+            "",
+            "## Heroine Initiative Candidate",
+            "",
+            "- ヒロインが自分から動くなら:",
+            "- 発火条件:",
+            "- その動きの根拠になる state / relationship / memory / beliefs:",
+            "- 禁止: scene function や relationship stake を直接理由にしない。",
+            "",
+            "## Pressure Conversion Rule",
+            "",
+            "- GM内部圧:",
+            "- 観測可能な形へ変換:",
+            "- 台詞・所作への変換:",
             "",
             "## If Ignored",
             "",

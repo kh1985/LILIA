@@ -161,8 +161,8 @@ def test_first_scene_bundle_does_not_rerun_newgame(
     assert "Do not ask Newgame Q&A again" in bundle
     assert "Do not rerun apply-newgame" in bundle
     assert "Output the playable first scene text now" in bundle
-    assert "--- saves/first_scene_bundle/current/event_card.md ---" in bundle
-    assert "--- prompt/opening_scene.md ---" in bundle
+    assert f"--- {Path('saves/first_scene_bundle/current/event_card.md')} ---" in bundle
+    assert f"--- {Path('prompt/opening_scene.md')} ---" in bundle
     assert "next: answer prompt/newgame.md Q&A" not in bundle
 
 

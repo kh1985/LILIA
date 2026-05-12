@@ -44,6 +44,10 @@ from tools.session.state_consistency import (
     validate_state_consistency,
 )
 from tools.session.knowledge_boundary import assess_knowledge_boundary
+from tools.session.reply_context import (
+    build_reply_context_bundle,
+    render_reply_context_bundle,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -3315,7 +3319,7 @@ def build_new_prompt_bundle(session_path: Path) -> str:
     return "\n".join(parts).rstrip() + "\n"
 
 
-def build_resume_prompt_bundle(session_path: Path) -> str:
+def build_resume_prompt_bundle(session_path: Path, latest_user_input: str = "") -> str:
     include_profile = resume_requires_profile(session_path)
     parts = [
         "# LILIA Resume Prompt Bundle",
@@ -3331,6 +3335,11 @@ def build_resume_prompt_bundle(session_path: Path) -> str:
         "note: --prompt-only only prints this bundle; if you are reading it inside an AI CLI, follow the mode instructions.",
     ]
     parts.extend(render_file(ROOT / rel) for rel in RESUME_PROMPT_FILES)
+    parts.append(
+        render_reply_context_bundle(
+            build_reply_context_bundle(session_path, latest_user_input)
+        )
+    )
     for rel in RESUME_SESSION_FILES:
         parts.append(render_file(session_path / rel))
         if rel == "lilia/main/core.md" and include_profile:
@@ -5020,7 +5029,7 @@ def build_ai_playtest_gm_prompt(
     history: list[dict[str, str]],
     player_boundary: Optional[str],
 ) -> str:
-    base = build_resume_prompt_bundle(session_path)
+    base = build_resume_prompt_bundle(session_path, player_boundary or "")
     parts = [
         AI_PLAYTEST_GM_INSTRUCTION,
         "## 直前までの会話",
