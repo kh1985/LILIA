@@ -151,6 +151,7 @@ def _player_facing_problem(
     candidates = [
         _paraphrase_problem(reveal_entry),
         _paraphrase_problem(opening_entry),
+        _paraphrase_problem(visible_props),
     ]
     if not _looks_like_prop_inventory(visible_props):
         candidates.append(_compact(visible_props, limit=42))
@@ -181,6 +182,8 @@ def _protagonist_role(
         return "濡れた伝票と控えを持ち込み、受付で確認を求める来店者"
     if "USB" in text or "ＵＳＢ" in text:
         return "黒いUSBを返しに来た便利屋"
+    if "財布" in text and re.search(r"拾|落と", text):
+        return "落とした財布を拾い、本人へ返そうとしている人物"
     if "棚" in text or "書店" in text or "本" in text:
         return "棚づくりの相談内容を本人に確認しに来た人物"
     if "忘れ物" in text or "落とし物" in text:
@@ -204,6 +207,8 @@ def _first_concrete_action(problem: str) -> str:
         return "濡れた伝票と控えを見える場所に出し、読める範囲を一つ確認する。"
     if "USB" in problem or "ＵＳＢ" in problem:
         return "黒いUSBを見える場所に置き、受け渡しの経緯を短く伝える。"
+    if "財布" in problem:
+        return "財布を相手が受け取れる距離に出し、本人のものか確認する。"
     if "棚" in problem or "書店" in problem or "本" in problem:
         return "相談メモを見える場所に置き、棚づくりで今決めたい点を一つ確認する。"
     if "忘れ物" in problem or "落とし物" in problem:
@@ -216,6 +221,8 @@ def _next_curiosity(problem: str) -> str:
         return "読めない部分が、記録や相手の記憶とどこまで一致するか。"
     if "USB" in problem or "ＵＳＢ" in problem:
         return "誰がなぜ主人公を挟んで受け渡しさせたのか。"
+    if "財布" in problem:
+        return "財布を返した後、短く終わるはずの礼がどこまで会話になるか。"
     if "棚" in problem or "書店" in problem or "本" in problem:
         return "どの本を置けば、相手が守りたい棚の静けさと人の足が両立するか。"
     return "次に何を確かめれば、相手との距離が少し動くか。"
@@ -231,6 +238,8 @@ def _paraphrase_problem(text: str) -> str:
         return "濡れた伝票と控えの照合"
     if "伝票" in value and "番号" in value:
         return "読めない伝票番号の照合"
+    if "財布" in value and re.search(r"拾|落と|返す|返し|受け取", value):
+        return "落とした財布の受け渡しと本人確認"
     if "棚" in value and "置く本" in value:
         return "棚に置く本の選び方の相談"
     if "棚" in value and ("本" in value or "書店" in value):
@@ -243,7 +252,7 @@ def _paraphrase_problem(text: str) -> str:
         subject = re.sub(r"[がはをにでと、。\s]+$", "", subject).strip()
         if subject:
             return f"{subject}の食い違いの確認"
-    if re.search(r"確認|照合|返|渡|相談|決め", value):
+    if re.search(r"確認|照合|返す|返却|受け渡し|渡す|手渡|相談|決め", value):
         return value
     return ""
 

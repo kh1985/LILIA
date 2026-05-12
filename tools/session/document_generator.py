@@ -642,8 +642,41 @@ def _opening_seed_repair_values(seed: dict[str, Any], fallback: dict[str, str]) 
         ),
         "still_hidden": (
             _seed_lookup(seed, "player_orientation.still_hidden", "still_hidden")
-            or f"用件の本当の出所、背後の意図、{fallback['name']}がまだ言語化しない警戒。"
+            or f"まだ共有されていない背景、関係に残る意味、{fallback['name']}がまだ言語化しない警戒。"
         ),
+        "player_facing_entrance": (
+            _seed_lookup(seed, "player_facing_problem", "player_orientation.player_facing_entrance")
+            or fallback["visible_handle"]
+        ),
+        "player_facing_reason": (
+            _seed_lookup(seed, "protagonist_reason", "player_orientation.protagonist_reason")
+            or f"主人公は{fallback['protagonist_role']}として、この用件に関わっている。"
+        ),
+        "first_touch_target": (
+            _seed_lookup(seed, "first_concrete_action")
+            or f"{fallback['visible_handle']}を見える場所に出す。"
+        ),
+        "visible_discomfort": (
+            _seed_lookup(seed, "next_curiosity")
+            or "普通の用件だけでは終わらなさそうだが、真相はまだ見えない。"
+        ),
+        "hidden_truth": f"まだ共有されていない背景、関係に残る意味、{fallback['name']}の深い背景。",
+        "heroine_unspoken": f"{fallback['name']}がなぜ強く警戒しているかの深い理由。",
+        "judgment_material": (
+            _seed_lookup(seed, "player_orientation.opening_must_show", "opening_must_show")
+            or f"主人公がここにいる理由、{fallback['visible_handle']}、相手の警戒。"
+        ),
+        "observable_attitude": "軽い言葉の奥に、相手の扱い方を見ている気配がある。",
+        "physical_clue": (
+            _seed_lookup(seed, "visible_props")
+            or f"{fallback['visible_handle']}と、{fallback['name']}の手元や視線。"
+        ),
+        "reveal_condition": "主人公が経緯を話す、用件を見せる、本人確認や次の確認を求める。",
+        "reveal_subject": f"地の文、{fallback['name']}の短い確認、または共有された物証。",
+        "reveal_key": "shared_scene_entry、protagonist_current_purpose、heroine_suspicion",
+        "do_not_reveal_text": "背景や意図の断定。",
+        "do_not_reveal_voice": "GMだけが知る真相や、本人がまだ言語化していない理由。",
+        "do_not_mark_known": "まだ観察されていない背景と関係上の意味。",
     }
 
 
@@ -689,6 +722,66 @@ def _repair_event_card_with_opening_seed(content: str, values: dict[str, str]) -
     content = _set_section_field(content, "Scene Function", "function", values["function"], force=True)
     for field in ["current_question", "entry_state", "exit_condition", "change_delta", "next_hook_candidate"]:
         content = _set_section_field(content, "Scene Function", field, values[field])
+    content = _set_section_field(
+        content,
+        "Player-Facing Entrance",
+        "プレイヤーが最初に見える入口",
+        values["player_facing_entrance"],
+    )
+    content = _set_section_field(
+        content,
+        "Player-Facing Entrance",
+        "主人公が関われる理由",
+        values["player_facing_reason"],
+    )
+    content = _set_section_field(
+        content,
+        "Player-Facing Entrance",
+        "最初の一手で触れる対象",
+        values["first_touch_target"],
+    )
+    content = _set_section_field(
+        content,
+        "Player-Facing Entrance",
+        "入口として見せる違和感 / 困りごと",
+        values["visible_discomfort"],
+    )
+    content = _set_section_field(content, "Knowledge Boundary / Reveal Control", "まだGMだけが保持してよい真相", values["hidden_truth"])
+    content = _set_section_field(
+        content,
+        "Knowledge Boundary / Reveal Control",
+        "ヒロイン本人も知らない / 言語化できないこと",
+        values["heroine_unspoken"],
+    )
+    content = _set_section_field(
+        content,
+        "Knowledge Boundary / Reveal Control",
+        "主人公が今判断するために本文で見せること",
+        values["judgment_material"],
+    )
+    content = _set_section_field(
+        content,
+        "Knowledge Boundary / Reveal Control",
+        "ヒロインの台詞や態度から観察できること",
+        values["observable_attitude"],
+    )
+    content = _set_section_field(content, "Knowledge Boundary / Reveal Control", "物理的に見える手がかり", values["physical_clue"])
+    content = _set_section_field(content, "Knowledge Boundary / Reveal Control", "開示してよい条件", values["reveal_condition"])
+    content = _set_section_field(content, "Knowledge Boundary / Reveal Control", "開示してよい主体", values["reveal_subject"])
+    content = _set_section_field(
+        content,
+        "Knowledge Boundary / Reveal Control",
+        "開示されたら更新する knowledge_state key",
+        values["reveal_key"],
+    )
+    content = _set_section_field(content, "Knowledge Boundary / Reveal Control", "まだ本文に書かないこと", values["do_not_reveal_text"])
+    content = _set_section_field(content, "Knowledge Boundary / Reveal Control", "まだヒロインに言わせないこと", values["do_not_reveal_voice"])
+    content = _set_section_field(
+        content,
+        "Knowledge Boundary / Reveal Control",
+        "まだ主人公が知った扱いにしないこと",
+        values["do_not_mark_known"],
+    )
     return content
 
 

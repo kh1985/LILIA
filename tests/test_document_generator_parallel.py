@@ -180,6 +180,66 @@ def test_group_a_fallback_turns_prop_inventory_into_playable_problem(
     assert f"foreground_reason: 初回sceneでプレイヤーが今触れられる入口を、{prop_inventory}" not in event_card
 
 
+def test_group_a_fallback_uses_wallet_entry_instead_of_repeated_prop_reveal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    template_root = ROOT / "templates" / "session"
+
+    def template_for(path: str) -> str:
+        template_path = template_root / path
+        return template_path.read_text(encoding="utf-8")
+
+    def invalid_group_a_output(*args: Any, **kwargs: Any) -> str:
+        return "\n".join(
+            f"===FILE: {path}===\n{template_for(path)}"
+            for path in document_generator.GROUP_A_PATHS
+        )
+
+    story_spine = (
+        "## Main Question\n"
+        "千佳は、私物を拾った相手を急に近づけすぎず、短い礼を言えるか。\n\n"
+        "## Reveal Ladder\n"
+        "1. [pending] 鞄の文庫本と未開封ののど飴、左手首の時計を直す癖が、特定の場面で繰り返し現れる。\n"
+    )
+    monkeypatch.setattr(document_generator, "engine_candidates", lambda engine: ["stub"])
+    monkeypatch.setattr(document_generator, "run_engine", invalid_group_a_output)
+
+    result = document_generator._generate_group(
+        group_name="group_a",
+        rel_paths=document_generator.GROUP_A_PATHS,
+        prompt="group a prompt",
+        answers={"1": "おまかせ", "8": "おまかせ"},
+        story_spine_md=story_spine,
+        engine="claude",
+        context={
+            "answers": {"1": "おまかせ", "8": "おまかせ"},
+            "character_yaml": {"name": "水瀬 千佳", "occupation": "書店員"},
+            "profile_md": (
+                "# Profile\n"
+                "name: 水瀬 千佳\n"
+                "occupation: 書店員\n\n"
+                "## Initial Scene Anchors\n"
+                "- 場所と状況: 閉店前の小さな書店\n"
+                "- 手元の具体物: 落とした財布、鞄の文庫本、未開封ののど飴、左手首の時計\n"
+                "- 最初の距離: 初対面で、レジ横の短い距離にいる\n"
+                "- 会話の入口: 主人公が拾った財布を本人へ返そうとしている\n"
+            ),
+            "story_spine_md": story_spine,
+            "relationship_spine_md": "## 育てたいテーマ\n礼を言うことと距離を詰めることは同じではない。\n",
+            "session_name": "test",
+        },
+    )
+
+    docs_text = "\n".join(result["documents"].values())
+    event_card = result["documents"]["current/event_card.md"]
+    scene = result["documents"]["current/scene.md"]
+    assert result["meta"]["validation"] == "deterministic_fallback"
+    assert "落とした財布の受け渡しと本人確認" in event_card
+    assert "主人公は落とした財布を拾い、本人へ返そうとしている人物。" in scene
+    assert "pending Reveal Ladder leaked" not in str(result["meta"])
+    assert "繰り返し現れる" not in docs_text
+
+
 def test_group_a_repairs_blank_control_fields_from_opening_seed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -224,6 +284,11 @@ def test_group_a_repairs_blank_control_fields_from_opening_seed(
                     "opening_must_show": "seed由来の場所、用件、距離。",
                     "still_hidden": "seed由来の真相。",
                 },
+                "player_facing_problem": "seed由来の表入口",
+                "protagonist_reason": "主人公はseed由来の来店者。",
+                "first_concrete_action": "seed由来の一手。",
+                "next_curiosity": "seed由来の次の問い。",
+                "visible_props": "seed由来の物証。",
             }
 
     def blank_control_fields(*args: Any, **kwargs: Any) -> str:
@@ -232,13 +297,28 @@ def test_group_a_repairs_blank_control_fields_from_opening_seed(
         event_card = event_card.replace("- hook_id: main_initial_contact", "- hook_id:")
         event_card = event_card.replace("- hook_type: main", "- hook_type: relationship")
         event_card = event_card.replace("- status: active", "- status: background", 1)
-        event_card = event_card.replace(
-            "- foreground_reason: 初回sceneでプレイヤーが今触れられる入口を、伝票と銀の鍵に絞るため。",
-            "- foreground_reason:",
-        )
+        event_card = re.sub(r"^- foreground_reason: .+$", "- foreground_reason:", event_card, flags=re.MULTILINE)
         event_card = event_card.replace("- function: 起点", "- function: 試練")
         for field in ["current_question", "entry_state", "exit_condition", "change_delta", "next_hook_candidate"]:
             event_card = re.sub(rf"^- {field}: .+$", f"- {field}:", event_card, flags=re.MULTILINE)
+        for label in [
+            "プレイヤーが最初に見える入口",
+            "主人公が関われる理由",
+            "最初の一手で触れる対象",
+            "入口として見せる違和感 / 困りごと",
+            "まだGMだけが保持してよい真相",
+            "ヒロイン本人も知らない / 言語化できないこと",
+            "主人公が今判断するために本文で見せること",
+            "ヒロインの台詞や態度から観察できること",
+            "物理的に見える手がかり",
+            "開示してよい条件",
+            "開示してよい主体",
+            "開示されたら更新する knowledge_state key",
+            "まだ本文に書かないこと",
+            "まだヒロインに言わせないこと",
+            "まだ主人公が知った扱いにしないこと",
+        ]:
+            event_card = re.sub(rf"^([ \t]*[-*][ \t]*{re.escape(label)}:).+$", rf"\1", event_card, flags=re.MULTILINE)
         docs["current/event_card.md"] = event_card
 
         scene = docs["current/scene.md"]
@@ -276,6 +356,10 @@ def test_group_a_repairs_blank_control_fields_from_opening_seed(
     assert "- foreground_reason: seed固定の入口に絞るため。" in event_card
     assert "- function: 起点" in event_card
     assert "- current_question: seedの問いを追う。" in event_card
+    assert "- プレイヤーが最初に見える入口: seed由来の表入口" in event_card
+    assert "- 最初の一手で触れる対象: seed由来の一手。" in event_card
+    assert "- 物理的に見える手がかり: seed由来の物証。" in event_card
+    assert "- まだ本文に書かないこと: 背景や意図の断定。" in event_card
     assert "- 主人公がここにいる理由: 主人公はseed由来の来店者。" in scene
     assert "- 主人公がscene開始時点で知っていること: seed由来の手がかりを知っている。" in scene
 

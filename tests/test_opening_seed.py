@@ -108,3 +108,32 @@ def test_bookstore_shelf_consultation_uses_story_and_relationship_spines() -> No
     assert seed.dramatic_question == "栞は、自分の棚を誰かと一緒に変えることを選べるか。"
     assert seed.relationship_stake == "踏み込みすぎずに、相手の大事な場所へ手を添える。"
     assert "棚" in seed.next_curiosity
+
+
+def test_wallet_bookstore_scene_does_not_promote_repeated_prop_reveal() -> None:
+    seed = build_opening_seed(
+        answers={"6": "おまかせ", "8": "おまかせ"},
+        character_yaml={"name": "水瀬 千佳", "occupation": "書店員"},
+        profile_md=(
+            "# Profile\n"
+            "name: 水瀬 千佳\n\n"
+            "## Initial Scene Anchors\n"
+            "- 場所と状況: 閉店前の小さな書店\n"
+            "- 手元の具体物: 落とした財布、鞄の文庫本、未開封ののど飴、左手首の時計\n"
+            "- 最初の距離: 初対面で、レジ横の短い距離にいる\n"
+            "- 会話の入口: 主人公が拾った財布を本人へ返そうとしている\n"
+        ),
+        story_spine_md=(
+            "## Main Question\n"
+            "千佳は、私物を拾った相手を急に近づけすぎず、短い礼を言えるか。\n\n"
+            "## Reveal Ladder\n"
+            "1. [pending] 鞄の文庫本と未開封ののど飴、左手首の時計を直す癖が、特定の場面で繰り返し現れる。\n"
+        ),
+        relationship_spine_md="## 育てたいテーマ\n礼を言うことと距離を詰めることは同じではない。\n",
+    )
+
+    assert seed.player_facing_problem == "落とした財布の受け渡しと本人確認"
+    assert seed.protagonist_role == "落とした財布を拾い、本人へ返そうとしている人物"
+    assert "財布" in seed.first_concrete_action
+    assert "繰り返し現れる" not in seed.player_facing_problem
+    assert "文庫本と未開封ののど飴" not in seed.player_facing_problem
